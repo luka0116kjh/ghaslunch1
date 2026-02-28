@@ -1,0 +1,12 @@
+# API keys/secrets
+config.js
+.env
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Misc
+node_modules/
+dist/
+build/
