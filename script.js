@@ -1,10 +1,9 @@
 const today = new Date();
 
-// const y = today.getFullYear();
-// const m = String(today.getMonth() + 1).padStart(2, '0');
-// const d = String(today.getDate()).padStart(2, '0');
-// const ymd = `${y}${m}${d}`;
-const ymd = "20260303"; // 테스트용: 3월 3일 메뉴 강제 설정
+const y = today.getFullYear();
+const m = String(today.getMonth() + 1).padStart(2, '0');
+const d = String(today.getDate()).padStart(2, '0');
+const ymd = `${y}${m}${d}`;
 
 document.getElementById('today-date').innerText = today.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' });
 
