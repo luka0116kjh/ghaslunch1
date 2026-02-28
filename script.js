@@ -14,7 +14,7 @@ async function fetchMeals() {
     document.getElementById('dinner-cal').innerText = "";
 
     const API_KEY = typeof CONFIG !== 'undefined' ? CONFIG.API_KEY : "";
-    let URL = `https://open.neis.go.kr/hub/mealServiceDietInfo?Type=json&ATPT_OFCDC_SC_CODE=J10&SD_SCHUL_CODE=7530851&MLSV_YMD=${ymd}`;
+    let URL = `https://open.neis.go.kr/hub/mealServiceDietInfo?Type=json&ATPT_OFCDC_SC_CODE=J10&SD_SCHUL_CODE=7530908&MLSV_YMD=${ymd}`;
 
     if (API_KEY && API_KEY !== "기에_발급받은_키를_넣으세요") {
         URL += `&KEY=${API_KEY}`;
