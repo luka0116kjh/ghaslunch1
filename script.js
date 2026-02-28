@@ -27,7 +27,7 @@ function setText(id, value) {
 function getWeatherConfig() {
     const weatherConfig = (typeof CONFIG !== 'undefined' && CONFIG.WEATHER) ? CONFIG.WEATHER : {};
     return {
-        apiKey: weatherConfig.API_KEY || '',
+        proxyUrl: weatherConfig.PROXY_URL || '',
         lat: weatherConfig.LAT,
         lon: weatherConfig.LON,
         cityName: weatherConfig.CITY_NAME || ''
@@ -37,9 +37,9 @@ function getWeatherConfig() {
 async function fetchWeather(targetDate) {
     setText('weather-info', '날씨 정보를 불러오는 중...');
 
-    const { apiKey, lat, lon, cityName } = getWeatherConfig();
-    if (!apiKey) {
-        setText('weather-info', '날씨 API 키가 설정되지 않았습니다.');
+    const { proxyUrl, lat, lon, cityName } = getWeatherConfig();
+    if (!proxyUrl) {
+        setText('weather-info', '날씨 프록시 URL이 설정되지 않았습니다.');
         return;
     }
 
@@ -49,7 +49,8 @@ async function fetchWeather(targetDate) {
     }
 
     const targetYmd = formatDate(targetDate);
-    const url = `https://api.openweathermap.org/data/2.5/forecast?lat=${lat}&lon=${lon}&appid=${apiKey}&units=metric&lang=kr`;
+    const baseUrl = proxyUrl.replace(/\/+$/, '');
+    const url = `${baseUrl}?lat=${lat}&lon=${lon}&units=metric&lang=kr`;
 
     try {
         const response = await fetch(url);
@@ -84,7 +85,7 @@ async function fetchWeather(targetDate) {
         setText('weather-info', place ? `${weatherLine} (${place})` : weatherLine);
     } catch (error) {
         console.error('Weather load failed:', error);
-        setText('weather-info', '날씨 정보를 불러오지 못했습니다. API 키/좌표를 확인하세요.');
+        setText('weather-info', '날씨 정보를 불러오지 못했습니다. 프록시/좌표를 확인하세요.');
     }
 }
 
