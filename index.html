@@ -94,6 +94,36 @@
             color: #666;
             padding: 40px;
         }
+
+        .btn-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .btn-group button {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            border-radius: 10px;
+            background: var(--card-bg);
+            color: #aaa;
+            font-size: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+
+        .btn-group button.active {
+            background: var(--main-color);
+            color: white;
+            box-shadow: 0 4px 10px rgba(243, 156, 18, 0.4);
+        }
+
+        .btn-group button:hover:not(.active) {
+            background: #3a3d41;
+            color: white;
+        }
     </style>
 </head>
 
@@ -101,18 +131,23 @@
 
     <div class="container">
         <div class="header">
-            <h1>경기자동차과학고 오늘의 급식</h1>
+            <h1 id="title-text">경기자동차과학고 급식</h1>
             <p id="today-date">0000.00.00</p>
         </div>
 
+        <div class="btn-group">
+            <button id="btn-today" class="active" onclick="showMeals('today')">오늘</button>
+            <button id="btn-tomorrow" onclick="showMeals('tomorrow')">내일</button>
+        </div>
+
         <div class="meal-card">
-            <div class="meal-type">☀️ 오늘의 중식 (Lunch)</div>
+            <div id="lunch-title" class="meal-type">☀️ 오늘의 중식 (Lunch)</div>
             <div id="lunch-menu" class="meal-list">데이터를 불러오는 중...</div>
             <div id="lunch-cal" class="calorie"></div>
         </div>
 
         <div class="meal-card">
-            <div class="meal-type">🌙 오늘의 석식 (Dinner)</div>
+            <div id="dinner-title" class="meal-type">🌙 오늘의 석식 (Dinner)</div>
             <div id="dinner-menu" class="meal-list">데이터를 불러오는 중...</div>
             <div id="dinner-cal" class="calorie"></div>
         </div>
