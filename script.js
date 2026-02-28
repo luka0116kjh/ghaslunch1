@@ -28,6 +28,7 @@ function getWeatherConfig() {
     const weatherConfig = (typeof CONFIG !== 'undefined' && CONFIG.WEATHER) ? CONFIG.WEATHER : {};
     return {
         proxyUrl: weatherConfig.PROXY_URL || '',
+        apiKey: weatherConfig.API_KEY || '',
         lat: weatherConfig.LAT,
         lon: weatherConfig.LON,
         cityName: weatherConfig.CITY_NAME || ''
@@ -37,11 +38,7 @@ function getWeatherConfig() {
 async function fetchWeather(targetDate) {
     setText('weather-info', '날씨 정보를 불러오는 중...');
 
-    const { proxyUrl, lat, lon, cityName } = getWeatherConfig();
-    if (!proxyUrl) {
-        setText('weather-info', '날씨 프록시 URL이 설정되지 않았습니다.');
-        return;
-    }
+    const { proxyUrl, apiKey, lat, lon, cityName } = getWeatherConfig();
 
     if (typeof lat !== 'number' || typeof lon !== 'number') {
         setText('weather-info', '날씨 좌표(lat/lon)가 설정되지 않았습니다.');
@@ -49,8 +46,18 @@ async function fetchWeather(targetDate) {
     }
 
     const targetYmd = formatDate(targetDate);
-    const baseUrl = proxyUrl.replace(/\/+$/, '');
-    const url = `${baseUrl}?lat=${lat}&lon=${lon}&units=metric&lang=kr`;
+    const hasProxy = Boolean(proxyUrl) && !proxyUrl.includes('YOUR_WORKER_SUBDOMAIN');
+    let url = '';
+
+    if (hasProxy) {
+        const baseUrl = proxyUrl.replace(/\/+$/, '');
+        url = `${baseUrl}?lat=${lat}&lon=${lon}&units=metric&lang=kr`;
+    } else if (apiKey) {
+        url = `https://api.openweathermap.org/data/2.5/forecast?lat=${lat}&lon=${lon}&appid=${apiKey}&units=metric&lang=kr`;
+    } else {
+        setText('weather-info', '날씨 프록시 URL 또는 API 키가 필요합니다.');
+        return;
+    }
 
     try {
         const response = await fetch(url);
