@@ -76,10 +76,6 @@
             color: var(--main-color);
         }
 
-        .meal-type i {
-            margin-right: 10px;
-        }
-
         .meal-list {
             line-height: 1.8;
             color: #ddd;
@@ -93,12 +89,6 @@
             font-size: 0.85rem;
             color: #777;
             text-align: right;
-        }
-
-        .no-data {
-            text-align: center;
-            color: #666;
-            padding: 40px;
         }
 
         .btn-group {
@@ -134,7 +124,6 @@
 </head>
 
 <body>
-
     <div class="container">
         <div class="header">
             <h1 id="title-text">경기자동차과학고 급식</h1>
@@ -144,21 +133,22 @@
 
         <div class="btn-group">
             <button id="btn-today" class="active" onclick="showMeals('today')">오늘</button>
-            <button id="btn-tomorrow" onclick="showMeals('tomorrow')">내일</button>
+            <button id="btn-week" onclick="showMeals('week')">이번 주</button>
         </div>
 
         <div class="meal-card">
-            <div id="lunch-title" class="meal-type">☀️ 오늘의 중식 (Lunch)</div>
+            <div id="lunch-title" class="meal-type">오늘 중식 (Lunch)</div>
             <div id="lunch-menu" class="meal-list">데이터를 불러오는 중...</div>
             <div id="lunch-cal" class="calorie"></div>
         </div>
 
         <div class="meal-card">
-            <div id="dinner-title" class="meal-type">🌙 오늘의 석식 (Dinner)</div>
+            <div id="dinner-title" class="meal-type">오늘 석식 (Dinner)</div>
             <div id="dinner-menu" class="meal-list">데이터를 불러오는 중...</div>
             <div id="dinner-cal" class="calorie"></div>
         </div>
     </div>
+
     <script src="config.js"></script>
     <script src="script.js"></script>
 </body>
