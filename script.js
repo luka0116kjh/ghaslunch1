@@ -145,6 +145,7 @@ async function fetchMeals(targetDate) {
                 setText('dinner-cal', row.CAL_INFO || '');
             }
         });
+        updateVoteUI(ymd);
     } catch (error) {
         console.error('Meal load failed:', error);
         const msg = '급식 정보를 불러오지 못했습니다.';
@@ -244,9 +245,12 @@ function showMeals(type) {
 
     if (type === 'week') {
         showWeeklyMeals(targetDate);
+        // Hide voting in weekly view
+        document.querySelectorAll('.vote-control').forEach(el => el.style.display = 'none');
         return;
     }
 
+    document.querySelectorAll('.vote-control').forEach(el => el.style.display = 'flex');
     document.getElementById('btn-today').classList.add('active');
     document.getElementById('btn-week').classList.remove('active');
     setText('lunch-title', '오늘 중식 (Lunch)');
@@ -255,5 +259,166 @@ function showMeals(type) {
     fetchMeals(targetDate);
     fetchWeather(targetDate);
 }
+
+// --- Voting Logic ---
+function getVoteKey(ymd, type) {
+    return `vote_${ymd}_${type}`;
+}
+
+function updateVoteUI(ymd) {
+    ['lunch', 'dinner'].forEach(type => {
+        const key = getVoteKey(ymd, type);
+        const hasVoted = localStorage.getItem(key) === 'true';
+        const btn = document.getElementById(`${type}-vote-btn`);
+        const heart = document.getElementById(`${type}-heart`);
+
+        if (hasVoted) {
+            btn.classList.add('active');
+            heart.textContent = '❤️';
+        } else {
+            btn.classList.remove('active');
+            heart.textContent = '🤍';
+        }
+    });
+}
+
+function toggleVote(type) {
+    const today = new Date();
+    const ymd = formatDate(today);
+    const key = getVoteKey(ymd, type);
+    const hasVoted = localStorage.getItem(key) === 'true';
+
+    if (hasVoted) {
+        localStorage.removeItem(key);
+    } else {
+        localStorage.setItem(key, 'true');
+    }
+
+    updateVoteUI(ymd);
+}
+
+// --- Food Nomination & Voting Logic ---
+let foodList = JSON.parse(localStorage.getItem('ghas_food_nominees') || '[]');
+
+// Check and Reset if month changes
+function checkMonthlyReset() {
+    const currentMonth = new Date().getMonth();
+    const lastSavedMonth = localStorage.getItem('ghas_last_month');
+
+    if (lastSavedMonth !== null && parseInt(lastSavedMonth) !== currentMonth) {
+        foodList = [];
+        localStorage.setItem('ghas_food_nominees', JSON.stringify([]));
+        // Also clear internal vote flags
+        Object.keys(localStorage).forEach(key => {
+            if (key.startsWith('voted_food_')) localStorage.removeItem(key);
+        });
+    }
+    localStorage.setItem('ghas_last_month', currentMonth);
+}
+
+checkMonthlyReset();
+
+function openVoteModal() {
+    document.getElementById('vote-modal').style.display = 'flex';
+    renderFoodList();
+}
+
+function closeVoteModal() {
+    document.getElementById('vote-modal').style.display = 'none';
+}
+
+function addFoodItem() {
+    const input = document.getElementById('food-input');
+    const name = input.value.trim();
+
+    if (!name) return;
+    if (foodList.some(item => item.name === name)) {
+        alert('이미 목록에 있는 음식입니다!');
+        return;
+    }
+
+    foodList.push({
+        id: Date.now(),
+        name: name,
+        votes: 0
+    });
+
+    saveAndUpdateFood();
+    input.value = '';
+}
+
+function voteFood(id) {
+    const voteKey = `voted_food_${id}`;
+    if (localStorage.getItem(voteKey)) {
+        alert('이미 투표하셨습니다!');
+        return;
+    }
+
+    const item = foodList.find(f => f.id === id);
+    if (item) {
+        item.votes += 1;
+        localStorage.setItem(voteKey, 'true');
+        saveAndUpdateFood();
+    }
+}
+
+function saveAndUpdateFood() {
+    // Sort by votes
+    foodList.sort((a, b) => b.votes - a.votes);
+    localStorage.setItem('ghas_food_nominees', JSON.stringify(foodList));
+    renderFoodList();
+    renderMainRanking(); // Update main page ranking too
+}
+
+function renderMainRanking() {
+    const rankListEl = document.getElementById('ranking-list');
+    if (!rankListEl) return;
+
+    rankListEl.innerHTML = '';
+
+    if (foodList.length === 0) {
+        rankListEl.innerHTML = '<div style="text-align:center; color:#777; padding:20px;">아직 투표된 음식이 없습니다.</div>';
+        return;
+    }
+
+    // Show TOP 3 or up to foodList.length
+    foodList.slice(0, 3).forEach((item, index) => {
+        const div = document.createElement('div');
+        div.className = 'rank-card';
+        div.innerHTML = `
+            <div class="rank-number">${index + 1}</div>
+            <div class="rank-info">
+                <div class="rank-menu">${item.name}</div>
+                <div class="rank-date">실시간 투표 현황</div>
+            </div>
+            <div class="rank-votes">🔥 ${item.votes}</div>
+        `;
+        rankListEl.appendChild(div);
+    });
+}
+
+function renderFoodList() {
+    const listEl = document.getElementById('food-vote-list');
+    listEl.innerHTML = '';
+
+    foodList.forEach(item => {
+        const hasVoted = localStorage.getItem(`voted_food_${item.id}`);
+        const div = document.createElement('div');
+        div.className = 'vote-item';
+        div.innerHTML = `
+            <div class="food-name">${item.name}</div>
+            <div class="item-actions">
+                <span class="like-count">🔥 ${item.votes}</span>
+                <button class="vote-btn ${hasVoted ? 'active' : ''}" onclick="voteFood(${item.id})">
+                    ${hasVoted ? '✅' : '👍'}
+                </button>
+            </div>
+        `;
+        listEl.appendChild(div);
+    });
+}
+
+// Initial main rank render
+renderMainRanking();
 
 showMeals('today');

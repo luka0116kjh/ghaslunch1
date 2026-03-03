@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GASA 오늘의 급식</title>
+    <title>GHAS 오늘의 급식</title>
     <style>
         :root {
             --main-color: #f39c12;
@@ -120,6 +120,232 @@
             background: #3a3d41;
             color: white;
         }
+
+        /* Voting Styles */
+        .vote-control {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .vote-btn {
+            background: none;
+            border: 1px solid #444;
+            color: #aaa;
+            padding: 8px 15px;
+            border-radius: 20px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.9rem;
+            transition: 0.3s;
+        }
+
+        .vote-btn:hover {
+            border-color: var(--main-color);
+            color: var(--main-color);
+            background: rgba(243, 156, 18, 0.1);
+        }
+
+        .vote-btn.active {
+            background: var(--main-color);
+            color: white;
+            border-color: var(--main-color);
+        }
+
+        .ranking-section {
+            margin-top: 40px;
+            padding-bottom: 40px;
+        }
+
+        .ranking-title {
+            font-size: 1.2rem;
+            font-weight: 800;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: #ffd700;
+        }
+
+        .rank-card {
+            background: linear-gradient(145deg, #2a2d31, #222529);
+            border-radius: 12px;
+            padding: 15px;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            transition: 0.3s;
+        }
+
+        .rank-card:hover {
+            transform: scale(1.02);
+            border-color: rgba(255, 215, 0, 0.3);
+        }
+
+        .rank-number {
+            font-size: 1.4rem;
+            font-weight: 900;
+            color: #777;
+            width: 30px;
+            text-align: center;
+        }
+
+        /* Top 3 Colors */
+        .rank-card:nth-child(1) .rank-number {
+            color: #ffd700;
+        }
+
+        .rank-card:nth-child(2) .rank-number {
+            color: #c0c0c0;
+        }
+
+        .rank-card:nth-child(3) .rank-number {
+            color: #cd7f32;
+        }
+
+        .rank-info {
+            flex: 1;
+        }
+
+        .rank-menu {
+            font-size: 0.95rem;
+            font-weight: 600;
+            margin-bottom: 4px;
+            color: #eee;
+        }
+
+        .rank-date {
+            font-size: 0.75rem;
+            color: #777;
+        }
+
+        .rank-votes {
+            font-size: 0.85rem;
+            font-weight: bold;
+            color: var(--main-color);
+            background: rgba(243, 156, 18, 0.1);
+            padding: 4px 10px;
+            border-radius: 12px;
+        }
+
+        /* Voting Page / Modal Styles */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            backdrop-filter: blur(8px);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .modal-content {
+            background: var(--card-bg);
+            width: 100%;
+            max-width: 400px;
+            border-radius: 20px;
+            padding: 30px;
+            position: relative;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .modal-close {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: none;
+            border: none;
+            color: #777;
+            font-size: 1.5rem;
+            cursor: pointer;
+        }
+
+        .modal-title {
+            font-size: 1.4rem;
+            font-weight: 800;
+            color: var(--main-color);
+            margin-bottom: 20px;
+        }
+
+        .input-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 25px;
+        }
+
+        .input-group input {
+            flex: 1;
+            background: #1a1c1e;
+            border: 1px solid #444;
+            padding: 12px 15px;
+            border-radius: 10px;
+            color: white;
+            outline: none;
+            transition: 0.3s;
+        }
+
+        .input-group input:focus {
+            border-color: var(--main-color);
+        }
+
+        .add-btn {
+            background: var(--main-color);
+            color: white;
+            border: none;
+            padding: 0 20px;
+            border-radius: 10px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .vote-list {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .vote-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 15px;
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 12px;
+            margin-bottom: 10px;
+        }
+
+        .food-name {
+            font-weight: 600;
+            font-size: 1rem;
+        }
+
+        .item-actions {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .like-count {
+            color: var(--main-color);
+            font-weight: bold;
+        }
+
+        #btn-vote {
+            background: linear-gradient(135deg, #e67e22, #f39c12);
+            color: white;
+        }
     </style>
 </head>
 
@@ -134,18 +360,80 @@
         <div class="btn-group">
             <button id="btn-today" class="active" onclick="showMeals('today')">오늘</button>
             <button id="btn-week" onclick="showMeals('week')">이번 주</button>
+            <button id="btn-vote" onclick="openVoteModal()">음식 투표</button>
         </div>
 
         <div class="meal-card">
             <div id="lunch-title" class="meal-type">오늘 중식 (Lunch)</div>
             <div id="lunch-menu" class="meal-list">데이터를 불러오는 중...</div>
             <div id="lunch-cal" class="calorie"></div>
+            <div class="vote-control">
+                <button id="lunch-vote-btn" class="vote-btn" onclick="toggleVote('lunch')">
+                    <span id="lunch-heart">🤍</span>
+                    <span>맛있어요</span>
+                </button>
+            </div>
         </div>
 
         <div class="meal-card">
             <div id="dinner-title" class="meal-type">오늘 석식 (Dinner)</div>
             <div id="dinner-menu" class="meal-list">데이터를 불러오는 중...</div>
             <div id="dinner-cal" class="calorie"></div>
+            <div class="vote-control">
+                <button id="dinner-vote-btn" class="vote-btn" onclick="toggleVote('dinner')">
+                    <span id="dinner-heart">🤍</span>
+                    <span>맛있어요</span>
+                </button>
+            </div>
+        </div>
+
+        <div class="ranking-section">
+            <div class="ranking-title">
+                <span>🏆</span> 이달의 급식 랭킹 TOP 3
+            </div>
+            <div id="ranking-list">
+                <!-- Mock Ranking Items -->
+                <div class="rank-card">
+                    <div class="rank-number">1</div>
+                    <div class="rank-info">
+                        <div class="rank-menu">치킨마요덮밥 & 떡볶이</div>
+                        <div class="rank-date">2026.03.02 중식</div>
+                    </div>
+                    <div class="rank-votes">🔥 124</div>
+                </div>
+                <div class="rank-card">
+                    <div class="rank-number">2</div>
+                    <div class="rank-info">
+                        <div class="rank-menu">수제돈까스 & 쫄면</div>
+                        <div class="rank-date">2026.02.26 중식</div>
+                    </div>
+                    <div class="rank-votes">🔥 98</div>
+                </div>
+                <div class="rank-card">
+                    <div class="rank-number">3</div>
+                    <div class="rank-info">
+                        <div class="rank-menu">불고기비빔밥</div>
+                        <div class="rank-date">2026.03.03 석식</div>
+                    </div>
+                    <div class="rank-votes">🔥 76</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="vote-modal" class="modal-overlay">
+        <div class="modal-content">
+            <button class="modal-close" onclick="closeVoteModal()">&times;</button>
+            <div class="modal-title">🍕 맛있는 음식 추천 & 투표</div>
+
+            <div class="input-group">
+                <input type="text" id="food-input" placeholder="추천할 음식 이름 입력...">
+                <button class="add-btn" onclick="addFoodItem()">추가</button>
+            </div>
+
+            <div id="food-vote-list" class="vote-list">
+                <!-- Food items will be dynamic -->
+            </div>
         </div>
     </div>
 
