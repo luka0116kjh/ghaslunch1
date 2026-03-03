@@ -297,26 +297,54 @@ function toggleVote(type) {
     updateVoteUI(ymd);
 }
 
-// --- Food Nomination & Voting Logic ---
-let foodList = JSON.parse(localStorage.getItem('ghas_food_nominees') || '[]');
-
-// Check and Reset if month changes
-function checkMonthlyReset() {
-    const currentMonth = new Date().getMonth();
-    const lastSavedMonth = localStorage.getItem('ghas_last_month');
-
-    if (lastSavedMonth !== null && parseInt(lastSavedMonth) !== currentMonth) {
-        foodList = [];
-        localStorage.setItem('ghas_food_nominees', JSON.stringify([]));
-        // Also clear internal vote flags
-        Object.keys(localStorage).forEach(key => {
-            if (key.startsWith('voted_food_')) localStorage.removeItem(key);
-        });
+// --- Firebase Initialization ---
+let database;
+try {
+    if (typeof firebase !== 'undefined' && typeof CONFIG !== 'undefined' && CONFIG.FIREBASE && CONFIG.FIREBASE.API_KEY !== "발급받은_API_KEY") {
+        const firebaseConfig = {
+            apiKey: CONFIG.FIREBASE.API_KEY,
+            authDomain: CONFIG.FIREBASE.AUTH_DOMAIN,
+            databaseURL: CONFIG.FIREBASE.DATABASE_URL,
+            projectId: CONFIG.FIREBASE.PROJECT_ID,
+            storageBucket: CONFIG.FIREBASE.STORAGE_BUCKET,
+            messagingSenderId: CONFIG.FIREBASE.MESSAGING_SENDER_ID,
+            appId: CONFIG.FIREBASE.APP_ID
+        };
+        firebase.initializeApp(firebaseConfig);
+        database = firebase.database();
+    } else {
+        console.warn('Firebase가 설정되지 않았습니다. 실시간 공유 기능이 작동하지 않습니다.');
     }
-    localStorage.setItem('ghas_last_month', currentMonth);
+} catch (e) {
+    console.error('Firebase 초기화 실패:', e);
 }
 
-checkMonthlyReset();
+// --- Food Nomination & Voting Logic ---
+let foodList = [];
+
+function getMonthKey() {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+}
+
+// Subscribe to Firebase data
+if (database) {
+    const monthKey = getMonthKey();
+    database.ref(`votes/${monthKey}`).on('value', (snapshot) => {
+        const data = snapshot.val();
+        if (data) {
+            // Convert object to array and sort
+            foodList = Object.keys(data).map(key => ({
+                id: key,
+                ...data[key]
+            })).sort((a, b) => b.votes - a.votes);
+        } else {
+            foodList = [];
+        }
+        renderFoodList();
+        renderMainRanking();
+    });
+}
 
 function openVoteModal() {
     document.getElementById('vote-modal').style.display = 'flex';
@@ -328,6 +356,11 @@ function closeVoteModal() {
 }
 
 function addFoodItem() {
+    if (!database) {
+        alert('실시간 기능을 사용하려면 Firebase 설정이 필요합니다.');
+        return;
+    }
+
     const input = document.getElementById('food-input');
     const name = input.value.trim();
 
@@ -337,37 +370,38 @@ function addFoodItem() {
         return;
     }
 
-    foodList.push({
-        id: Date.now(),
+    const monthKey = getMonthKey();
+    const newFoodRef = database.ref(`votes/${monthKey}`).push();
+    newFoodRef.set({
         name: name,
         votes: 0
     });
 
-    saveAndUpdateFood();
     input.value = '';
 }
 
 function voteFood(id) {
+    if (!database) {
+        // Fallback for non-Firebase mode if needed, but here we require it for real voting
+        alert('실시간 기능을 사용하려면 Firebase 설정이 필요합니다.');
+        return;
+    }
+
     const voteKey = `voted_food_${id}`;
     if (localStorage.getItem(voteKey)) {
         alert('이미 투표하셨습니다!');
         return;
     }
 
-    const item = foodList.find(f => f.id === id);
-    if (item) {
-        item.votes += 1;
-        localStorage.setItem(voteKey, 'true');
-        saveAndUpdateFood();
-    }
-}
+    const monthKey = getMonthKey();
+    const foodRef = database.ref(`votes/${monthKey}/${id}/votes`);
 
-function saveAndUpdateFood() {
-    // Sort by votes
-    foodList.sort((a, b) => b.votes - a.votes);
-    localStorage.setItem('ghas_food_nominees', JSON.stringify(foodList));
-    renderFoodList();
-    renderMainRanking(); // Update main page ranking too
+    // Increment votes using transaction
+    foodRef.transaction((currentVotes) => {
+        return (currentVotes || 0) + 1;
+    });
+
+    localStorage.setItem(voteKey, 'true');
 }
 
 function renderMainRanking() {
@@ -381,7 +415,6 @@ function renderMainRanking() {
         return;
     }
 
-    // Show TOP 3 or up to foodList.length
     foodList.slice(0, 3).forEach((item, index) => {
         const div = document.createElement('div');
         div.className = 'rank-card';
@@ -399,6 +432,8 @@ function renderMainRanking() {
 
 function renderFoodList() {
     const listEl = document.getElementById('food-vote-list');
+    if (!listEl) return;
+
     listEl.innerHTML = '';
 
     foodList.forEach(item => {
@@ -409,7 +444,7 @@ function renderFoodList() {
             <div class="food-name">${item.name}</div>
             <div class="item-actions">
                 <span class="like-count">🔥 ${item.votes}</span>
-                <button class="vote-btn ${hasVoted ? 'active' : ''}" onclick="voteFood(${item.id})">
+                <button class="vote-btn ${hasVoted ? 'active' : ''}" onclick="voteFood('${item.id}')">
                     ${hasVoted ? '✅' : '👍'}
                 </button>
             </div>
@@ -417,8 +452,5 @@ function renderFoodList() {
         listEl.appendChild(div);
     });
 }
-
-// Initial main rank render
-renderMainRanking();
 
 showMeals('today');

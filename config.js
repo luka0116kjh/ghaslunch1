@@ -6,5 +6,14 @@ const CONFIG = {
         LAT: 37.380,
         LON: 126.803,
         CITY_NAME: "Siheung"
+    },
+    FIREBASE: {
+        API_KEY: "AIzaSyDuqKOq-5dRC8dClv7fRBULA0lows-RHUg",
+        AUTH_DOMAIN: "ghaslunch1.firebaseapp.com",
+        DATABASE_URL: "https://ghaslunch1-default-rtdb.asia-southeast1.firebasedatabase.app",
+        PROJECT_ID: "ghaslunch1",
+        STORAGE_BUCKET: "ghaslunch1.firebasestorage.app",
+        MESSAGING_SENDER_ID: "348512527529",
+        APP_ID: "1:348512527529:web:fee72bc56b6a44bfda75b8"
     }
 };
