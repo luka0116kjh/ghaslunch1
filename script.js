@@ -239,7 +239,6 @@ async function showWeeklyMeals(baseDate) {
 
 function showMeals(type) {
     const targetDate = new Date();
-    const currentHour = targetDate.getHours();
 
     setText('btn-today', '오늘');
     setText('btn-week', '이번 주');
@@ -254,16 +253,8 @@ function showMeals(type) {
     document.querySelectorAll('.vote-control').forEach(el => el.style.display = 'flex');
     document.getElementById('btn-today').classList.add('active');
     document.getElementById('btn-week').classList.remove('active');
-
-    // Auto-switch to tomorrow after 8 PM (20:00)
-    if (currentHour >= 20) {
-        targetDate.setDate(targetDate.getDate() + 1);
-        setText('lunch-title', '내일 중식 (Lunch)');
-        setText('dinner-title', '내일 석식 (Dinner)');
-    } else {
-        setText('lunch-title', '오늘 중식 (Lunch)');
-        setText('dinner-title', '오늘 석식 (Dinner)');
-    }
+    setText('lunch-title', '오늘 중식 (Lunch)');
+    setText('dinner-title', '오늘 석식 (Dinner)');
 
     fetchMeals(targetDate);
     fetchWeather(targetDate);
