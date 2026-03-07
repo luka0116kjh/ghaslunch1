@@ -120,7 +120,7 @@ async function fetchMeals(targetDate) {
     setText('dinner-cal', '');
 
     const apiKey = typeof CONFIG !== 'undefined' ? CONFIG.API_KEY : '';
-    let url = `https://open.neis.go.kr/hub/mealServiceDietInfo?Type=json&ATPT_OFCDC_SC_CODE=J10&SD_SCHUL_CODE=7530908&MLSV_YMD=${ymd}`;
+    let url = `https://open.neis.go.kr/hub/mealServiceDietInfo?Type=json&ATPT_OFCDC_SC_CODE=J10&SD_SCHUL_CODE=7530908&MLSV_YMD=${ymd}&pSize=100`;
     if (apiKey) {
         url += `&KEY=${apiKey}`;
     }
@@ -206,26 +206,46 @@ async function showWeeklyMeals(baseDate) {
     const fromYmd = formatDate(monday);
     const toYmd = formatDate(friday);
     const apiKey = typeof CONFIG !== 'undefined' ? CONFIG.API_KEY : '';
-    let url = `https://open.neis.go.kr/hub/mealServiceDietInfo?Type=json&ATPT_OFCDC_SC_CODE=J10&SD_SCHUL_CODE=7530908&MLSV_FROM_YMD=${fromYmd}&MLSV_TO_YMD=${toYmd}`;
-    if (apiKey) {
-        url += `&KEY=${apiKey}`;
+
+    // 중식(2)과 석식(3) 각각 따로 호출하여 데이터 누락 방지
+    async function fetchMealByCode(code) {
+        let url = `https://open.neis.go.kr/hub/mealServiceDietInfo?Type=json&ATPT_OFCDC_SC_CODE=J10&SD_SCHUL_CODE=7530908&MLSV_FROM_YMD=${fromYmd}&MLSV_TO_YMD=${toYmd}&MMEAL_SC_CODE=${code}&pSize=50`;
+        if (apiKey) url += `&KEY=${apiKey}`;
+
+        try {
+            const response = await fetch(url);
+            const data = await response.json();
+            const rows = extractMealRows(data);
+            const map = {};
+            rows.forEach(row => {
+                map[row.MLSV_YMD] = normalizeMenuText(row.DDISH_NM);
+            });
+            return map;
+        } catch (e) {
+            console.error(`Weekly Fetch Error (Code ${code}):`, e);
+            return null;
+        }
     }
 
     try {
-        const response = await fetch(url);
-        if (!response.ok) throw new Error('NEIS API response error');
-
-        const data = await response.json();
-        const rows = extractMealRows(data);
+        const [lunchData, dinnerData] = await Promise.all([
+            fetchMealByCode('2'),
+            fetchMealByCode('3')
+        ]);
 
         const mealMap = {};
-        rows.forEach(row => {
-            const ymd = row.MLSV_YMD;
-            const mealCode = row.MMEAL_SC_CODE;
-            const cleanMenu = normalizeMenuText(row.DDISH_NM);
-            if (!mealMap[ymd]) mealMap[ymd] = {};
-            mealMap[ymd][mealCode] = cleanMenu || '정보가 없습니다.';
-        });
+        if (lunchData) {
+            Object.entries(lunchData).forEach(([ymd, menu]) => {
+                if (!mealMap[ymd]) mealMap[ymd] = {};
+                mealMap[ymd]['2'] = menu;
+            });
+        }
+        if (dinnerData) {
+            Object.entries(dinnerData).forEach(([ymd, menu]) => {
+                if (!mealMap[ymd]) mealMap[ymd] = {};
+                mealMap[ymd]['3'] = menu;
+            });
+        }
 
         setText('lunch-menu', buildMealTextByWeek(mealMap, '2', monday));
         setText('dinner-menu', buildMealTextByWeek(mealMap, '3', monday));
