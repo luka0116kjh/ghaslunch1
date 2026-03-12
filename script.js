@@ -385,6 +385,30 @@ function addFoodItem() {
     const name = input.value.trim();
 
     if (!name) return;
+
+    // 길이 제한
+    if (name.length < 2 || name.length > 20) {
+        alert('음식 이름은 2~20자 사이로 입력해주세요.');
+        return;
+    }
+
+    // 특수문자 제한
+    const validPattern = /^[가-힣a-zA-Z0-9\s]+$/;
+    if (!validPattern.test(name)) {
+        alert('특수문자는 사용할 수 없습니다.');
+        return;
+    }
+
+    // 금칙어 필터
+    const bannedWords = ["섹스","야동","sex","porn","따먹고싶노","걸래","여자","남자","보지","자지","씨발","좆","개새끼","병신","미친놈","느금마","딱","존나","짱깨","쪽바리","김치녀","된장녀","한남충","일베충"];
+    const lowerName = name.toLowerCase();
+
+    if (bannedWords.some(word => lowerName.includes(word))) {
+        alert("부적절한 단어가 포함되어 있습니다.");
+        return;
+    }
+
+    // 중복 음식 방지
     if (foodList.some(item => item.name === name)) {
         alert('이미 목록에 있는 음식입니다!');
         return;
@@ -392,6 +416,7 @@ function addFoodItem() {
 
     const monthKey = getMonthKey();
     const newFoodRef = database.ref(`votes/${monthKey}`).push();
+
     newFoodRef.set({
         name: name,
         votes: 0
