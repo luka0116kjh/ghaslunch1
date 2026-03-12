@@ -1,5 +1,10 @@
 # API keys/secrets
 .env
+config.js
+
+# Firebase
+.firebase/
+firebase-debug.log*
 
 # OS files
 .DS_Store
@@ -9,3 +14,4 @@ Thumbs.db
 node_modules/
 dist/
 build/
+.cache/

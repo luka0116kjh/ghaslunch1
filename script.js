@@ -47,46 +47,84 @@ async function fetchWeather(targetDate) {
 
     const targetYmd = formatDate(targetDate);
     const hasProxy = Boolean(proxyUrl) && !proxyUrl.includes('YOUR_WORKER_SUBDOMAIN');
-    let url = '';
-
-    if (hasProxy) {
-        const baseUrl = proxyUrl.replace(/\/+$/, '');
-        url = `${baseUrl}?lat=${lat}&lon=${lon}&units=metric&lang=kr`;
-    } else if (apiKey) {
-        url = `https://api.openweathermap.org/data/2.5/forecast?lat=${lat}&lon=${lon}&appid=${apiKey}&units=metric&lang=kr`;
-    } else {
-        setText('weather-info', '날씨 프록시 URL 또는 API 키가 필요합니다.');
-        return;
-    }
+    const hasValidApiKey = apiKey && apiKey !== '1' && !apiKey.includes('YOUR_');
 
     try {
-        const response = await fetch(url);
-        if (!response.ok) throw new Error(`OpenWeather API error: ${response.status}`);
+        let weatherData = null;
+        let place = cityName;
 
-        const data = await response.json();
-        if (!Array.isArray(data.list) || data.list.length === 0) {
-            throw new Error('Forecast data is empty.');
+        if (hasProxy || hasValidApiKey) {
+            let url = '';
+            if (hasProxy) {
+                const baseUrl = proxyUrl.replace(/\/+$/, '');
+                url = `${baseUrl}?lat=${lat}&lon=${lon}&units=metric&lang=kr`;
+            } else {
+                url = `https://api.openweathermap.org/data/2.5/forecast?lat=${lat}&lon=${lon}&appid=${apiKey}&units=metric&lang=kr`;
+            }
+
+            const response = await fetch(url);
+            if (response.ok) {
+                const data = await response.json();
+                if (Array.isArray(data.list) && data.list.length > 0) {
+                    const timezoneOffset = typeof data.city?.timezone === 'number' ? data.city.timezone : 0;
+                    const sameDayForecasts = data.list.filter(item => formatDateWithOffset(item.dt, timezoneOffset) === targetYmd);
+                    const source = sameDayForecasts.length > 0 ? sameDayForecasts : data.list;
+                    const picked = source.slice().sort((a, b) => {
+                        const aDiff = Math.abs(hourWithOffset(a.dt, timezoneOffset) - 12);
+                        const bDiff = Math.abs(hourWithOffset(b.dt, timezoneOffset) - 12);
+                        return aDiff - bDiff;
+                    })[0];
+
+                    weatherData = {
+                        temp: Math.round(picked.main.temp),
+                        description: picked.weather?.[0]?.description,
+                        pop: Math.round(picked.pop * 100)
+                    };
+                    if (!place) place = data.city?.name;
+                }
+            }
         }
 
-        const timezoneOffset = typeof data.city?.timezone === 'number' ? data.city.timezone : 0;
-        const sameDayForecasts = data.list.filter(item => formatDateWithOffset(item.dt, timezoneOffset) === targetYmd);
-        const source = sameDayForecasts.length > 0 ? sameDayForecasts : data.list;
-        const picked = source.slice().sort((a, b) => {
-            const aDiff = Math.abs(hourWithOffset(a.dt, timezoneOffset) - 12);
-            const bDiff = Math.abs(hourWithOffset(b.dt, timezoneOffset) - 12);
-            return aDiff - bDiff;
-        })[0];
+        // Fallback to Open-Meteo if OpenWeather fails or is not configured
+        if (!weatherData) {
+            const isoDate = `${targetYmd.slice(0, 4)}-${targetYmd.slice(4, 6)}-${targetYmd.slice(6, 8)}`;
+            const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&hourly=temperature_2m,weathercode,precipitation_probability&timezone=Asia%2FSeoul&start_date=${isoDate}&end_date=${isoDate}`;
+            const response = await fetch(url);
+            if (!response.ok) throw new Error('Weather API fallback failed');
 
-        const temp = typeof picked.main?.temp === 'number' ? `${Math.round(picked.main.temp)}°C` : '기온 정보 없음';
-        const description = picked.weather?.[0]?.description || '날씨 정보 없음';
-        const popText = typeof picked.pop === 'number' ? `강수확률 ${Math.round(picked.pop * 100)}%` : '';
-        const place = cityName || data.city?.name || '';
+            const data = await response.json();
+            if (data.hourly && data.hourly.time) {
+                // Find index for 12:00 or closest
+                const hourIndex = data.hourly.time.findIndex(t => t.includes('T12:00')) || 12;
+                const code = data.hourly.weathercode[hourIndex];
+                const weatherMap = {
+                    0: '맑음', 1: '대체로 맑음', 2: '부분적으로 흐림', 3: '흐림',
+                    45: '안개', 48: '서리 안개', 51: '가벼운 이슬비', 53: '이슬비', 55: '진한 이슬비',
+                    61: '약한 비', 63: '보통 비', 65: '강한 비', 71: '약한 눈', 73: '보통 눈', 75: '강한 눈',
+                    77: '눈알갱이', 80: '약한 소나기', 81: '보통 소나기', 82: '강한 소나기',
+                    85: '약한 눈 소나기', 86: '강한 눈 소나기', 95: '뇌우', 96: '뇌우와 약한 우박', 99: '뇌우와 강한 우박'
+                };
 
-        const weatherLine = [temp, description, popText].filter(Boolean).join(' | ');
-        setText('weather-info', place ? `${weatherLine} (${place})` : weatherLine);
+                weatherData = {
+                    temp: Math.round(data.hourly.temperature_2m[hourIndex]),
+                    description: weatherMap[code] || '날씨 정보 없음',
+                    pop: data.hourly.precipitation_probability[hourIndex]
+                };
+            }
+        }
+
+        if (weatherData) {
+            const { temp, description, pop } = weatherData;
+            const tempText = `${temp}°C`;
+            const popText = typeof pop === 'number' ? `강수확률 ${pop}%` : '';
+            const weatherLine = [tempText, description, popText].filter(Boolean).join(' | ');
+            setText('weather-info', place ? `${weatherLine} (${place})` : weatherLine);
+        } else {
+            throw new Error('No weather data available');
+        }
     } catch (error) {
         console.error('Weather load failed:', error);
-        setText('weather-info', '날씨 정보를 불러오지 못했습니다. 프록시/좌표를 확인해주세요.');
+        setText('weather-info', '날씨 정보를 불러오지 못했습니다. 지역/좌표를 확인해주세요.');
     }
 }
 
@@ -400,7 +438,7 @@ function addFoodItem() {
     }
 
     // 금칙어 필터
-    const bannedWords = ["섹스","야동","sex","porn","fuck","걸래","여자","남자","보지","자지","씨발","좆","개새끼","병신","미친놈","느금마","딱","존나","짱깨","쪽바리","김치녀","된장녀","한남충","일베충"];
+    const bannedWords = ["섹스", "야동", "sex", "porn", "fuck", "걸래", "여자", "남자", "보지", "자지", "씨발", "좆", "개새끼", "병신", "미친놈", "느금마", "딱", "존나", "짱깨", "쪽바리", "김치녀", "된장녀", "한남충", "일베충"];
     const lowerName = name.toLowerCase();
 
     if (bannedWords.some(word => lowerName.includes(word))) {
