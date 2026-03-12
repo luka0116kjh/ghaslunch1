@@ -385,6 +385,18 @@ function addFoodItem() {
     const name = input.value.trim();
 
     if (!name) return;
+
+    // 금칙어 검사
+    if (containsBannedWord(name)) {
+        alert("부적절한 내용은 등록할 수 없습니다.");
+        return;
+    }
+
+    if (name.length > 15) {
+        alert("음식 이름은 15자 이하로 입력해주세요.");
+        return;
+    }
+
     if (foodList.some(item => item.name === name)) {
         alert('이미 목록에 있는 음식입니다!');
         return;
