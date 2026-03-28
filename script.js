@@ -438,7 +438,7 @@ function addFoodItem() {
     }
 
     // 금칙어 필터
-    const bannedWords = ["섹스", "야동", "sex", "sexy", "porn", "fuck", "걸래", "여자", "남자", "보지", "자지", "씨발", "좆", "개새끼", "병신", "미친놈", "느금마", "딱", "존나", "짱깨", "쪽바리", "김치녀", "된장녀", "한남충", "일베충"];
+    const bannedWords = ["섹스", "야동", "sex", "sexy", "porn", "fuck", "걸래", "여자", "남자", "보지", "자지", "씨발", "좆", "개새끼", "병신", "미친놈", "느금마", "딱", "존나", "짱깨", "쪽바리", "김치녀", "된장녀", "한남충", "일베충", "ㅇㅕㅈㅏ"];
     const lowerName = name.toLowerCase();
 
     if (bannedWords.some(word => lowerName.includes(word))) {
