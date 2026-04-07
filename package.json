@@ -1,0 +1,17 @@
+{
+  "name": "ghaslunch",
+  "version": "1.0.0",
+  "description": "경기자동차과학고 급식 알림 & 투표 앱",
+  "scripts": {
+    "build": "echo '빌드 준비 완료: 정적 파일이므로 특별한 컴파일 과정이 필요하지 않습니다.'",
+    "deploy": "firebase deploy",
+    "deploy:hosting": "firebase deploy --only hosting"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {},
+  "devDependencies": {
+    "firebase-tools": "latest"
+  }
+}

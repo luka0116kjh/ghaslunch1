@@ -413,7 +413,32 @@ function closeVoteModal() {
     document.getElementById('vote-modal').style.display = 'none';
 }
 
-function addFoodItem() {
+async function checkIsPersonName(text) {
+    if (!CONFIG.GEMINI_API_KEY) return false;
+
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${CONFIG.GEMINI_API_KEY}`;
+    const prompt = `다음 텍스트가 '사람 이름'이거나 '부적절한 표현'인지 판단해줘. 
+    음식 이름이면 false, 사람 이름이거나 부적절한 언어면 true라고만 대답해. 
+    텍스트: "${text}"`;
+
+    try {
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                contents: [{ parts: [{ text: prompt }] }]
+            })
+        });
+        const data = await response.json();
+        const result = data.candidates[0].content.parts[0].text.trim().toLowerCase();
+        return result.includes('true');
+    } catch (e) {
+        console.error('AI 체크 실패:', e);
+        return false;
+    }
+}
+
+async function addFoodItem() {
     if (!database) {
         alert('실시간 기능을 사용하려면 Firebase 설정이 필요합니다.');
         return;
@@ -443,6 +468,13 @@ function addFoodItem() {
 
     if (bannedWords.some(word => lowerName.includes(word))) {
         alert("부적절한 단어가 포함되어 있습니다.");
+        return;
+    }
+
+    // AI를 이용한 사람 이름 및 부적절한 단어 체크
+    const isInappropriate = await checkIsPersonName(name);
+    if (isInappropriate) {
+        alert("부적절한 단어(혹은 사람 이름)가 포함되어 있습니다.");
         return;
     }
 
