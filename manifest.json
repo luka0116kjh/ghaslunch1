@@ -1,0 +1,17 @@
+{
+  "name": "GHAS 오늘의 급식",
+  "short_name": "GHAS급식",
+  "description": "경기자동차과학고등학교 오늘의 급식 및 날씨 정보",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#1a1c1e",
+  "theme_color": "#f39c12",
+  "icons": [
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
