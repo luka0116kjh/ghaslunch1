@@ -338,7 +338,7 @@ async function requestNoti() {
 function scheduleDailyNotification() {
     // 로컬 스토리지에 예약 상태 저장
     localStorage.setItem('noti-enabled', 'true');
-    
+
     const now = new Date();
     let target = new Date();
     target.setHours(7, 30, 0, 0);
@@ -370,13 +370,13 @@ async function showLocalNotification() {
         const response = await fetch(url);
         const data = await response.json();
         const rows = extractMealRows(data);
-        
+
         if (rows.length === 0) {
             console.log("No meals today, skipping notification.");
             return;
         }
 
-        let bodyText = '오늘의 맛있는 급식 정보를 확인해보세요! 🍱';
+        let bodyText = '오늘의 맛있는 급식 정보를 확인해보세요! ';
         const lunch = rows.find(r => r.MMEAL_SC_CODE === '2');
         if (lunch) {
             const menu = normalizeMenuText(lunch.DDISH_NM).replace(/\n/g, ', ');
