@@ -323,10 +323,25 @@ function showMeals(type) {
     }
 }
 
+let notiTimer = null;
+let notiInterval = null;
+
 async function requestNoti() {
+    if (localStorage.getItem('noti-enabled') === 'true') {
+        const cancel = confirm('현재 급식 알림이 활성화되어 있습니다. 알림을 취소하시겠습니까?');
+        if (cancel) {
+            localStorage.setItem('noti-enabled', 'false');
+            if (notiTimer) clearTimeout(notiTimer);
+            if (notiInterval) clearInterval(notiInterval);
+            alert('급식 알림이 취소되었습니다.');
+        }
+        return;
+    }
+
     const permission = await Notification.requestPermission();
     if (permission === 'granted') {
-        alert('알림이 설정되었습니다! 매일 오전 7:30에 급식 정보를 확인하세요.');
+        localStorage.setItem('noti-enabled', 'true');
+        alert('알림이 설정되었습니다! 매일 오전 7:30에 급식 정보를 확인하세요.\n(브라우저가 열려있어야 알림이 작동합니다.)');
         scheduleDailyNotification();
     } else {
         alert('알림 권한을 허용해야 알림을 받을 수 있습니다.');
@@ -334,8 +349,10 @@ async function requestNoti() {
 }
 
 function scheduleDailyNotification() {
-    // 로컬 스토리지에 예약 상태 저장
-    localStorage.setItem('noti-enabled', 'true');
+    if (localStorage.getItem('noti-enabled') !== 'true') return;
+
+    if (notiTimer) clearTimeout(notiTimer);
+    if (notiInterval) clearInterval(notiInterval);
 
     const now = new Date();
     let target = new Date();
@@ -347,9 +364,9 @@ function scheduleDailyNotification() {
 
     const delay = target.getTime() - now.getTime();
 
-    setTimeout(() => {
+    notiTimer = setTimeout(() => {
         showLocalNotification();
-        setInterval(showLocalNotification, 24 * 60 * 60 * 1000);
+        notiInterval = setInterval(showLocalNotification, 24 * 60 * 60 * 1000);
     }, delay);
 }
 
@@ -397,4 +414,41 @@ if (localStorage.getItem('noti-enabled') === 'true') {
     scheduleDailyNotification();
 }
 
+function toggleTheme() {
+    const body = document.body;
+    const themeBtn = document.getElementById('btn-theme');
+    const isDark = body.classList.contains('dark-theme') ||
+        (!body.classList.contains('light-theme') && window.matchMedia('(prefers-color-scheme: dark)').matches);
+
+    if (isDark) {
+        body.classList.remove('dark-theme');
+        body.classList.add('light-theme');
+        themeBtn.textContent = 'Light';
+        localStorage.setItem('theme', 'light');
+    } else {
+        body.classList.remove('light-theme');
+        body.classList.add('dark-theme');
+        themeBtn.textContent = 'Dark';
+        localStorage.setItem('theme', 'dark');
+    }
+}
+
+function initTheme() {
+    const savedTheme = localStorage.getItem('theme');
+    const themeBtn = document.getElementById('btn-theme');
+    if (savedTheme === 'dark') {
+        document.body.classList.add('dark-theme');
+        themeBtn.textContent = 'Dark';
+    } else if (savedTheme === 'light') {
+        document.body.classList.add('light-theme');
+        themeBtn.textContent = 'Light';
+    } else {
+        // System preference
+        const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        themeBtn.textContent = isDark ? 'Dark' : 'Light';
+    }
+}
+
+// 초기화 호출
+initTheme();
 showMeals('today');

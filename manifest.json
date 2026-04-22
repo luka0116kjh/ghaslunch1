@@ -5,14 +5,20 @@
   "description": "경기자동차과학고등학교 오늘의 급식 및 날씨 정보",
   "lang": "ko-KR",
   "dir": "ltr",
-  "categories": ["education", "food"],
+  "categories": [
+    "education",
+    "food"
+  ],
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
-  "display_override": ["standalone", "window-controls-overlay"],
+  "display_override": [
+    "standalone",
+    "window-controls-overlay"
+  ],
   "orientation": "portrait",
-  "background_color": "#1a1c1e",
-  "theme_color": "#f39c12",
+  "background_color": "#f5f7fa",
+  "theme_color": "#007AFF",
   "icons": [
     {
       "src": "icon1.png",
@@ -40,20 +46,5 @@
       ]
     }
   ],
-  "screenshots": [
-    {
-      "src": "screenshot-mobile.png",
-      "sizes": "1080x1920",
-      "type": "image/png",
-      "form_factor": "narrow",
-      "label": "모바일 급식 화면"
-    },
-    {
-      "src": "screenshot-desktop.png",
-      "sizes": "1920x1080",
-      "type": "image/png",
-      "form_factor": "wide",
-      "label": "데스크탑 급식 화면"
-    }
-  ]
+]
 }

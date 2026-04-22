@@ -5,10 +5,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>GHAS 오늘의 급식</title>
-    <link rel="manifest" href="manifest.json?v=4">
+    <link rel="manifest" href="manifest.json?v=6">
     <link rel="icon" type="image/png" href="icon1.png">
     <link rel="apple-touch-icon" href="icon1.png">
-    <meta name="theme-color" content="#f39c12">
+    <meta name="theme-color" content="#007AFF" media="(prefers-color-scheme: light)">
+    <meta name="theme-color" content="#1a1c1e" media="(prefers-color-scheme: dark)">
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
@@ -18,19 +19,61 @@
     </script>
     <style>
         :root {
-            --main-color: #f39c12;
+            --main-color: #007AFF;
+            /* Light Mode (Default) */
+            --bg-color: #f5f7fa;
+            --card-bg: #ffffff;
+            --text-color: #1a1c1e;
+            --sub-text: #666;
+            --border-color: #e1e4e8;
+            --btn-inactive: #e1e4e8;
+            --btn-inactive-text: #666;
+            --shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg-color: #1a1c1e;
+                --card-bg: #2a2d31;
+                --text-color: #ffffff;
+                --sub-text: #aaa;
+                --border-color: #007AFF;
+                --btn-inactive: #2a2d31;
+                --btn-inactive-text: #aaa;
+                --shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+            }
+        }
+
+        /* Manual Theme Overrides */
+        body.light-theme {
+            --bg-color: #f5f7fa;
+            --card-bg: #ffffff;
+            --text-color: #1a1c1e;
+            --sub-text: #666;
+            --btn-inactive: #e1e4e8;
+            --btn-inactive-text: #666;
+            --shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+        }
+
+        body.dark-theme {
             --bg-color: #1a1c1e;
             --card-bg: #2a2d31;
+            --text-color: #ffffff;
+            --sub-text: #aaa;
+            --btn-inactive: #2a2d31;
+            --btn-inactive-text: #aaa;
+            --shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
         }
 
         body {
-            font-family: 'Pretendard', sans-serif;
+            font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
             background: var(--bg-color);
-            color: white;
+            color: var(--text-color);
             margin: 0;
             display: flex;
             justify-content: center;
             padding: 20px;
+            transition: background 0.3s, color 0.3s;
         }
 
         .container {
@@ -45,6 +88,13 @@
             margin-bottom: 20px;
         }
 
+        .logo {
+            display: block;
+            margin: 0 auto 10px;
+            width: 100px;
+            height: auto;
+        }
+
         .header h1 {
             margin: 0;
             font-size: 1.5rem;
@@ -54,12 +104,12 @@
 
         .header p {
             margin: 5px 0 0;
-            color: #aaa;
+            color: var(--sub-text);
             font-size: 0.9rem;
         }
 
         #weather-info {
-            color: #c9d1d9;
+            color: var(--sub-text);
             font-size: 0.85rem;
         }
 
@@ -68,7 +118,7 @@
             border-radius: 15px;
             padding: 25px;
             margin-bottom: 20px;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+            box-shadow: var(--shadow);
             transition: 0.3s;
             border-left: 5px solid transparent;
         }
@@ -89,16 +139,17 @@
 
         .meal-list {
             line-height: 1.8;
-            color: #ddd;
+            color: var(--text-color);
             font-size: 1rem;
             word-break: keep-all;
             white-space: pre-line;
+            opacity: 0.9;
         }
 
         .calorie {
             margin-top: 15px;
             font-size: 0.85rem;
-            color: #777;
+            color: var(--sub-text);
             text-align: right;
         }
 
@@ -113,8 +164,8 @@
             padding: 12px;
             border: none;
             border-radius: 10px;
-            background: var(--card-bg);
-            color: #aaa;
+            background: var(--btn-inactive);
+            color: var(--btn-inactive-text);
             font-size: 1rem;
             font-weight: bold;
             cursor: pointer;
@@ -124,12 +175,30 @@
         .btn-group button.active {
             background: var(--main-color);
             color: white;
-            box-shadow: 0 4px 10px rgba(243, 156, 18, 0.4);
+            box-shadow: 0 4px 10px rgba(0, 122, 255, 0.3);
         }
 
         .btn-group button:hover:not(.active) {
-            background: #3a3d41;
-            color: white;
+            background: #eef2f7;
+            color: var(--main-color);
+        }
+
+        @media (prefers-color-scheme: dark) {
+            .btn-group button:hover:not(.active) {
+                background: #3a3d41;
+                color: white;
+            }
+        }
+
+        .footer {
+            text-align: center;
+            margin-top: 40px;
+            padding-bottom: 20px;
+            color: var(--sub-text);
+            font-size: 0.85rem;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            font-weight: 600;
         }
     </style>
 </head>
@@ -137,6 +206,7 @@
 <body>
     <div class="container">
         <div class="header">
+            <img src="logo.svg" alt="GHAS Logo" class="logo">
             <h1 id="title-text">경기자동차과학고 급식</h1>
             <p id="today-date">0000.00.00</p>
             <p id="weather-info">날씨 정보를 불러오는 중...</p>
@@ -147,7 +217,7 @@
             <button id="btn-tomorrow" onclick="showMeals('tomorrow')">내일</button>
             <button id="btn-week" onclick="showMeals('week')">이번 주</button>
             <button id="btn-noti" onclick="requestNoti()">🔔</button>
-
+            <button id="btn-theme" onclick="toggleTheme()">🌙</button>
         </div>
 
         <div class="meal-card">
@@ -162,10 +232,15 @@
             <div id="dinner-cal" class="calorie"></div>
 
         </div>
+
+        <footer class="footer">
+            <a href="https://github.com/luka0116kjh" style="text-decoration: none; color: #c9d1d9; ">
+                lukaproduce</a>
+        </footer>
     </div>
 
     <script src="config.js"></script>
-    <script src="script.js"></script>
+    <script src="script.js?v=3"></script>
 </body>
 
 </html>
