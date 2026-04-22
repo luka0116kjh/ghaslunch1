@@ -5,7 +5,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>GHAS 오늘의 급식</title>
-    <link rel="manifest" href="manifest.json">
+    <link rel="manifest" href="manifest.json?v=4">
+    <link rel="icon" type="image/png" href="icon1.png">
+    <link rel="apple-touch-icon" href="icon1.png">
     <meta name="theme-color" content="#f39c12">
     <script>
         if ('serviceWorker' in navigator) {
@@ -129,13 +131,6 @@
             background: #3a3d41;
             color: white;
         }
-
-
-
-        #btn-vote {
-            background: linear-gradient(135deg, #e67e22, #f39c12);
-            color: white;
-        }
     </style>
 </head>
 
@@ -159,7 +154,6 @@
             <div id="lunch-title" class="meal-type">오늘 중식 (Lunch)</div>
             <div id="lunch-menu" class="meal-list">데이터를 불러오는 중...</div>
             <div id="lunch-cal" class="calorie"></div>
-
         </div>
 
         <div class="meal-card">

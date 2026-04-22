@@ -323,8 +323,6 @@ function showMeals(type) {
     }
 }
 
-
-
 async function requestNoti() {
     const permission = await Notification.requestPermission();
     if (permission === 'granted') {
@@ -348,11 +346,9 @@ function scheduleDailyNotification() {
     }
 
     const delay = target.getTime() - now.getTime();
-    console.log(`Notification scheduled in ${delay}ms`);
 
     setTimeout(() => {
         showLocalNotification();
-        // 매일 반복을 위해 재스케줄링
         setInterval(showLocalNotification, 24 * 60 * 60 * 1000);
     }, delay);
 }
@@ -386,8 +382,8 @@ async function showLocalNotification() {
         const registration = await navigator.serviceWorker.ready;
         registration.showNotification('GHAS 오늘의 급식', {
             body: bodyText,
-            icon: 'icon-512.png',
-            badge: 'icon-512.png',
+            icon: 'icon1.png',
+            badge: 'icon1.png',
             vibrate: [200, 100, 200],
             tag: 'daily-meal'
         });
