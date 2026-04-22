@@ -213,9 +213,16 @@ function buildMealTextByWeek(mealMap, mealCode, monday) {
         const ymd = formatDate(date);
         const weekday = date.toLocaleDateString('ko-KR', { weekday: 'short' });
         const menu = mealMap[ymd]?.[mealCode] || '정보가 없습니다.';
-        lines.push(`${formatMonthDay(date)} (${weekday})\n${menu}`);
+        lines.push(`
+            <div style="margin-bottom: 20px; padding-bottom: 12px; border-bottom: 1px solid var(--border-color);">
+                <div style="font-weight: 800; color: var(--primary-color); font-size: 14px; margin-bottom: 6px;">
+                    ${formatMonthDay(date)} (${weekday})
+                </div>
+                <div style="line-height: 1.6; font-size: 15px;">${menu}</div>
+            </div>
+        `);
     }
-    return lines.join('\n\n────────────────\n\n');
+    return lines.join('');
 }
 
 async function showWeeklyMeals(baseDate) {
@@ -230,11 +237,14 @@ async function showWeeklyMeals(baseDate) {
     friday.setDate(monday.getDate() + 4);
     const weekLabel = isWeekend ? '다음 주' : '이번 주';
 
+    document.getElementById('meal-container').style.display = 'block';
+    document.getElementById('timetable-container').style.display = 'none';
     document.getElementById('btn-today').classList.remove('active');
     if (document.getElementById('btn-tomorrow')) document.getElementById('btn-tomorrow').classList.remove('active');
     document.getElementById('btn-week').classList.add('active');
-    setText('lunch-title', `${weekLabel} 중식 (Lunch)`);
-    setText('dinner-title', `${weekLabel} 석식 (Dinner)`);
+    if (document.getElementById('btn-timetable')) document.getElementById('btn-timetable').classList.remove('active');
+    setText('lunch-title', `이번 주 중식`);
+    setText('dinner-title', `이번 주 석식`);
     setText('today-date', `${formatMonthDay(monday)} ~ ${formatMonthDay(friday)}`);
     setText('weather-info', `${weekLabel} 모드에서는 날씨를 표시하지 않습니다.`);
     setText('lunch-menu', '데이터를 불러오는 중...');
@@ -286,8 +296,11 @@ async function showWeeklyMeals(baseDate) {
             });
         }
 
-        setText('lunch-menu', buildMealTextByWeek(mealMap, '2', monday));
-        setText('dinner-menu', buildMealTextByWeek(mealMap, '3', monday));
+        const lunchListEl = document.getElementById('lunch-menu');
+        const dinnerListEl = document.getElementById('dinner-menu');
+        
+        if (lunchListEl) lunchListEl.innerHTML = buildMealTextByWeek(mealMap, '2', monday);
+        if (dinnerListEl) dinnerListEl.innerHTML = buildMealTextByWeek(mealMap, '3', monday);
     } catch (error) {
         console.error('Weekly meal load failed:', error);
         const msg = '급식 정보를 불러오지 못했습니다.';
@@ -306,17 +319,22 @@ function showMeals(type) {
     if (type === 'week') {
         showWeeklyMeals(new Date());
     } else {
+        document.getElementById('meal-container').style.display = 'block';
+        document.getElementById('timetable-container').style.display = 'none';
+
         const btnToday = document.getElementById('btn-today');
         const btnTomorrow = document.getElementById('btn-tomorrow');
         const btnWeek = document.getElementById('btn-week');
+        const btnTimetable = document.getElementById('btn-timetable');
 
         if (btnToday) btnToday.classList.toggle('active', type === 'today');
         if (btnTomorrow) btnTomorrow.classList.toggle('active', type === 'tomorrow');
         if (btnWeek) btnWeek.classList.toggle('active', false);
+        if (btnTimetable) btnTimetable.classList.toggle('active', false);
 
-        const titlePrefix = type === 'tomorrow' ? '내일' : '오늘';
-        setText('lunch-title', `${titlePrefix} 중식 (Lunch)`);
-        setText('dinner-title', `${titlePrefix} 석식 (Dinner)`);
+        // 타이틀 접두사 제거 (카카오 스타일은 심플함이 생명)
+        setText('lunch-title', `중식`);
+        setText('dinner-title', `석식`);
 
         fetchMeals(targetDate);
         fetchWeather(targetDate);
@@ -409,6 +427,79 @@ async function showLocalNotification() {
     }
 }
 
+async function fetchTimetable(grade, classNum, targetDate) {
+    const ymd = formatDate(targetDate);
+    const apiKey = typeof CONFIG !== 'undefined' ? CONFIG.API_KEY : '';
+
+    let url = `https://open.neis.go.kr/hub/hisTimetable?Type=json&ATPT_OFCDC_SC_CODE=J10&SD_SCHUL_CODE=7530908&GRADE=${grade}&CLASS_NM=${classNum}&ALL_TI_YMD=${ymd}`;
+    if (apiKey) url += `&KEY=${apiKey}`;
+
+    try {
+        const response = await fetch(url);
+        const data = await response.json();
+
+        if (data.hisTimetable) {
+            const rows = data.hisTimetable[1].row;
+            return rows.sort((a, b) => a.PERIO - b.PERIO);
+        } else {
+            return [];
+        }
+    } catch (e) {
+        console.error('Timetable Fetch Error:', e);
+        return null;
+    }
+}
+
+async function updateTimetable() {
+    const grade = document.getElementById('grade-select').value;
+    const classNum = document.getElementById('class-select').value;
+    const container = document.getElementById('timetable-list');
+
+    localStorage.setItem('ghas-grade', grade);
+    localStorage.setItem('ghas-class', classNum);
+
+    container.innerHTML = '시간표를 불러오는 중...';
+
+    const targetDate = new Date();
+    // If weekend, show next Monday
+    const day = targetDate.getDay();
+    if (day === 6) targetDate.setDate(targetDate.getDate() + 2);
+    else if (day === 0) targetDate.setDate(targetDate.getDate() + 1);
+
+    const rows = await fetchTimetable(grade, classNum, targetDate);
+
+    if (rows === null) {
+        container.innerHTML = '데이터를 불러오지 못했습니다.';
+    } else if (rows.length === 0) {
+        container.innerHTML = '시간표 정보가 없습니다.';
+    } else {
+        container.innerHTML = rows.map(row => `
+            <div class="timetable-row">
+                <span class="period">${row.PERIO}교시</span>
+                <span class="subject">${row.ITRT_CNTNT}</span>
+            </div>
+        `).join('');
+    }
+}
+
+function showTimetable() {
+    document.getElementById('meal-container').style.display = 'none';
+    document.getElementById('timetable-container').style.display = 'block';
+
+    const btns = ['btn-today', 'btn-tomorrow', 'btn-week', 'btn-timetable'];
+    btns.forEach(id => {
+        const btn = document.getElementById(id);
+        if (btn) btn.classList.toggle('active', id === 'btn-timetable');
+    });
+
+    const savedGrade = localStorage.getItem('ghas-grade');
+    const savedClass = localStorage.getItem('ghas-class');
+    if (savedGrade) document.getElementById('grade-select').value = savedGrade;
+    if (savedClass) document.getElementById('class-select').value = savedClass;
+
+    updateTimetable();
+}
+
 // 페이지 로드 시 앱이 열려있다면 기존 예약 확인
 if (localStorage.getItem('noti-enabled') === 'true') {
     scheduleDailyNotification();
@@ -423,12 +514,12 @@ function toggleTheme() {
     if (isDark) {
         body.classList.remove('dark-theme');
         body.classList.add('light-theme');
-        themeBtn.textContent = 'Light';
+        themeBtn.textContent = '☀️';
         localStorage.setItem('theme', 'light');
     } else {
         body.classList.remove('light-theme');
         body.classList.add('dark-theme');
-        themeBtn.textContent = 'Dark';
+        themeBtn.textContent = '🌙';
         localStorage.setItem('theme', 'dark');
     }
 }
@@ -438,14 +529,14 @@ function initTheme() {
     const themeBtn = document.getElementById('btn-theme');
     if (savedTheme === 'dark') {
         document.body.classList.add('dark-theme');
-        themeBtn.textContent = 'Dark';
+        if (themeBtn) themeBtn.textContent = '🌙';
     } else if (savedTheme === 'light') {
         document.body.classList.add('light-theme');
-        themeBtn.textContent = 'Light';
+        if (themeBtn) themeBtn.textContent = '☀️';
     } else {
         // System preference
         const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-        themeBtn.textContent = isDark ? 'Dark' : 'Light';
+        if (themeBtn) themeBtn.textContent = isDark ? '🌙' : '☀️';
     }
 }
 

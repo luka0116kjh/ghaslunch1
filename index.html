@@ -10,6 +10,8 @@
     <link rel="apple-touch-icon" href="icon1.png">
     <meta name="theme-color" content="#007AFF" media="(prefers-color-scheme: light)">
     <meta name="theme-color" content="#1a1c1e" media="(prefers-color-scheme: dark)">
+    <meta name="theme-color" content="#FEE500" media="(prefers-color-scheme: light)">
+    <meta name="theme-color" content="#121212" media="(prefers-color-scheme: dark)">
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
@@ -17,221 +19,330 @@
             });
         }
     </script>
+    <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css" />
     <style>
         :root {
-            --main-color: #007AFF;
-            /* Light Mode (Default) */
-            --bg-color: #f5f7fa;
-            --card-bg: #ffffff;
-            --text-color: #1a1c1e;
-            --sub-text: #666;
-            --border-color: #e1e4e8;
-            --btn-inactive: #e1e4e8;
-            --btn-inactive-text: #666;
-            --shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+            --primary-color: #FEE500;
+            --primary-text: #191919;
+            --bg-color: #F6F6F6;
+            --card-bg: #FFFFFF;
+            --text-main: #191919;
+            --text-sub: #707070;
+            --border-color: #F2F2F2;
+            --pill-inactive: #EEEEEE;
+            --pill-text-inactive: #8E8E8E;
+            --shadow: 0 8px 24px rgba(0, 0, 0, 0.04);
+            --radius-card: 24px;
+            --radius-pill: 100px;
+        }
+
+        /* Dark Mode Overrides */
+        body.dark-theme {
+            --bg-color: #121212;
+            --card-bg: #1E1E1E;
+            --text-main: #FFFFFF;
+            --text-sub: #AAAAAA;
+            --border-color: #2C2C2C;
+            --pill-inactive: #2C2C2C;
+            --pill-text-inactive: #707070;
+            --shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
         }
 
         @media (prefers-color-scheme: dark) {
-            :root {
-                --bg-color: #1a1c1e;
-                --card-bg: #2a2d31;
-                --text-color: #ffffff;
-                --sub-text: #aaa;
-                --border-color: #007AFF;
-                --btn-inactive: #2a2d31;
-                --btn-inactive-text: #aaa;
-                --shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+            body:not(.light-theme) {
+                --bg-color: #121212;
+                --card-bg: #1E1E1E;
+                --text-main: #FFFFFF;
+                --text-sub: #AAAAAA;
+                --border-color: #2C2C2C;
+                --pill-inactive: #2C2C2C;
+                --pill-text-inactive: #707070;
+                --shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
             }
         }
 
-        /* Manual Theme Overrides */
-        body.light-theme {
-            --bg-color: #f5f7fa;
-            --card-bg: #ffffff;
-            --text-color: #1a1c1e;
-            --sub-text: #666;
-            --btn-inactive: #e1e4e8;
-            --btn-inactive-text: #666;
-            --shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
-        }
-
-        body.dark-theme {
-            --bg-color: #1a1c1e;
-            --card-bg: #2a2d31;
-            --text-color: #ffffff;
-            --sub-text: #aaa;
-            --btn-inactive: #2a2d31;
-            --btn-inactive-text: #aaa;
-            --shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+        * {
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
         }
 
         body {
             font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
-            background: var(--bg-color);
-            color: var(--text-color);
+            background-color: var(--bg-color);
+            color: var(--text-main);
             margin: 0;
             display: flex;
             justify-content: center;
-            padding: 20px;
-            transition: background 0.3s, color 0.3s;
+            transition: background-color 0.3s ease;
+            min-height: 100vh;
         }
 
         .container {
             width: 100%;
-            max-width: 450px;
+            max-width: 480px;
+            padding: 24px 20px;
         }
 
+        /* Header */
         .header {
-            text-align: center;
-            padding: 30px 0;
-            border-bottom: 2px solid var(--main-color);
-            margin-bottom: 20px;
+            padding: 10px 4px 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .header-top {
+            display: flex;
+            align-items: center;
+            gap: 12px;
         }
 
         .logo {
-            display: block;
-            margin: 0 auto 10px;
-            width: 100px;
-            height: auto;
+            width: 32px;
+            height: 32px;
+            object-fit: contain;
         }
 
         .header h1 {
             margin: 0;
-            font-size: 1.5rem;
-            letter-spacing: 1px;
-            color: var(--main-color);
+            font-size: 22px;
+            font-weight: 800;
+            letter-spacing: -0.5px;
         }
 
-        .header p {
-            margin: 5px 0 0;
-            color: var(--sub-text);
-            font-size: 0.9rem;
+        .header-info {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+            color: var(--text-sub);
         }
 
-        #weather-info {
-            color: var(--sub-text);
-            font-size: 0.85rem;
+        /* Tabs */
+        .btn-group {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 24px;
+            overflow-x: auto;
+            padding-bottom: 4px;
+            -ms-overflow-style: none;
+            scrollbar-width: none;
         }
 
+        .btn-group::-webkit-scrollbar {
+            display: none;
+        }
+
+        .btn-group button {
+            white-space: nowrap;
+            padding: 10px 18px;
+            border: none;
+            border-radius: var(--radius-pill);
+            background-color: var(--pill-inactive);
+            color: var(--pill-text-inactive);
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .btn-group button.active {
+            background-color: var(--primary-color);
+            color: var(--primary-text);
+            box-shadow: 0 4px 12px rgba(254, 229, 0, 0.2);
+        }
+
+        .btn-group #btn-theme, .btn-group #btn-noti {
+            background-color: transparent;
+            font-size: 18px;
+            padding: 10px 12px;
+        }
+
+        /* Card System */
         .meal-card {
-            background: var(--card-bg);
-            border-radius: 15px;
-            padding: 25px;
-            margin-bottom: 20px;
+            background-color: var(--card-bg);
+            border-radius: var(--radius-card);
+            padding: 24px;
+            margin-bottom: 16px;
             box-shadow: var(--shadow);
-            transition: 0.3s;
-            border-left: 5px solid transparent;
-        }
-
-        .meal-card:hover {
-            transform: translateY(-5px);
-            border-left: 5px solid var(--main-color);
+            transition: transform 0.2s ease, background-color 0.3s ease;
+            position: relative;
         }
 
         .meal-type {
-            font-size: 1.1rem;
-            font-weight: 800;
-            margin-bottom: 15px;
+            font-size: 18px;
+            font-weight: 700;
+            margin-bottom: 18px;
+            color: var(--text-main);
             display: flex;
             align-items: center;
-            color: var(--main-color);
+            gap: 8px;
+        }
+
+        .meal-type::before {
+            content: '';
+            display: inline-block;
+            width: 4px;
+            height: 18px;
+            background-color: var(--primary-color);
+            border-radius: 2px;
         }
 
         .meal-list {
-            line-height: 1.8;
-            color: var(--text-color);
-            font-size: 1rem;
-            word-break: keep-all;
-            white-space: pre-line;
+            line-height: 1.7;
+            font-size: 16px;
+            color: var(--text-main);
             opacity: 0.9;
         }
 
         .calorie {
-            margin-top: 15px;
-            font-size: 0.85rem;
-            color: var(--sub-text);
+            margin-top: 20px;
+            font-size: 13px;
+            color: var(--text-sub);
             text-align: right;
+            font-weight: 500;
         }
 
-        .btn-group {
+        /* Timetable UI */
+        .class-selector {
             display: flex;
             gap: 10px;
             margin-bottom: 20px;
+            background-color: var(--pill-inactive);
+            padding: 6px;
+            border-radius: 16px;
         }
 
-        .btn-group button {
+        .class-selector select {
             flex: 1;
-            padding: 12px;
+            padding: 10px;
             border: none;
-            border-radius: 10px;
-            background: var(--btn-inactive);
-            color: var(--btn-inactive-text);
-            font-size: 1rem;
-            font-weight: bold;
-            cursor: pointer;
-            transition: 0.3s;
+            background: transparent;
+            color: var(--text-main);
+            font-size: 14px;
+            font-weight: 600;
+            outline: none;
+            text-align: center;
         }
 
-        .btn-group button.active {
-            background: var(--main-color);
-            color: white;
-            box-shadow: 0 4px 10px rgba(0, 122, 255, 0.3);
+        .timetable-row {
+            display: flex;
+            align-items: center;
+            padding: 14px 0;
+            border-bottom: 1px solid var(--border-color);
         }
 
-        .btn-group button:hover:not(.active) {
-            background: #eef2f7;
-            color: var(--main-color);
+        .timetable-row:last-child {
+            border-bottom: none;
         }
 
-        @media (prefers-color-scheme: dark) {
-            .btn-group button:hover:not(.active) {
-                background: #3a3d41;
-                color: white;
-            }
+        .period {
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--text-sub);
+            width: 50px;
+            background-color: var(--pill-inactive);
+            padding: 4px 8px;
+            border-radius: 8px;
+            text-align: center;
+            margin-right: 16px;
         }
 
+        .subject {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--text-main);
+        }
+
+        /* Footer */
         .footer {
             text-align: center;
             margin-top: 40px;
-            padding-bottom: 20px;
-            color: var(--sub-text);
-            font-size: 0.85rem;
-            letter-spacing: 2px;
-            text-transform: uppercase;
+            padding-bottom: 30px;
+        }
+
+        .footer a {
+            text-decoration: none;
+            color: var(--text-sub);
+            font-size: 12px;
             font-weight: 600;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            opacity: 0.5;
+        }
+
+        /* Animations */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .meal-card {
+            animation: fadeIn 0.4s ease forwards;
         }
     </style>
 </head>
 
 <body>
     <div class="container">
-        <div class="header">
-            <img src="logo.svg" alt="GHAS Logo" class="logo">
-            <h1 id="title-text">경기자동차과학고 급식</h1>
-            <p id="today-date">0000.00.00</p>
-            <p id="weather-info">날씨 정보를 불러오는 중...</p>
-        </div>
+        <header class="header">
+            <div class="header-top">
+                <img src="logo.svg" alt="GHAS Logo" class="logo">
+                <h1 id="title-text">경기자동차과학고</h1>
+            </div>
+            <div class="header-info">
+                <span id="today-date">0000.00.00</span>
+                <span>•</span>
+                <span id="weather-info">날씨 정보를 불러오는 중...</span>
+            </div>
+        </header>
 
-        <div class="btn-group">
+        <nav class="btn-group">
             <button id="btn-today" class="active" onclick="showMeals('today')">오늘</button>
             <button id="btn-tomorrow" onclick="showMeals('tomorrow')">내일</button>
             <button id="btn-week" onclick="showMeals('week')">이번 주</button>
+            <button id="btn-timetable" onclick="showTimetable()">시간표</button>
             <button id="btn-noti" onclick="requestNoti()">🔔</button>
-            <button id="btn-theme" onclick="toggleTheme()">Theme</button>
-        </div>
+            <button id="btn-theme" onclick="toggleTheme()">🌓</button>
+        </nav>
 
-        <div class="meal-card">
-            <div id="lunch-title" class="meal-type">오늘 중식 (Lunch)</div>
-            <div id="lunch-menu" class="meal-list">데이터를 불러오는 중...</div>
-            <div id="lunch-cal" class="calorie"></div>
-        </div>
+        <main id="meal-container">
+            <article class="meal-card">
+                <div id="lunch-title" class="meal-type">중식</div>
+                <div id="lunch-menu" class="meal-list">데이터를 불러오는 중...</div>
+                <div id="lunch-cal" class="calorie"></div>
+            </article>
 
-        <div class="meal-card">
-            <div id="dinner-title" class="meal-type">오늘 석식 (Dinner)</div>
-            <div id="dinner-menu" class="meal-list">데이터를 불러오는 중...</div>
-            <div id="dinner-cal" class="calorie"></div>
+            <article class="meal-card">
+                <div id="dinner-title" class="meal-type">석식</div>
+                <div id="dinner-menu" class="meal-list">데이터를 불러오는 중...</div>
+                <div id="dinner-cal" class="calorie"></div>
+            </article>
+        </main>
 
-        </div>
+        <section id="timetable-container" style="display: none;">
+            <div class="class-selector">
+                <select id="grade-select" onchange="updateTimetable()">
+                    <option value="1">1학년</option>
+                    <option value="2">2학년</option>
+                    <option value="3">3학년</option>
+                </select>
+                <select id="class-select" onchange="updateTimetable()">
+                    <option value="1">1반</option>
+                    <option value="2">2반</option>
+                    <option value="3">3반</option>
+                    <option value="4">4반</option>
+                    <option value="5">5반</option>
+                    <option value="6">6반</option>
+                    <option value="7">7반</option>
+                    <option value="8">8반</option>
+                </select>
+            </div>
+            <div class="meal-card">
+                <div class="meal-type">시간표</div>
+                <div id="timetable-list" class="meal-list">시간표를 불러오는 중...</div>
+            </div>
+        </section>
 
         <footer class="footer">
             <a href="https://github.com/luka0116kjh" style="text-decoration: none; color: #c9d1d9; ">
@@ -240,7 +351,7 @@
     </div>
 
     <script src="config.js"></script>
-    <script src="script.js?v=4"></script>
+    <script src="script.js?v=8"></script>
 </body>
 
 </html>
