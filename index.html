@@ -8,10 +8,13 @@
     <link rel="manifest" href="manifest.json?v=8">
     <link rel="icon" type="image/png" href="icon1.png">
     <link rel="apple-touch-icon" href="icon1.png">
-    <meta name="theme-color" content="#007AFF" media="(prefers-color-scheme: light)">
-    <meta name="theme-color" content="#1a1c1e" media="(prefers-color-scheme: dark)">
     <meta name="theme-color" content="#FEE500" media="(prefers-color-scheme: light)">
     <meta name="theme-color" content="#121212" media="(prefers-color-scheme: dark)">
+    
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
@@ -345,13 +348,16 @@
         </section>
 
         <footer class="footer">
+            <div id="visitor-counter" style="margin-bottom: 8px; font-size: 11px; color: var(--text-sub); opacity: 0.8;">
+                <span id="visitor-label">방문자 수: </span><span id="visit-count">...</span>
+            </div>
             <a href="https://github.com/luka0116kjh" style="text-decoration: none; color: #c9d1d9; ">
                 lukaproduce</a>
         </footer>
     </div>
 
     <script src="config.js"></script>
-    <script src="script.js?v=8"></script>
+    <script src="script.js?v=13"></script>
 </body>
 
 </html>

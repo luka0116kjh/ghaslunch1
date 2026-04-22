@@ -128,11 +128,28 @@ async function fetchWeather(targetDate) {
     }
 }
 
+function escapeHTML(str) {
+    if (!str) return "";
+    return str.replace(/[&<>"']/g, function(m) {
+        return {
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            '"': '&quot;',
+            "'": '&#39;'
+        }[m];
+    });
+}
+
 function normalizeMenuText(rawMenu) {
-    return (rawMenu || '')
+    // 1. 브라켓() 내용 제거 및 HTML 이스케이프
+    let clean = (rawMenu || '')
         .replace(/\([^)]*\)/g, '')
-        .replace(/<br\s*\/?>/gi, '\n')
+        .replace(/<br\s*\/?>/gi, '\n') // <br>은 줄바꿈으로 보존
         .trim();
+    
+    // 2. 위험한 문자 필터링 (이스케이프)
+    return clean;
 }
 
 function extractMealRows(data) {
@@ -212,7 +229,7 @@ function buildMealTextByWeek(mealMap, mealCode, monday) {
         date.setDate(monday.getDate() + i);
         const ymd = formatDate(date);
         const weekday = date.toLocaleDateString('ko-KR', { weekday: 'short' });
-        const menu = mealMap[ymd]?.[mealCode] || '정보가 없습니다.';
+        const menu = escapeHTML(mealMap[ymd]?.[mealCode] || '정보가 없습니다.').replace(/\n/g, '<br>');
         lines.push(`
             <div style="margin-bottom: 20px; padding-bottom: 12px; border-bottom: 1px solid var(--border-color);">
                 <div style="font-weight: 800; color: var(--primary-color); font-size: 14px; margin-bottom: 6px;">
@@ -440,7 +457,19 @@ async function fetchTimetable(grade, classNum, targetDate) {
 
         if (data.hisTimetable) {
             const rows = data.hisTimetable[1].row;
-            return rows.sort((a, b) => a.PERIO - b.PERIO);
+            
+            // 교시(PERIO) 기준 중복 제거
+            const uniqueRows = [];
+            const seenPeriods = new Set();
+            
+            rows.forEach(row => {
+                if (!seenPeriods.has(row.PERIO)) {
+                    seenPeriods.add(row.PERIO);
+                    uniqueRows.push(row);
+                }
+            });
+            
+            return uniqueRows.sort((a, b) => a.PERIO - b.PERIO);
         } else {
             return [];
         }
@@ -476,7 +505,7 @@ async function updateTimetable() {
         container.innerHTML = rows.map(row => `
             <div class="timetable-row">
                 <span class="period">${row.PERIO}교시</span>
-                <span class="subject">${row.ITRT_CNTNT}</span>
+                <span class="subject">${escapeHTML(row.ITRT_CNTNT)}</span>
             </div>
         `).join('');
     }
@@ -540,6 +569,53 @@ function initTheme() {
     }
 }
 
+// Firebase 및 실시간 접속자 카운터 초기화
+function initVisitorCounter() {
+    if (typeof firebase !== 'undefined' && typeof CONFIG !== 'undefined' && CONFIG.FIREBASE) {
+        try {
+            const firebaseConfig = {
+                apiKey: CONFIG.FIREBASE.API_KEY,
+                authDomain: CONFIG.FIREBASE.AUTH_DOMAIN,
+                databaseURL: CONFIG.FIREBASE.DATABASE_URL,
+                projectId: CONFIG.FIREBASE.PROJECT_ID,
+                storageBucket: CONFIG.FIREBASE.STORAGE_BUCKET,
+                messagingSenderId: CONFIG.FIREBASE.MESSAGING_SENDER_ID,
+                appId: CONFIG.FIREBASE.APP_ID
+            };
+
+            if (!firebase.apps.length) {
+                firebase.initializeApp(firebaseConfig);
+            }
+            
+            const db = firebase.database();
+            const onlineRef = db.ref('status/onlineUsers');
+            
+            // 나의 접속 정보 생성
+            const myPresenceRef = onlineRef.push();
+            
+            // 접속 시 true 설정, 연결 끊길 시 자동 삭제
+            myPresenceRef.set(true);
+            myPresenceRef.onDisconnect().remove();
+
+            // 실시간 접속자 수 업데이트
+            onlineRef.on('value', (snapshot) => {
+                const count = snapshot.numChildren() || 0;
+                const countEl = document.getElementById('visit-count');
+                const labelEl = document.getElementById('visitor-label');
+                if (countEl) {
+                    countEl.textContent = count.toLocaleString();
+                }
+                if (labelEl) {
+                    labelEl.textContent = '현재 접속 중: ';
+                }
+            });
+        } catch (e) {
+            console.error("Firebase 초기화 실패:", e);
+        }
+    }
+}
+
 // 초기화 호출
 initTheme();
 showMeals('today');
+initVisitorCounter();

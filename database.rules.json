@@ -1,6 +1,19 @@
 {
   "rules": {
-    ".read": "true",
-    ".write": "true"
+    "stats": {
+      "visitCount": {
+        ".read": true,
+        ".write": "newData.isNumber() && (!data.exists() || newData.val() >= data.val())"
+      }
+    },
+    "status": {
+      "onlineUsers": {
+        ".read": true,
+        "$user_id": {
+          ".write": "newData.exists() || data.exists()",
+          ".validate": "newData.val() === true"
+        }
+      }
+    }
   }
 }
