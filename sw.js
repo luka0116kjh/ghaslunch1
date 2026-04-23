@@ -1,4 +1,36 @@
-const CACHE_NAME = 'ghas-lunch-v11';
+importScripts('https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js');
+importScripts('https://www.gstatic.com/firebasejs/10.7.1/firebase-messaging-compat.js');
+importScripts('config.js');
+
+if (typeof firebase !== 'undefined' && typeof CONFIG !== 'undefined') {
+    firebase.initializeApp({
+        apiKey: CONFIG.FIREBASE.API_KEY,
+        authDomain: CONFIG.FIREBASE.AUTH_DOMAIN,
+        databaseURL: CONFIG.FIREBASE.DATABASE_URL,
+        projectId: CONFIG.FIREBASE.PROJECT_ID,
+        storageBucket: CONFIG.FIREBASE.STORAGE_BUCKET,
+        messagingSenderId: CONFIG.FIREBASE.MESSAGING_SENDER_ID,
+        appId: CONFIG.FIREBASE.APP_ID
+    });
+
+    const messaging = firebase.messaging();
+
+    // 백그라운드 메시지 처리
+    messaging.onBackgroundMessage((payload) => {
+        console.log('[sw.js] Received background message ', payload);
+        const notificationTitle = payload.notification.title;
+        const notificationOptions = {
+            body: payload.notification.body,
+            icon: payload.notification.image || 'icon1.png',
+            badge: 'icon1.png',
+            data: payload.data
+        };
+
+        self.registration.showNotification(notificationTitle, notificationOptions);
+    });
+}
+
+const CACHE_NAME = 'ghas-lunch-v14';
 const ASSETS = [
     './',
     './index.html',

@@ -98,7 +98,36 @@
         .header-top {
             display: flex;
             align-items: center;
+            justify-content: space-between;
             gap: 12px;
+        }
+
+        .header-title-area {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .btn-icon {
+            background: transparent;
+            border: none;
+            padding: 8px;
+            cursor: pointer;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background-color 0.2s;
+            color: var(--text-main);
+        }
+
+        .btn-icon:active {
+            background-color: var(--pill-inactive);
+        }
+
+        .btn-icon svg {
+            width: 20px;
+            height: 20px;
         }
 
         .logo {
@@ -293,6 +322,58 @@
         .meal-card {
             animation: fadeIn 0.4s ease forwards;
         }
+
+        /* Offline UI */
+        .offline-card {
+            background-color: var(--card-bg);
+            border-radius: var(--radius-card);
+            padding: 48px 24px;
+            margin-bottom: 16px;
+            box-shadow: var(--shadow);
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            animation: fadeIn 0.4s ease forwards;
+        }
+
+        .offline-icon {
+            font-size: 56px;
+            margin-bottom: 8px;
+            opacity: 0.9;
+        }
+
+        .offline-title {
+            font-size: 20px;
+            font-weight: 800;
+            color: var(--text-main);
+            margin-bottom: 8px;
+        }
+
+        .offline-desc {
+            font-size: 15px;
+            color: var(--text-sub);
+            line-height: 1.5;
+            margin-bottom: 24px;
+        }
+
+        .retry-btn {
+            padding: 12px 28px;
+            border: none;
+            border-radius: var(--radius-pill);
+            background-color: var(--primary-color);
+            color: var(--primary-text);
+            font-size: 15px;
+            font-weight: 700;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(254, 229, 0, 0.2);
+            transition: transform 0.2s;
+        }
+
+        .retry-btn:active {
+            transform: scale(0.95);
+        }
     </style>
 </head>
 
@@ -300,8 +381,18 @@
     <div class="container">
         <header class="header">
             <div class="header-top">
-                <img src="logo.svg" alt="GHAS Logo" class="logo">
-                <h1 id="title-text">경기자동차과학고</h1>
+                <div class="header-title-area">
+                    <img src="logo.svg" alt="GHAS Logo" class="logo">
+                    <h1 id="title-text">경기자동차과학고</h1>
+                </div>
+                <button id="btn-share" class="btn-icon" onclick="shareApp()" aria-label="공유하기">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round">
+                        <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"></path>
+                        <polyline points="16 6 12 2 8 6"></polyline>
+                        <line x1="12" y1="2" x2="12" y2="15"></line>
+                    </svg>
+                </button>
             </div>
             <div class="header-info">
                 <span id="today-date">0000.00.00</span>
@@ -356,6 +447,13 @@
             </div>
         </section>
 
+        <section id="offline-container" style="display: none;" class="offline-card">
+            <div class="offline-icon">network</div>
+            <div class="offline-title">오프라인 상태입니다</div>
+            <div class="offline-desc">네트워크 연결이 끊어졌습니다.<br>Wi-Fi 또는 모바일 데이터를 확인해 주세요.</div>
+            <button class="retry-btn" onclick="location.reload()">다시 시도</button>
+        </section>
+
         <footer class="footer">
             <div id="visitor-counter"
                 style="margin-bottom: 8px; font-size: 11px; color: var(--text-sub); opacity: 0.8;">
@@ -367,7 +465,7 @@
     </div>
 
     <script src="config.js"></script>
-    <script src="script.js?v=24"></script>
+    <script src="script.js?v=27"></script>
 </body>
 
 </html>

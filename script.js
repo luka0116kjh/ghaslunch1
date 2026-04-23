@@ -24,6 +24,35 @@ function setText(id, value) {
     el.textContent = value;
 }
 
+function showOfflineUI(isOffline) {
+    const offlineContainer = document.getElementById('offline-container');
+    const mealContainer = document.getElementById('meal-container');
+    const timetableContainer = document.getElementById('timetable-container');
+    const weatherInfo = document.getElementById('weather-info');
+
+    if (isOffline) {
+        if (mealContainer) mealContainer.style.display = 'none';
+        if (timetableContainer) timetableContainer.style.display = 'none';
+        if (offlineContainer) offlineContainer.style.display = 'flex';
+        if (weatherInfo) weatherInfo.textContent = '오프라인 (네트워크 끊김)';
+    } else {
+        if (offlineContainer) offlineContainer.style.display = 'none';
+    }
+}
+
+window.addEventListener('online', () => {
+    showOfflineUI(false);
+    const activeBtn = document.querySelector('.btn-group button.active');
+    if (activeBtn && activeBtn.id === 'btn-timetable') showTimetable();
+    else if (activeBtn && activeBtn.id === 'btn-week') showMeals('week');
+    else if (activeBtn && activeBtn.id === 'btn-tomorrow') showMeals('tomorrow');
+    else showMeals('today');
+});
+
+window.addEventListener('offline', () => {
+    showOfflineUI(true);
+});
+
 function getWeatherConfig() {
     const weatherConfig = (typeof CONFIG !== 'undefined' && CONFIG.WEATHER) ? CONFIG.WEATHER : {};
     return {
@@ -124,6 +153,10 @@ async function fetchWeather(targetDate) {
         }
     } catch (error) {
         console.error('Weather load failed:', error);
+        if (!navigator.onLine) {
+            showOfflineUI(true);
+            return;
+        }
         setText('weather-info', '날씨 정보를 불러오지 못했습니다. 지역/좌표를 확인해주세요.');
     }
 }
@@ -204,6 +237,10 @@ async function fetchMeals(targetDate) {
 
     } catch (error) {
         console.error('Meal load failed:', error);
+        if (!navigator.onLine) {
+            showOfflineUI(true);
+            return;
+        }
         const msg = '급식 정보를 불러오지 못했습니다.';
         setText('lunch-menu', msg);
         setText('dinner-menu', msg);
@@ -321,13 +358,45 @@ async function showWeeklyMeals(baseDate) {
         if (dinnerListEl) dinnerListEl.innerHTML = buildMealTextByWeek(mealMap, '3', monday);
     } catch (error) {
         console.error('Weekly meal load failed:', error);
+        if (!navigator.onLine) {
+            showOfflineUI(true);
+            return;
+        }
         const msg = '급식 정보를 불러오지 못했습니다.';
         setText('lunch-menu', msg);
         setText('dinner-menu', msg);
     }
 }
 
+// 공유하기 기능 (나중에 스토어 등록 시 주소를 업데이트 하세요)
+async function shareApp() {
+    const storeUrl = 'https://ghaslunch1.web.app'; // 나중에 구글 플레이 스토어 주소로 변경하세요.
+    const shareData = {
+        title: 'GHAS 오늘의 급식',
+        text: '경기자동차과학고등학교 급식 및 시간표 확인 앱!',
+        url: storeUrl
+    };
+
+    try {
+        if (navigator.share) {
+            await navigator.share(shareData);
+        } else {
+            // Web Share API 미지원 시 클립보드 복사
+            await navigator.clipboard.writeText(storeUrl);
+            alert('앱 링크가 클립보드에 복사되었습니다. 필요한 곳에 붙여넣어 공유하세요!');
+        }
+    } catch (err) {
+        console.error('공유 실패:', err);
+    }
+}
+
 function showMeals(type) {
+    if (!navigator.onLine) {
+        showOfflineUI(true);
+        return;
+    }
+    showOfflineUI(false);
+
     const targetDate = new Date();
 
     if (type === 'tomorrow') {
@@ -363,24 +432,50 @@ let notiTimer = null;
 let notiInterval = null;
 
 async function requestNoti() {
-    if (localStorage.getItem('noti-enabled') === 'true') {
-        const cancel = confirm('현재 급식 알림이 활성화되어 있습니다. 알림을 취소하시겠습니까?');
-        if (cancel) {
-            localStorage.setItem('noti-enabled', 'false');
-            if (notiTimer) clearTimeout(notiTimer);
-            if (notiInterval) clearInterval(notiInterval);
-            alert('급식 알림이 취소되었습니다.');
-        }
+    const permission = await Notification.requestPermission();
+    if (permission !== 'granted') {
+        alert('알림 권한을 허용해야 알림을 받을 수 있습니다.');
         return;
     }
 
-    const permission = await Notification.requestPermission();
-    if (permission === 'granted') {
-        localStorage.setItem('noti-enabled', 'true');
-        alert('알림이 설정되었습니다! 매일 오전 7:30에 급식 정보를 확인하세요.\n(브라우저가 열려있어야 알림이 작동합니다.)');
-        scheduleDailyNotification();
-    } else {
-        alert('알림 권한을 허용해야 알림을 받을 수 있습니다.');
+    try {
+        const messaging = firebase.messaging();
+        
+        // VAPID 키가 설정되어 있어야 웹 푸시를 받을 수 있습니다.
+        // Firebase 콘솔 -> 프로젝트 설정 -> 클라우드 메시징 -> 웹 구성에서 발급 가능합니다.
+        const vapidKey = CONFIG.FIREBASE.VAPID_KEY;
+        
+        if (!vapidKey || vapidKey.includes('YOUR_')) {
+            console.warn('VAPID 키가 설정되지 않았습니다. config.js에서 설정이 필요합니다.');
+            // 기존 로컬 타이머 방식은 유지 (백업용)
+            localStorage.setItem('noti-enabled', 'true');
+            alert('알림 권한이 허용되었습니다! (FCM VAPID 키가 없어 로컬 타이머 모드로 작동합니다.)');
+            scheduleDailyNotification();
+            return;
+        }
+
+        const currentToken = await messaging.getToken({ vapidKey: vapidKey });
+        
+        if (currentToken) {
+            console.log('FCM Token:', currentToken);
+            localStorage.setItem('noti-enabled', 'true');
+            localStorage.setItem('fcm-token', currentToken);
+            
+            // 토큰을 DB에 저장 (나중에 서버에서 알림을 보낼 때 사용)
+            const db = firebase.database();
+            const tokenRef = db.ref('tokens/' + currentToken.replace(/\W/g, '_'));
+            await tokenRef.set({
+                lastUpdated: firebase.database.ServerValue.TIMESTAMP,
+                platform: 'web'
+            });
+
+            alert('푸시 알림 설정이 완료되었습니다! 이제 실시간 알림을 받을 수 있습니다.');
+        } else {
+            alert('알림 토큰을 생성하지 못했습니다. 다시 시도해 주세요.');
+        }
+    } catch (err) {
+        console.error('FCM 설정 중 오류:', err);
+        alert('알림 설정 중 오류가 발생했습니다: ' + err.message);
     }
 }
 
@@ -449,7 +544,7 @@ async function showLocalNotification() {
 // 왼쪽: API에서 오는 원본 명칭 (또는 코드)
 // 오른쪽: 학생들에게 보여줄 친숙한 명칭
 const SUBJECT_ALIASES = {
-"공통국어1": "국어",
+    "공통국어1": "국어",
     "공통국어2": "국어",
     "문학": "국어",
     "화법과 언어": "국어",
@@ -475,8 +570,8 @@ const SUBJECT_ALIASES = {
     "창의적 체험활동": "창체",
     "정보 처리와 관리": "정보 처리",
     "SSQL": "SQL",
-    "베이스·클리어 도장 작업" : "자동차도장",
-    "자동차 등화장치 정비" : "자동차정비" 
+    "베이스·클리어 도장 작업": "자동차도장",
+    "자동차 등화장치 정비": "자동차정비"
 };
 
 function decodeSubject(rawName) {
@@ -490,7 +585,7 @@ async function fetchTimetable(grade, classNum, targetDate) {
     const ymd = formatDate(targetDate);
     const apiKey = typeof CONFIG !== 'undefined' ? CONFIG.API_KEY : '';
 
-    let url = `https://open.neis.go.kr/hub/hisTimetable?Type=json&ATPT_OFCDC_SC_CODE=J10&SD_SCHUL_CODE=7530908&GRADE=${grade}&CLASS_NM=${classNum}&ALL_TI_YMD=${ymd}`;
+    let url = `https://open.neis.go.kr/hub/hisTimetable?Type=json&ATPT_OFCDC_SC_CODE=J10&SD_SCHUL_CODE=7530908&GRADE=${grade}&CLASS_NM=${classNum}&ALL_TI_YMD=${ymd}&pSize=100`;
     if (apiKey) url += `&KEY=${apiKey}`;
 
     try {
@@ -500,14 +595,12 @@ async function fetchTimetable(grade, classNum, targetDate) {
         if (data.hisTimetable) {
             const rows = data.hisTimetable[1].row;
 
-            // 교시(PERIO) 기준 중복 제거
             const uniqueRows = [];
             const seenPeriods = new Set();
 
             rows.forEach(row => {
                 if (!seenPeriods.has(row.PERIO)) {
                     seenPeriods.add(row.PERIO);
-
                     uniqueRows.push({
                         period: row.PERIO,                 // 교시
                         originalSubject: row.ITRT_CNTNT,   // API 원본 과목명
@@ -522,9 +615,13 @@ async function fetchTimetable(grade, classNum, targetDate) {
         }
     } catch (e) {
         console.error('Timetable Fetch Error:', e);
+        if (!navigator.onLine) {
+            showOfflineUI(true);
+        }
         return null;
     }
 }
+
 
 async function updateTimetable() {
     const grade = document.getElementById('grade-select').value;
@@ -537,7 +634,7 @@ async function updateTimetable() {
     container.innerHTML = '시간표를 불러오는 중...';
 
     const targetDate = new Date();
-    // If weekend, show next Monday
+    
     const day = targetDate.getDay();
     if (day === 6) targetDate.setDate(targetDate.getDate() + 2);
     else if (day === 0) targetDate.setDate(targetDate.getDate() + 1);
@@ -559,6 +656,12 @@ async function updateTimetable() {
 }
 
 function showTimetable() {
+    if (!navigator.onLine) {
+        showOfflineUI(true);
+        return;
+    }
+    showOfflineUI(false);
+
     document.getElementById('meal-container').style.display = 'none';
     document.getElementById('timetable-container').style.display = 'block';
 
@@ -657,6 +760,21 @@ function initVisitorCounter() {
                     labelEl.textContent = '누적 방문자: ';
                 }
             });
+            // 포그라운드 메시지 수신 처리
+            const messaging = firebase.messaging();
+            messaging.onMessage((payload) => {
+                console.log('Foreground message received:', payload);
+                const { title, body } = payload.notification;
+                
+                // 브라우저가 열려있을 때 상단 알림 띄우기
+                if (Notification.permission === 'granted') {
+                    new Notification(title, {
+                        body: body,
+                        icon: 'icon1.png'
+                    });
+                }
+            });
+
         } catch (e) {
             console.error("Firebase 초기화 실패:", e);
         }
