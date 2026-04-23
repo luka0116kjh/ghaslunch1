@@ -130,7 +130,7 @@ async function fetchWeather(targetDate) {
 
 function escapeHTML(str) {
     if (!str) return "";
-    return str.replace(/[&<>"']/g, function(m) {
+    return str.replace(/[&<>"']/g, function (m) {
         return {
             '&': '&amp;',
             '<': '&lt;',
@@ -146,7 +146,7 @@ function normalizeMenuText(rawMenu) {
     let clean = (rawMenu || '')
         .replace(/\([^)]*\)/g, '')
         .replace(/<br\s*\/?>/gi, ' ');
-    
+
     // 2. 모든 종류의 공백(스페이스, 엔터, 탭 등)을 기준으로 나누고, 빈칸을 제거한 뒤 딱 한 번의 줄바꿈(\n)으로 연결
     return clean.split(/\s+/).filter(Boolean).join('\n');
 }
@@ -316,7 +316,7 @@ async function showWeeklyMeals(baseDate) {
 
         const lunchListEl = document.getElementById('lunch-menu');
         const dinnerListEl = document.getElementById('dinner-menu');
-        
+
         if (lunchListEl) lunchListEl.innerHTML = buildMealTextByWeek(mealMap, '2', monday);
         if (dinnerListEl) dinnerListEl.innerHTML = buildMealTextByWeek(mealMap, '3', monday);
     } catch (error) {
@@ -445,6 +445,47 @@ async function showLocalNotification() {
     }
 }
 
+// === 과목명 매핑 딕셔너리 (SQL DECODE 기능) ===
+// 왼쪽: API에서 오는 원본 명칭 (또는 코드)
+// 오른쪽: 학생들에게 보여줄 친숙한 명칭
+const SUBJECT_ALIASES = {
+"공통국어1": "국어",
+    "공통국어2": "국어",
+    "문학": "국어",
+    "화법과 언어": "국어",
+    "공통수학1": "수학",
+    "공통수학2": "수학",
+    "대수": "수학",
+    "미적분Ⅰ": "수학",
+    "공통영어1": "영어",
+    "공통영어2": "영어",
+    "영어Ⅰ": "영어",
+    "영어Ⅱ": "영어",
+    "직무 영어": "영어",
+    "한국사1": "한국사",
+    "한국사2": "한국사",
+    "통합사회1": "사회",
+    "통합사회2": "사회",
+    "통합과학1": "과학",
+    "통합과학2": "과학",
+    "체육1": "체육",
+    "체육2": "체육",
+    "진로활동": "진로",
+    "동아리활동": "동아리",
+    "창의적 체험활동": "창체",
+    "정보 처리와 관리": "정보 처리",
+    "SSQL": "SQL",
+    "베이스·클리어 도장 작업" : "자동차도장",
+    "자동차 등화장치 정비" : "자동차정비" 
+};
+
+function decodeSubject(rawName) {
+    if (!rawName) return "공강";
+    const trimmed = rawName.trim();
+    // 딕셔너리에 매핑된 값이 있으면 그 값을, 없으면 원본을 그대로 반환
+    return SUBJECT_ALIASES[trimmed] || trimmed;
+}
+
 async function fetchTimetable(grade, classNum, targetDate) {
     const ymd = formatDate(targetDate);
     const apiKey = typeof CONFIG !== 'undefined' ? CONFIG.API_KEY : '';
@@ -458,19 +499,24 @@ async function fetchTimetable(grade, classNum, targetDate) {
 
         if (data.hisTimetable) {
             const rows = data.hisTimetable[1].row;
-            
+
             // 교시(PERIO) 기준 중복 제거
             const uniqueRows = [];
             const seenPeriods = new Set();
-            
+
             rows.forEach(row => {
                 if (!seenPeriods.has(row.PERIO)) {
                     seenPeriods.add(row.PERIO);
-                    uniqueRows.push(row);
+
+                    uniqueRows.push({
+                        period: row.PERIO,                 // 교시
+                        originalSubject: row.ITRT_CNTNT,   // API 원본 과목명
+                        subject: decodeSubject(row.ITRT_CNTNT) // 변환된 친숙한 과목명
+                    });
                 }
             });
-            
-            return uniqueRows.sort((a, b) => a.PERIO - b.PERIO);
+
+            return uniqueRows.sort((a, b) => a.period - b.period);
         } else {
             return [];
         }
@@ -505,8 +551,8 @@ async function updateTimetable() {
     } else {
         container.innerHTML = rows.map(row => `
             <div class="timetable-row">
-                <span class="period">${row.PERIO}교시</span>
-                <span class="subject">${escapeHTML(row.ITRT_CNTNT)}</span>
+                <span class="period">${row.period}교시</span>
+                <span class="subject">${escapeHTML(row.subject)}</span>
             </div>
         `).join('');
     }
@@ -587,7 +633,7 @@ function initVisitorCounter() {
             if (!firebase.apps.length) {
                 firebase.initializeApp(firebaseConfig);
             }
-            
+
             const db = firebase.database();
             const visitRef = db.ref('stats/visitCount');
 

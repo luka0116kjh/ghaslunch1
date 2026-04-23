@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ghas-lunch-v10';
+const CACHE_NAME = 'ghas-lunch-v11';
 const ASSETS = [
     './',
     './index.html',
