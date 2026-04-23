@@ -142,14 +142,13 @@ function escapeHTML(str) {
 }
 
 function normalizeMenuText(rawMenu) {
-    // 1. 브라켓() 내용 제거 및 HTML 이스케이프
+    // 1. 브라켓() 내용 제거 및 <br> 태그를 공백으로 치환
     let clean = (rawMenu || '')
         .replace(/\([^)]*\)/g, '')
-        .replace(/<br\s*\/?>/gi, '\n') // <br>은 줄바꿈으로 보존
-        .trim();
+        .replace(/<br\s*\/?>/gi, ' ');
     
-    // 2. 위험한 문자 필터링 (이스케이프)
-    return clean;
+    // 2. 모든 종류의 공백(스페이스, 엔터, 탭 등)을 기준으로 나누고, 빈칸을 제거한 뒤 딱 한 번의 줄바꿈(\n)으로 연결
+    return clean.split(/\s+/).filter(Boolean).join('\n');
 }
 
 function extractMealRows(data) {
@@ -193,10 +192,12 @@ async function fetchMeals(targetDate) {
         rows.forEach(row => {
             const cleanMenu = normalizeMenuText(row.DDISH_NM);
             if (row.MMEAL_SC_CODE === '2') {
-                setText('lunch-menu', cleanMenu || '정보가 없습니다.');
+                const lunchEl = document.getElementById('lunch-menu');
+                if (lunchEl) lunchEl.innerHTML = escapeHTML(cleanMenu || '정보가 없습니다.').replace(/\n/g, '<br>');
                 setText('lunch-cal', row.CAL_INFO || '');
             } else if (row.MMEAL_SC_CODE === '3') {
-                setText('dinner-menu', cleanMenu || '정보가 없습니다.');
+                const dinnerEl = document.getElementById('dinner-menu');
+                if (dinnerEl) dinnerEl.innerHTML = escapeHTML(cleanMenu || '정보가 없습니다.').replace(/\n/g, '<br>');
                 setText('dinner-cal', row.CAL_INFO || '');
             }
         });
@@ -569,7 +570,7 @@ function initTheme() {
     }
 }
 
-// Firebase 및 실시간 접속자 카운터 초기화
+// Firebase 및 누적 방문자 카운터 초기화
 function initVisitorCounter() {
     if (typeof firebase !== 'undefined' && typeof CONFIG !== 'undefined' && CONFIG.FIREBASE) {
         try {
@@ -588,25 +589,26 @@ function initVisitorCounter() {
             }
             
             const db = firebase.database();
-            const onlineRef = db.ref('status/onlineUsers');
-            
-            // 나의 접속 정보 생성
-            const myPresenceRef = onlineRef.push();
-            
-            // 접속 시 true 설정, 연결 끊길 시 자동 삭제
-            myPresenceRef.set(true);
-            myPresenceRef.onDisconnect().remove();
+            const visitRef = db.ref('stats/visitCount');
 
-            // 실시간 접속자 수 업데이트
-            onlineRef.on('value', (snapshot) => {
-                const count = snapshot.numChildren() || 0;
+            // 세션당 한 번만 카운트 증가 (누적 카운트)
+            if (!sessionStorage.getItem('hasVisitedCounted')) {
+                visitRef.transaction((currentValue) => {
+                    return (currentValue || 0) + 1;
+                });
+                sessionStorage.setItem('hasVisitedCounted', 'true');
+            }
+
+            // 실시간으로 누적 방문자 수 업데이트
+            visitRef.on('value', (snapshot) => {
+                const count = snapshot.val() || 0;
                 const countEl = document.getElementById('visit-count');
                 const labelEl = document.getElementById('visitor-label');
                 if (countEl) {
                     countEl.textContent = count.toLocaleString();
                 }
                 if (labelEl) {
-                    labelEl.textContent = '현재 접속 중: ';
+                    labelEl.textContent = '누적 방문자: ';
                 }
             });
         } catch (e) {
