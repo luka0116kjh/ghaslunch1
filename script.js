@@ -582,9 +582,7 @@ async function showLocalNotification() {
     }
 }
 
-// === 과목명 매핑 딕셔너리 (SQL DECODE 기능) ===
-// 왼쪽: API에서 오는 원본 명칭 (또는 코드)
-// 오른쪽: 학생들에게 보여줄 친숙한 명칭
+// 과목명 매핑 딕셔너리 
 const SUBJECT_ALIASES = {
     "공통국어1": "국어",
     "공통국어2": "국어",
