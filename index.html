@@ -14,6 +14,7 @@
     <!-- Firebase SDKs -->
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-messaging-compat.js"></script>
 
     <script>
         if ('serviceWorker' in navigator) {
@@ -260,6 +261,11 @@
             text-align: center;
         }
 
+        .class-selector select option {
+            color: #191919;
+            background-color: #FFFFFF;
+        }
+
         .timetable-row {
             display: flex;
             align-items: center;
@@ -287,6 +293,69 @@
             font-size: 16px;
             font-weight: 600;
             color: var(--text-main);
+        }
+
+        .timetable-section + .timetable-section {
+            margin-top: 28px;
+            padding-top: 20px;
+            border-top: 1px solid var(--border-color);
+        }
+
+        .timetable-subtitle {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 10px;
+            font-size: 15px;
+            font-weight: 800;
+            color: var(--text-main);
+        }
+
+        .timetable-date-label {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-sub);
+        }
+
+        .timetable-empty {
+            padding: 14px 0 4px;
+            font-size: 14px;
+            color: var(--text-sub);
+        }
+
+        #timetable-container .meal-card > .meal-type {
+            display: none;
+        }
+
+        .timetable-toolbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+
+        .timetable-toolbar .meal-type {
+            margin-bottom: 0;
+        }
+
+        .timetable-switch-btn {
+            border: none;
+            border-radius: 999px;
+            background-color: var(--pill-inactive);
+            color: var(--text-main);
+            padding: 10px 14px;
+            font-size: 13px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        .timetable-meta {
+            margin-bottom: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-sub);
         }
 
         /* Footer */
@@ -465,7 +534,7 @@
     </div>
 
     <script src="config.js"></script>
-    <script src="script.js?v=27"></script>
+    <script src="script.js?v=30"></script>
 </body>
 
 </html>

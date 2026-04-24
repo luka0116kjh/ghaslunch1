@@ -11,10 +11,20 @@
     "public": ".",
     "ignore": [
       "firebase.json",
+      "database.rules.json",
+      ".firebaserc",
+      ".firebase/**",
+      ".git/**",
+      ".idea/**",
       "**/.*",
       "!**/.well-known",
       "!**/.well-known/**",
-      "**/node_modules/**"
+      "**/node_modules/**",
+      "cloudflare-worker/**",
+      "dataconnect/**",
+      "firebase-debug.log",
+      "package.json",
+      "*.md"
     ],
     "rewrites": [
       {
@@ -25,6 +35,15 @@
     "headers": [
       {
         "source": "/sw.js",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "no-cache, no-store, must-revalidate"
+          }
+        ]
+      },
+      {
+        "source": "/firebase-messaging-sw.js",
         "headers": [
           {
             "key": "Cache-Control",

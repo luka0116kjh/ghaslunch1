@@ -1,4 +1,4 @@
-function formatDate(date) {
+﻿function formatDate(date) {
     const y = date.getFullYear();
     const m = String(date.getMonth() + 1).padStart(2, '0');
     const d = String(date.getDate()).padStart(2, '0');
@@ -96,7 +96,7 @@ async function fetchWeather(targetDate) {
                 const data = await response.json();
                 if (Array.isArray(data.list) && data.list.length > 0) {
                     const timezoneOffset = typeof data.city?.timezone === 'number' ? data.city.timezone : 0;
-                    const sameDayForecasts = data.list.filter(item => formatDateWithOffset(item.dt, timezoneOffset) === targetYmd);
+                    const sameDayForecasts = data.list.filter((item) => formatDateWithOffset(item.dt, timezoneOffset) === targetYmd);
                     const source = sameDayForecasts.length > 0 ? sameDayForecasts : data.list;
                     const picked = source.slice().sort((a, b) => {
                         const aDiff = Math.abs(hourWithOffset(a.dt, timezoneOffset) - 12);
@@ -107,14 +107,13 @@ async function fetchWeather(targetDate) {
                     weatherData = {
                         temp: Math.round(picked.main.temp),
                         description: picked.weather?.[0]?.description,
-                        pop: Math.round(picked.pop * 100)
+                        pop: Math.round((picked.pop || 0) * 100)
                     };
                     if (!place) place = data.city?.name;
                 }
             }
         }
 
-        // Fallback to Open-Meteo if OpenWeather fails or is not configured
         if (!weatherData) {
             const isoDate = `${targetYmd.slice(0, 4)}-${targetYmd.slice(4, 6)}-${targetYmd.slice(6, 8)}`;
             const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&hourly=temperature_2m,weathercode,precipitation_probability&timezone=Asia%2FSeoul&start_date=${isoDate}&end_date=${isoDate}`;
@@ -123,15 +122,34 @@ async function fetchWeather(targetDate) {
 
             const data = await response.json();
             if (data.hourly && data.hourly.time) {
-                // Find index for 12:00 or closest
-                const hourIndex = data.hourly.time.findIndex(t => t.includes('T12:00')) || 12;
+                const middayIndex = data.hourly.time.findIndex((time) => time.includes('T12:00'));
+                const hourIndex = middayIndex >= 0 ? middayIndex : Math.min(12, data.hourly.time.length - 1);
                 const code = data.hourly.weathercode[hourIndex];
                 const weatherMap = {
-                    0: '맑음', 1: '대체로 맑음', 2: '부분적으로 흐림', 3: '흐림',
-                    45: '안개', 48: '서리 안개', 51: '가벼운 이슬비', 53: '이슬비', 55: '진한 이슬비',
-                    61: '약한 비', 63: '보통 비', 65: '강한 비', 71: '약한 눈', 73: '보통 눈', 75: '강한 눈',
-                    77: '눈알갱이', 80: '약한 소나기', 81: '보통 소나기', 82: '강한 소나기',
-                    85: '약한 눈 소나기', 86: '강한 눈 소나기', 95: '뇌우', 96: '뇌우와 약한 우박', 99: '뇌우와 강한 우박'
+                    0: '맑음',
+                    1: '대체로 맑음',
+                    2: '부분적으로 흐림',
+                    3: '흐림',
+                    45: '안개',
+                    48: '서리 안개',
+                    51: '가벼운 이슬비',
+                    53: '이슬비',
+                    55: '진한 이슬비',
+                    61: '약한 비',
+                    63: '보통 비',
+                    65: '강한 비',
+                    71: '약한 눈',
+                    73: '보통 눈',
+                    75: '강한 눈',
+                    77: '눈알갱이',
+                    80: '약한 소나기',
+                    81: '보통 소나기',
+                    82: '강한 소나기',
+                    85: '약한 눈 소나기',
+                    86: '강한 눈 소나기',
+                    95: '뇌우',
+                    96: '뇌우와 약한 우박',
+                    99: '뇌우와 강한 우박'
                 };
 
                 weatherData = {
@@ -142,15 +160,15 @@ async function fetchWeather(targetDate) {
             }
         }
 
-        if (weatherData) {
-            const { temp, description, pop } = weatherData;
-            const tempText = `${temp}°C`;
-            const popText = typeof pop === 'number' ? `강수확률 ${pop}%` : '';
-            const weatherLine = [tempText, description, popText].filter(Boolean).join(' | ');
-            setText('weather-info', place ? `${weatherLine} (${place})` : weatherLine);
-        } else {
+        if (!weatherData) {
             throw new Error('No weather data available');
         }
+
+        const { temp, description, pop } = weatherData;
+        const tempText = `${temp}°C`;
+        const popText = typeof pop === 'number' ? `강수확률 ${pop}%` : '';
+        const weatherLine = [tempText, description, popText].filter(Boolean).join(' | ');
+        setText('weather-info', place ? `${weatherLine} (${place})` : weatherLine);
     } catch (error) {
         console.error('Weather load failed:', error);
         if (!navigator.onLine) {
@@ -282,10 +300,10 @@ function buildMealTextByWeek(mealMap, mealCode, monday) {
 
 async function showWeeklyMeals(baseDate) {
     const weekBaseDate = new Date(baseDate);
-    const dayOfWeek = weekBaseDate.getDay(); // 0: Sun, 6: Sat
+    const dayOfWeek = weekBaseDate.getDay();
     const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
-    if (dayOfWeek === 6) weekBaseDate.setDate(weekBaseDate.getDate() + 2); // Sat -> next Monday
-    if (dayOfWeek === 0) weekBaseDate.setDate(weekBaseDate.getDate() + 1); // Sun -> next Monday
+    if (dayOfWeek === 6) weekBaseDate.setDate(weekBaseDate.getDate() + 2);
+    if (dayOfWeek === 0) weekBaseDate.setDate(weekBaseDate.getDate() + 1);
 
     const monday = getMonday(weekBaseDate);
     const friday = new Date(monday);
@@ -298,8 +316,8 @@ async function showWeeklyMeals(baseDate) {
     if (document.getElementById('btn-tomorrow')) document.getElementById('btn-tomorrow').classList.remove('active');
     document.getElementById('btn-week').classList.add('active');
     if (document.getElementById('btn-timetable')) document.getElementById('btn-timetable').classList.remove('active');
-    setText('lunch-title', `이번 주 중식`);
-    setText('dinner-title', `이번 주 석식`);
+    setText('lunch-title', `${weekLabel} 중식`);
+    setText('dinner-title', `${weekLabel} 석식`);
     setText('today-date', `${formatMonthDay(monday)} ~ ${formatMonthDay(friday)}`);
     setText('weather-info', `${weekLabel} 모드에서는 날씨를 표시하지 않습니다.`);
     setText('lunch-menu', '데이터를 불러오는 중...');
@@ -311,7 +329,6 @@ async function showWeeklyMeals(baseDate) {
     const toYmd = formatDate(friday);
     const apiKey = typeof CONFIG !== 'undefined' ? CONFIG.API_KEY : '';
 
-    // 중식(2)과 석식(3) 각각 따로 호출하여 데이터 누락 방지
     async function fetchMealByCode(code) {
         let url = `https://open.neis.go.kr/hub/mealServiceDietInfo?Type=json&ATPT_OFCDC_SC_CODE=J10&SD_SCHUL_CODE=7530908&MLSV_FROM_YMD=${fromYmd}&MLSV_TO_YMD=${toYmd}&MMEAL_SC_CODE=${code}&pSize=50`;
         if (apiKey) url += `&KEY=${apiKey}`;
@@ -321,12 +338,12 @@ async function showWeeklyMeals(baseDate) {
             const data = await response.json();
             const rows = extractMealRows(data);
             const map = {};
-            rows.forEach(row => {
+            rows.forEach((row) => {
                 map[row.MLSV_YMD] = normalizeMenuText(row.DDISH_NM);
             });
             return map;
-        } catch (e) {
-            console.error(`Weekly Fetch Error (Code ${code}):`, e);
+        } catch (error) {
+            console.error(`Weekly Fetch Error (Code ${code}):`, error);
             return null;
         }
     }
@@ -439,43 +456,68 @@ async function requestNoti() {
     }
 
     try {
+        if (typeof firebase === 'undefined' || typeof CONFIG === 'undefined' || !CONFIG.FIREBASE) {
+            throw new Error('Firebase 설정을 찾지 못했습니다.');
+        }
+
+        if (!firebase.apps.length) {
+            firebase.initializeApp({
+                apiKey: CONFIG.FIREBASE.API_KEY,
+                authDomain: CONFIG.FIREBASE.AUTH_DOMAIN,
+                databaseURL: CONFIG.FIREBASE.DATABASE_URL,
+                projectId: CONFIG.FIREBASE.PROJECT_ID,
+                storageBucket: CONFIG.FIREBASE.STORAGE_BUCKET,
+                messagingSenderId: CONFIG.FIREBASE.MESSAGING_SENDER_ID,
+                appId: CONFIG.FIREBASE.APP_ID
+            });
+        }
+
         const messaging = firebase.messaging();
-        
-        // VAPID 키가 설정되어 있어야 웹 푸시를 받을 수 있습니다.
-        // Firebase 콘솔 -> 프로젝트 설정 -> 클라우드 메시징 -> 웹 구성에서 발급 가능합니다.
         const vapidKey = CONFIG.FIREBASE.VAPID_KEY;
-        
+
         if (!vapidKey || vapidKey.includes('YOUR_')) {
             console.warn('VAPID 키가 설정되지 않았습니다. config.js에서 설정이 필요합니다.');
-            // 기존 로컬 타이머 방식은 유지 (백업용)
             localStorage.setItem('noti-enabled', 'true');
-            alert('알림 권한이 허용되었습니다! (FCM VAPID 키가 없어 로컬 타이머 모드로 작동합니다.)');
+            alert('알림 권한은 허용되었지만 VAPID 키가 없어 로컬 알림 모드로 동작합니다.');
             scheduleDailyNotification();
             return;
         }
 
-        const currentToken = await messaging.getToken({ vapidKey: vapidKey });
-        
-        if (currentToken) {
-            console.log('FCM Token:', currentToken);
-            localStorage.setItem('noti-enabled', 'true');
-            localStorage.setItem('fcm-token', currentToken);
-            
-            // 토큰을 DB에 저장 (나중에 서버에서 알림을 보낼 때 사용)
+        const serviceWorkerRegistration = await navigator.serviceWorker.ready;
+        const currentToken = await messaging.getToken({
+            vapidKey,
+            serviceWorkerRegistration
+        });
+
+        if (!currentToken) {
+            alert('알림 토큰을 생성하지 못했습니다. 다시 시도해 주세요.');
+            return;
+        }
+
+        console.log('FCM Token:', currentToken);
+        localStorage.setItem('noti-enabled', 'true');
+        localStorage.setItem('fcm-token', currentToken);
+
+        try {
             const db = firebase.database();
             const tokenRef = db.ref('tokens/' + currentToken.replace(/\W/g, '_'));
             await tokenRef.set({
                 lastUpdated: firebase.database.ServerValue.TIMESTAMP,
                 platform: 'web'
             });
-
-            alert('푸시 알림 설정이 완료되었습니다! 이제 실시간 알림을 받을 수 있습니다.');
-        } else {
-            alert('알림 토큰을 생성하지 못했습니다. 다시 시도해 주세요.');
+        } catch (tokenSaveError) {
+            console.warn('FCM token save failed:', tokenSaveError);
         }
+
+        alert('푸시 알림 설정이 완료되었습니다. 이제 실시간 알림을 받을 수 있습니다.');
     } catch (err) {
         console.error('FCM 설정 중 오류:', err);
-        alert('알림 설정 중 오류가 발생했습니다: ' + err.message);
+
+        const message = err?.code === 'messaging/permission-blocked'
+            ? '브라우저 알림 권한이 차단되어 있습니다. 사이트 권한에서 알림을 허용해 주세요.'
+            : `알림 설정 중 오류가 발생했습니다: ${err.message}`;
+
+        alert(message);
     }
 }
 
@@ -486,7 +528,7 @@ function scheduleDailyNotification() {
     if (notiInterval) clearInterval(notiInterval);
 
     const now = new Date();
-    let target = new Date();
+    const target = new Date();
     target.setHours(7, 30, 0, 0);
 
     if (now > target) {
@@ -623,6 +665,155 @@ async function fetchTimetable(grade, classNum, targetDate) {
 }
 
 
+function getCurrentSchoolDate(baseDate = new Date()) {
+    const currentDate = new Date(baseDate);
+    const day = currentDate.getDay();
+
+    if (day === 6) currentDate.setDate(currentDate.getDate() + 2);
+    else if (day === 0) currentDate.setDate(currentDate.getDate() + 1);
+
+    return currentDate;
+}
+
+function getNextSchoolDate(baseDate) {
+    const nextDate = new Date(baseDate);
+    nextDate.setDate(nextDate.getDate() + 1);
+
+    while (nextDate.getDay() === 0 || nextDate.getDay() === 6) {
+        nextDate.setDate(nextDate.getDate() + 1);
+    }
+
+    return nextDate;
+}
+
+function isNextCalendarDay(baseDate, targetDate) {
+    const start = new Date(baseDate);
+    const end = new Date(targetDate);
+    start.setHours(0, 0, 0, 0);
+    end.setHours(0, 0, 0, 0);
+    return end.getTime() - start.getTime() === 24 * 60 * 60 * 1000;
+}
+
+function formatTimetableDateLabel(targetDate) {
+    const weekdays = ['\uC77C', '\uC6D4', '\uD654', '\uC218', '\uBAA9', '\uAE08', '\uD1A0'];
+    return `${targetDate.getMonth() + 1}/${targetDate.getDate()} (${weekdays[targetDate.getDay()]})`;
+}
+
+function renderTimetableSection(title, targetDate, rows) {
+    if (rows === null) {
+        return `
+            <div class="timetable-section">
+                <div class="timetable-subtitle">
+                    <span>${title}</span>
+                    <span class="timetable-date-label">${formatTimetableDateLabel(targetDate)}</span>
+                </div>
+                <div class="timetable-empty">\uB370\uC774\uD130\uB97C \uBD88\uB7EC\uC624\uC9C0 \uBABB\uD588\uC2B5\uB2C8\uB2E4.</div>
+            </div>
+        `;
+    }
+
+    const normalizedRows = applyFridayFreePeriods(rows, targetDate);
+    const content = normalizedRows.length === 0
+        ? `<div class="timetable-empty">\uC2DC\uAC04\uD45C \uC815\uBCF4\uAC00 \uC5C6\uC2B5\uB2C8\uB2E4.</div>`
+        : normalizedRows.map(row => `
+            <div class="timetable-row">
+                <span class="period">${row.period}\uAD50\uC2DC</span>
+                <span class="subject">${escapeHTML(row.subject)}</span>
+            </div>
+        `).join('');
+
+    return `
+        <div class="timetable-section">
+            <div class="timetable-subtitle">
+                <span>${title}</span>
+                <span class="timetable-date-label">${formatTimetableDateLabel(targetDate)}</span>
+            </div>
+            ${content}
+        </div>
+    `;
+}
+
+let timetableViewMode = 'current';
+
+function ensureTimetableControls() {
+    const list = document.getElementById('timetable-list');
+    if (!list || document.getElementById('btn-timetable-switch')) {
+        return;
+    }
+
+    const card = list.closest('.meal-card');
+    if (!card) {
+        return;
+    }
+
+    const toolbar = document.createElement('div');
+    toolbar.className = 'timetable-toolbar';
+
+    const title = document.createElement('div');
+    title.id = 'timetable-title';
+    title.className = 'meal-type';
+
+    const button = document.createElement('button');
+    button.id = 'btn-timetable-switch';
+    button.className = 'timetable-switch-btn';
+    button.type = 'button';
+    button.addEventListener('click', toggleTimetableView);
+
+    toolbar.append(title, button);
+
+    const meta = document.createElement('div');
+    meta.id = 'timetable-date-label';
+    meta.className = 'timetable-meta';
+
+    card.insertBefore(toolbar, list);
+    card.insertBefore(meta, list);
+}
+
+function renderTimetableRows(rows, targetDate) {
+    if (rows === null) {
+        return '<div class="timetable-empty">데이터를 불러오지 못했습니다.</div>';
+    }
+
+    const normalizedRows = applyFridayFreePeriods(rows, targetDate);
+    if (normalizedRows.length === 0) {
+        return '<div class="timetable-empty">시간표 정보가 없습니다.</div>';
+    }
+
+    return normalizedRows.map(row => `
+        <div class="timetable-row">
+            <span class="period">${row.period}교시</span>
+            <span class="subject">${escapeHTML(row.subject)}</span>
+        </div>
+    `).join('');
+}
+
+function updateTimetableHeader(titleText, targetDate, nextButtonText) {
+    const titleEl = document.getElementById('timetable-title');
+    const dateEl = document.getElementById('timetable-date-label');
+    const buttonEl = document.getElementById('btn-timetable-switch');
+
+    if (titleEl) titleEl.textContent = titleText;
+    if (dateEl) dateEl.textContent = formatTimetableDateLabel(targetDate);
+    if (buttonEl) buttonEl.textContent = nextButtonText;
+}
+
+function getTimetableLabel(referenceDate, targetDate, fallbackLabel = '다음 시간표') {
+    const reference = new Date(referenceDate);
+    const target = new Date(targetDate);
+    reference.setHours(0, 0, 0, 0);
+    target.setHours(0, 0, 0, 0);
+
+    const diffDays = Math.round((target.getTime() - reference.getTime()) / (24 * 60 * 60 * 1000));
+    if (diffDays === 0) return '오늘 시간표';
+    if (diffDays === 1) return '내일 시간표';
+    return fallbackLabel;
+}
+
+function toggleTimetableView() {
+    timetableViewMode = timetableViewMode === 'current' ? 'next' : 'current';
+    updateTimetable();
+}
+
 async function updateTimetable() {
     const grade = document.getElementById('grade-select').value;
     const classNum = document.getElementById('class-select').value;
@@ -631,28 +822,48 @@ async function updateTimetable() {
     localStorage.setItem('ghas-grade', grade);
     localStorage.setItem('ghas-class', classNum);
 
+    ensureTimetableControls();
     container.innerHTML = '시간표를 불러오는 중...';
 
-    const targetDate = new Date();
-    
-    const day = targetDate.getDay();
-    if (day === 6) targetDate.setDate(targetDate.getDate() + 2);
-    else if (day === 0) targetDate.setDate(targetDate.getDate() + 1);
+    const today = new Date();
+    const currentDate = getCurrentSchoolDate(today);
+    const nextDate = getNextSchoolDate(currentDate);
+    const showNext = timetableViewMode === 'next';
+    const targetDate = showNext ? nextDate : currentDate;
+    const currentTitle = getTimetableLabel(today, currentDate, '다음 시간표');
+    const nextTitle = getTimetableLabel(
+        today,
+        nextDate,
+        currentTitle === '다음 시간표' ? '그다음 시간표' : '다음 시간표'
+    );
+    const titleText = showNext ? nextTitle : currentTitle;
+    const buttonText = showNext ? currentTitle : nextTitle;
 
     const rows = await fetchTimetable(grade, classNum, targetDate);
 
-    if (rows === null) {
-        container.innerHTML = '데이터를 불러오지 못했습니다.';
-    } else if (rows.length === 0) {
-        container.innerHTML = '시간표 정보가 없습니다.';
-    } else {
-        container.innerHTML = rows.map(row => `
-            <div class="timetable-row">
-                <span class="period">${row.period}교시</span>
-                <span class="subject">${escapeHTML(row.subject)}</span>
-            </div>
-        `).join('');
+    updateTimetableHeader(titleText, targetDate, buttonText);
+    container.innerHTML = renderTimetableRows(rows, targetDate);
+    return;
+}
+
+function applyFridayFreePeriods(rows, targetDate) {
+    if (targetDate.getDay() !== 5) {
+        return rows;
     }
+
+    const periodMap = new Map(rows.map(row => [Number(row.period), row]));
+
+    [4, 5].forEach((period) => {
+        if (!periodMap.has(period)) {
+            periodMap.set(period, {
+                period,
+                originalSubject: '자유시간',
+                subject: '자유시간'
+            });
+        }
+    });
+
+    return Array.from(periodMap.values()).sort((a, b) => Number(a.period) - Number(b.period));
 }
 
 function showTimetable() {
@@ -676,6 +887,7 @@ function showTimetable() {
     if (savedGrade) document.getElementById('grade-select').value = savedGrade;
     if (savedClass) document.getElementById('class-select').value = savedClass;
 
+    timetableViewMode = 'current';
     updateTimetable();
 }
 
@@ -721,63 +933,67 @@ function initTheme() {
 
 // Firebase 및 누적 방문자 카운터 초기화
 function initVisitorCounter() {
-    if (typeof firebase !== 'undefined' && typeof CONFIG !== 'undefined' && CONFIG.FIREBASE) {
-        try {
-            const firebaseConfig = {
-                apiKey: CONFIG.FIREBASE.API_KEY,
-                authDomain: CONFIG.FIREBASE.AUTH_DOMAIN,
-                databaseURL: CONFIG.FIREBASE.DATABASE_URL,
-                projectId: CONFIG.FIREBASE.PROJECT_ID,
-                storageBucket: CONFIG.FIREBASE.STORAGE_BUCKET,
-                messagingSenderId: CONFIG.FIREBASE.MESSAGING_SENDER_ID,
-                appId: CONFIG.FIREBASE.APP_ID
-            };
+    if (typeof firebase === 'undefined' || typeof CONFIG === 'undefined' || !CONFIG.FIREBASE) {
+        return;
+    }
 
-            if (!firebase.apps.length) {
-                firebase.initializeApp(firebaseConfig);
-            }
+    try {
+        const firebaseConfig = {
+            apiKey: CONFIG.FIREBASE.API_KEY,
+            authDomain: CONFIG.FIREBASE.AUTH_DOMAIN,
+            databaseURL: CONFIG.FIREBASE.DATABASE_URL,
+            projectId: CONFIG.FIREBASE.PROJECT_ID,
+            storageBucket: CONFIG.FIREBASE.STORAGE_BUCKET,
+            messagingSenderId: CONFIG.FIREBASE.MESSAGING_SENDER_ID,
+            appId: CONFIG.FIREBASE.APP_ID
+        };
 
-            const db = firebase.database();
-            const visitRef = db.ref('stats/visitCount');
-
-            // 세션당 한 번만 카운트 증가 (누적 카운트)
-            if (!sessionStorage.getItem('hasVisitedCounted')) {
-                visitRef.transaction((currentValue) => {
-                    return (currentValue || 0) + 1;
-                });
-                sessionStorage.setItem('hasVisitedCounted', 'true');
-            }
-
-            // 실시간으로 누적 방문자 수 업데이트
-            visitRef.on('value', (snapshot) => {
-                const count = snapshot.val() || 0;
-                const countEl = document.getElementById('visit-count');
-                const labelEl = document.getElementById('visitor-label');
-                if (countEl) {
-                    countEl.textContent = count.toLocaleString();
-                }
-                if (labelEl) {
-                    labelEl.textContent = '누적 방문자: ';
-                }
-            });
-            // 포그라운드 메시지 수신 처리
-            const messaging = firebase.messaging();
-            messaging.onMessage((payload) => {
-                console.log('Foreground message received:', payload);
-                const { title, body } = payload.notification;
-                
-                // 브라우저가 열려있을 때 상단 알림 띄우기
-                if (Notification.permission === 'granted') {
-                    new Notification(title, {
-                        body: body,
-                        icon: 'icon1.png'
-                    });
-                }
-            });
-
-        } catch (e) {
-            console.error("Firebase 초기화 실패:", e);
+        if (!firebase.apps.length) {
+            firebase.initializeApp(firebaseConfig);
         }
+
+        const db = firebase.database();
+        const visitRef = db.ref('stats/visitCount');
+
+        if (!sessionStorage.getItem('hasVisitedCounted')) {
+            visitRef.transaction((currentValue) => (currentValue || 0) + 1);
+            sessionStorage.setItem('hasVisitedCounted', 'true');
+        }
+
+        visitRef.on('value', (snapshot) => {
+            const count = snapshot.val() || 0;
+            const countEl = document.getElementById('visit-count');
+            const labelEl = document.getElementById('visitor-label');
+            if (countEl) {
+                countEl.textContent = count.toLocaleString();
+            }
+            if (labelEl) {
+                labelEl.textContent = '누적 방문자: ';
+            }
+        });
+    } catch (e) {
+        console.error('Firebase 초기화 실패:', e);
+        return;
+    }
+
+    try {
+        const messaging = firebase.messaging();
+        messaging.onMessage((payload) => {
+            console.log('Foreground message received:', payload);
+            const title = payload?.notification?.title;
+            const body = payload?.notification?.body;
+
+            if (!title || Notification.permission !== 'granted') {
+                return;
+            }
+
+            new Notification(title, {
+                body: body || '',
+                icon: 'icon1.png'
+            });
+        });
+    } catch (messagingError) {
+        console.warn('Foreground messaging init skipped:', messagingError);
     }
 }
 

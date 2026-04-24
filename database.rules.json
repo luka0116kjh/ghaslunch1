@@ -6,6 +6,21 @@
         ".write": "newData.isNumber() && (!data.exists() || newData.val() >= data.val())"
       }
     },
+    "tokens": {
+      "$token_id": {
+        ".read": false,
+        ".write": "newData.hasChildren(['lastUpdated', 'platform'])",
+        "lastUpdated": {
+          ".validate": "newData.isNumber() || newData.val() == now"
+        },
+        "platform": {
+          ".validate": "newData.val() === 'web'"
+        },
+        "$other": {
+          ".validate": false
+        }
+      }
+    },
     "status": {
       "onlineUsers": {
         ".read": true,
