@@ -841,6 +841,7 @@ async function updateTimetable() {
 
     updateTimetableHeader(titleText, targetDate, buttonText);
     container.innerHTML = renderTimetableRows(rows, targetDate);
+    fetchWeather(targetDate);
     return;
 }
 
