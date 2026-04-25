@@ -448,10 +448,30 @@ function showMeals(type) {
 let notiTimer = null;
 let notiInterval = null;
 
+function updateNotiButton() {
+    const btn = document.getElementById('btn-noti');
+    if (!btn) return;
+
+    const enabled = localStorage.getItem('noti-enabled') === 'true';
+    btn.classList.toggle('active', enabled);
+    btn.textContent = enabled ? '🔕' : '🔔';
+    btn.title = enabled ? '알림 취소' : '알림 설정';
+    btn.setAttribute('aria-label', enabled ? '알림 취소' : '알림 설정');
+}
+
+async function toggleNoti() {
+    if (localStorage.getItem('noti-enabled') === 'true') {
+        await cancelNoti();
+    } else {
+        await requestNoti();
+    }
+}
+
 async function requestNoti() {
     const permission = await Notification.requestPermission();
     if (permission !== 'granted') {
         alert('알림 권한을 허용해야 알림을 받을 수 있습니다.');
+        updateNotiButton();
         return;
     }
 
@@ -478,6 +498,7 @@ async function requestNoti() {
         if (!vapidKey || vapidKey.includes('YOUR_')) {
             console.warn('VAPID 키가 설정되지 않았습니다. config.js에서 설정이 필요합니다.');
             localStorage.setItem('noti-enabled', 'true');
+            updateNotiButton();
             alert('알림 권한은 허용되었지만 VAPID 키가 없어 로컬 알림 모드로 동작합니다.');
             scheduleDailyNotification();
             return;
@@ -497,6 +518,7 @@ async function requestNoti() {
         console.log('FCM Token:', currentToken);
         localStorage.setItem('noti-enabled', 'true');
         localStorage.setItem('fcm-token', currentToken);
+        updateNotiButton();
 
         try {
             const db = firebase.database();
@@ -512,6 +534,7 @@ async function requestNoti() {
         alert('푸시 알림 설정이 완료되었습니다. 이제 실시간 알림을 받을 수 있습니다.');
     } catch (err) {
         console.error('FCM 설정 중 오류:', err);
+        updateNotiButton();
 
         const message = err?.code === 'messaging/permission-blocked'
             ? '브라우저 알림 권한이 차단되어 있습니다. 사이트 권한에서 알림을 허용해 주세요.'
@@ -519,6 +542,55 @@ async function requestNoti() {
 
         alert(message);
     }
+}
+
+async function cancelNoti() {
+    if (notiTimer) {
+        clearTimeout(notiTimer);
+        notiTimer = null;
+    }
+    if (notiInterval) {
+        clearInterval(notiInterval);
+        notiInterval = null;
+    }
+
+    const currentToken = localStorage.getItem('fcm-token');
+    localStorage.removeItem('noti-enabled');
+    localStorage.removeItem('fcm-token');
+    updateNotiButton();
+
+    if (currentToken && typeof firebase !== 'undefined' && typeof CONFIG !== 'undefined' && CONFIG.FIREBASE) {
+        try {
+            if (!firebase.apps.length) {
+                firebase.initializeApp({
+                    apiKey: CONFIG.FIREBASE.API_KEY,
+                    authDomain: CONFIG.FIREBASE.AUTH_DOMAIN,
+                    databaseURL: CONFIG.FIREBASE.DATABASE_URL,
+                    projectId: CONFIG.FIREBASE.PROJECT_ID,
+                    storageBucket: CONFIG.FIREBASE.STORAGE_BUCKET,
+                    messagingSenderId: CONFIG.FIREBASE.MESSAGING_SENDER_ID,
+                    appId: CONFIG.FIREBASE.APP_ID
+                });
+            }
+
+            try {
+                const db = firebase.database();
+                await db.ref('tokens/' + currentToken.replace(/\W/g, '_')).remove();
+            } catch (tokenRemoveError) {
+                console.warn('FCM token remove failed:', tokenRemoveError);
+            }
+
+            try {
+                await firebase.messaging().deleteToken(currentToken);
+            } catch (tokenDeleteError) {
+                console.warn('FCM token delete skipped:', tokenDeleteError);
+            }
+        } catch (error) {
+            console.warn('Notification cancel cleanup failed:', error);
+        }
+    }
+
+    alert('알림이 취소되었습니다.');
 }
 
 function scheduleDailyNotification() {
@@ -998,5 +1070,6 @@ function initVisitorCounter() {
 
 // 초기화 호출
 initTheme();
+updateNotiButton();
 showMeals('today');
 initVisitorCounter();
