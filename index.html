@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>GHAS 오늘의 급식</title>
-    <link rel="manifest" href="manifest.json?v=8">
+    <link rel="manifest" href="manifest.json?v=9">
     <link rel="icon" type="image/png" href="icon1.png">
     <link rel="apple-touch-icon" href="icon1.png">
     <meta name="theme-color" content="#FEE500" media="(prefers-color-scheme: light)">
@@ -16,13 +16,6 @@
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-messaging-compat.js"></script>
 
-    <script>
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('sw.js');
-            });
-        }
-    </script>
     <link rel="stylesheet" as="style" crossorigin
         href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css" />
     <style>
@@ -236,6 +229,24 @@
             opacity: 0.9;
         }
 
+        .weekly-meal-day {
+            margin-bottom: 20px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .weekly-meal-date {
+            font-weight: 800;
+            color: var(--primary-color);
+            font-size: 14px;
+            margin-bottom: 6px;
+        }
+
+        .weekly-meal-menu {
+            line-height: 1.6;
+            font-size: 15px;
+        }
+
         .calorie {
             margin-top: 20px;
             font-size: 13px;
@@ -333,6 +344,11 @@
             display: none;
         }
 
+        #timetable-container,
+        #offline-container {
+            display: none;
+        }
+
         .timetable-toolbar {
             display: flex;
             align-items: center;
@@ -378,6 +394,18 @@
             letter-spacing: 1px;
             text-transform: uppercase;
             opacity: 0.5;
+        }
+
+        .visitor-counter {
+            margin-bottom: 8px;
+            font-size: 11px;
+            color: var(--text-sub);
+            opacity: 0.8;
+        }
+
+        .footer-link {
+            text-decoration: none;
+            color: #c9d1d9;
         }
 
         /* Animations */
@@ -459,7 +487,7 @@
                     <img src="logo.svg" alt="GHAS Logo" class="logo">
                     <h1 id="title-text">경기자동차과학고</h1>
                 </div>
-                <button id="btn-share" class="btn-icon" onclick="shareApp()" aria-label="공유하기">
+                <button id="btn-share" class="btn-icon" type="button" aria-label="공유하기">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
                         stroke-linejoin="round">
                         <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"></path>
@@ -475,12 +503,12 @@
         </header>
 
         <nav class="btn-group">
-            <button id="btn-today" class="active" onclick="showMeals('today')">오늘</button>
-            <button id="btn-tomorrow" onclick="showMeals('tomorrow')">내일</button>
-            <button id="btn-week" onclick="showMeals('week')">이번 주</button>
-            <button id="btn-timetable" onclick="showTimetable()">시간표</button>
-            <button id="btn-noti" onclick="toggleNoti()" aria-label="알림 설정" title="알림 설정">🔔</button>
-            <button id="btn-theme" onclick="toggleTheme()">🌓</button>
+            <button id="btn-today" class="active" type="button">오늘</button>
+            <button id="btn-tomorrow" type="button">내일</button>
+            <button id="btn-week" type="button">이번 주</button>
+            <button id="btn-timetable" type="button">시간표</button>
+            <button id="btn-noti" type="button" aria-label="알림 설정" title="알림 설정">🔔</button>
+            <button id="btn-theme" type="button">🌓</button>
         </nav>
 
         <main id="meal-container">
@@ -497,14 +525,14 @@
             </article>
         </main>
 
-        <section id="timetable-container" style="display: none;">
+        <section id="timetable-container">
             <div class="class-selector">
-                <select id="grade-select" onchange="updateTimetable()">
+                <select id="grade-select">
                     <option value="1">1학년</option>
                     <option value="2">2학년</option>
                     <option value="3">3학년</option>
                 </select>
-                <select id="class-select" onchange="updateTimetable()">
+                <select id="class-select">
                     <option value="1">1반</option>
                     <option value="2">2반</option>
                     <option value="3">3반</option>
@@ -521,25 +549,24 @@
             </div>
         </section>
 
-        <section id="offline-container" style="display: none;" class="offline-card">
+        <section id="offline-container" class="offline-card">
             <div class="offline-icon">network</div>
             <div class="offline-title">오프라인 상태입니다</div>
             <div class="offline-desc">네트워크 연결이 끊어졌습니다.<br>Wi-Fi 또는 모바일 데이터를 확인해 주세요.</div>
-            <button class="retry-btn" onclick="location.reload()">다시 시도</button>
+            <button id="btn-retry" class="retry-btn" type="button">다시 시도</button>
         </section>
 
         <footer class="footer">
-            <div id="visitor-counter"
-                style="margin-bottom: 8px; font-size: 11px; color: var(--text-sub); opacity: 0.8;">
+            <div id="visitor-counter" class="visitor-counter">
                 <span id="visitor-label">방문자 수: </span><span id="visit-count">...</span>
             </div>
-            <a href="https://github.com/luka0116kjh" style="text-decoration: none; color: #c9d1d9; ">
+            <a href="https://github.com/luka0116kjh" class="footer-link" rel="noopener noreferrer">
                 GITHUB: luka</a>
         </footer>
     </div>
 
     <script src="config.js"></script>
-    <script src="script.js?v=32"></script>
+    <script src="script.js?v=33"></script>
 </body>
 
 </html>

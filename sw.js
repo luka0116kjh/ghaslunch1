@@ -17,7 +17,6 @@ if (typeof firebase !== 'undefined' && typeof CONFIG !== 'undefined') {
 
     // 백그라운드 메시지 처리
     messaging.onBackgroundMessage((payload) => {
-        console.log('[sw.js] Received background message ', payload);
         const notificationTitle = payload.notification.title;
         const notificationOptions = {
             body: payload.notification.body,
@@ -30,12 +29,11 @@ if (typeof firebase !== 'undefined' && typeof CONFIG !== 'undefined') {
     });
 }
 
-const CACHE_NAME = 'ghas-lunch-v14';
+const CACHE_NAME = 'ghas-lunch-v15';
 const ASSETS = [
     './',
     './index.html',
     './script.js',
-    './config.js',
     './icon1.png',
     './logo.svg',
     './manifest.json'
@@ -59,12 +57,26 @@ self.addEventListener('activate', (event) => {
                     }
                 })
             );
-        })
+        }).then(() => self.clients.claim())
     );
 });
 
 self.addEventListener('fetch', (event) => {
-    // API 요청이나 외부 도메인 요청이 아닌 기본 에셋 요청에 대해서만 캐시 업데이트 (Stale-While-Revalidate)
+    if (event.request.method !== 'GET') {
+        return;
+    }
+
+    const requestUrl = new URL(event.request.url);
+    if (requestUrl.origin !== self.location.origin) {
+        return;
+    }
+
+    if (['/config.js', '/sw.js', '/firebase-messaging-sw.js'].includes(requestUrl.pathname)) {
+        event.respondWith(fetch(event.request));
+        return;
+    }
+
+    // 같은 출처의 기본 에셋 요청에 대해서만 캐시 업데이트 (Stale-While-Revalidate)
     event.respondWith(
         caches.match(event.request).then((cachedResponse) => {
             const fetchPromise = fetch(event.request).then((networkResponse) => {
@@ -77,7 +89,10 @@ self.addEventListener('fetch', (event) => {
                 }
                 return networkResponse;
             }).catch(() => {
-                // 오프라인 상태 등 네트워크 실패 시 아무것도 하지 않음 (기존 캐시를 반환하게 됨)
+                if (event.request.mode === 'navigate') {
+                    return caches.match('./index.html');
+                }
+                return cachedResponse || Response.error();
             });
 
             // 캐시에 있으면 즉시 반환하고 백그라운드에서 캐시 업데이트

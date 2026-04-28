@@ -1,4 +1,4 @@
-﻿function formatDate(date) {
+function formatDate(date) {
     const y = date.getFullYear();
     const m = String(date.getMonth() + 1).padStart(2, '0');
     const d = String(date.getDate()).padStart(2, '0');
@@ -53,116 +53,37 @@ window.addEventListener('offline', () => {
     showOfflineUI(true);
 });
 
-function getWeatherConfig() {
-    const weatherConfig = (typeof CONFIG !== 'undefined' && CONFIG.WEATHER) ? CONFIG.WEATHER : {};
-    return {
-        proxyUrl: weatherConfig.PROXY_URL || '',
-        apiKey: weatherConfig.API_KEY || '',
-        lat: weatherConfig.LAT,
-        lon: weatherConfig.LON,
-        cityName: weatherConfig.CITY_NAME || ''
-    };
-}
-
 async function fetchWeather(targetDate) {
     setText('weather-info', '날씨 정보를 불러오는 중...');
 
-    const { proxyUrl, apiKey, lat, lon, cityName } = getWeatherConfig();
-
-    if (typeof lat !== 'number' || typeof lon !== 'number') {
-        setText('weather-info', '날씨 좌표(lat/lon)가 설정되지 않았습니다.');
-        return;
-    }
-
     const targetYmd = formatDate(targetDate);
-    const hasProxy = Boolean(proxyUrl) && !proxyUrl.includes('YOUR_WORKER_SUBDOMAIN');
-    const hasValidApiKey = apiKey && apiKey !== '1' && !apiKey.includes('YOUR_');
+    const place = 'Siheung';
 
     try {
+        const response = await fetch('/api/weather');
+        if (!response.ok) throw new Error('Weather API failed');
+
+        const data = await response.json();
         let weatherData = null;
-        let place = cityName;
 
-        if (hasProxy || hasValidApiKey) {
-            let url = '';
-            if (hasProxy) {
-                const baseUrl = proxyUrl.replace(/\/+$/, '');
-                url = `${baseUrl}?lat=${lat}&lon=${lon}&units=metric&lang=kr`;
-            } else {
-                url = `https://api.openweathermap.org/data/2.5/forecast?lat=${lat}&lon=${lon}&appid=${apiKey}&units=metric&lang=kr`;
-            }
+        if (Array.isArray(data.list) && data.list.length > 0) {
+            const timezoneOffset = typeof data.city?.timezone === 'number' ? data.city.timezone : 0;
+            const sameDayForecasts = data.list.filter((item) => formatDateWithOffset(item.dt, timezoneOffset) === targetYmd);
+            const source = sameDayForecasts.length > 0 ? sameDayForecasts : data.list;
+            const picked = source.slice().sort((a, b) => {
+                const aDiff = Math.abs(hourWithOffset(a.dt, timezoneOffset) - 12);
+                const bDiff = Math.abs(hourWithOffset(b.dt, timezoneOffset) - 12);
+                return aDiff - bDiff;
+            })[0];
 
-            const response = await fetch(url);
-            if (response.ok) {
-                const data = await response.json();
-                if (Array.isArray(data.list) && data.list.length > 0) {
-                    const timezoneOffset = typeof data.city?.timezone === 'number' ? data.city.timezone : 0;
-                    const sameDayForecasts = data.list.filter((item) => formatDateWithOffset(item.dt, timezoneOffset) === targetYmd);
-                    const source = sameDayForecasts.length > 0 ? sameDayForecasts : data.list;
-                    const picked = source.slice().sort((a, b) => {
-                        const aDiff = Math.abs(hourWithOffset(a.dt, timezoneOffset) - 12);
-                        const bDiff = Math.abs(hourWithOffset(b.dt, timezoneOffset) - 12);
-                        return aDiff - bDiff;
-                    })[0];
-
-                    weatherData = {
-                        temp: Math.round(picked.main.temp),
-                        description: picked.weather?.[0]?.description,
-                        pop: Math.round((picked.pop || 0) * 100)
-                    };
-                    if (!place) place = data.city?.name;
-                }
-            }
+            weatherData = {
+                temp: Math.round(picked.main.temp),
+                description: picked.weather?.[0]?.description,
+                pop: Math.round((picked.pop || 0) * 100)
+            };
         }
 
-        if (!weatherData) {
-            const isoDate = `${targetYmd.slice(0, 4)}-${targetYmd.slice(4, 6)}-${targetYmd.slice(6, 8)}`;
-            const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&hourly=temperature_2m,weathercode,precipitation_probability&timezone=Asia%2FSeoul&start_date=${isoDate}&end_date=${isoDate}`;
-            const response = await fetch(url);
-            if (!response.ok) throw new Error('Weather API fallback failed');
-
-            const data = await response.json();
-            if (data.hourly && data.hourly.time) {
-                const middayIndex = data.hourly.time.findIndex((time) => time.includes('T12:00'));
-                const hourIndex = middayIndex >= 0 ? middayIndex : Math.min(12, data.hourly.time.length - 1);
-                const code = data.hourly.weathercode[hourIndex];
-                const weatherMap = {
-                    0: '맑음',
-                    1: '대체로 맑음',
-                    2: '부분적으로 흐림',
-                    3: '흐림',
-                    45: '안개',
-                    48: '서리 안개',
-                    51: '가벼운 이슬비',
-                    53: '이슬비',
-                    55: '진한 이슬비',
-                    61: '약한 비',
-                    63: '보통 비',
-                    65: '강한 비',
-                    71: '약한 눈',
-                    73: '보통 눈',
-                    75: '강한 눈',
-                    77: '눈알갱이',
-                    80: '약한 소나기',
-                    81: '보통 소나기',
-                    82: '강한 소나기',
-                    85: '약한 눈 소나기',
-                    86: '강한 눈 소나기',
-                    95: '뇌우',
-                    96: '뇌우와 약한 우박',
-                    99: '뇌우와 강한 우박'
-                };
-
-                weatherData = {
-                    temp: Math.round(data.hourly.temperature_2m[hourIndex]),
-                    description: weatherMap[code] || '날씨 정보 없음',
-                    pop: data.hourly.precipitation_probability[hourIndex]
-                };
-            }
-        }
-
-        if (!weatherData) {
-            throw new Error('No weather data available');
-        }
+        if (!weatherData) throw new Error('No weather data found');
 
         const { temp, description, pop } = weatherData;
         const tempText = `${temp}°C`;
@@ -171,11 +92,12 @@ async function fetchWeather(targetDate) {
         setText('weather-info', place ? `${weatherLine} (${place})` : weatherLine);
     } catch (error) {
         console.error('Weather load failed:', error);
+
         if (!navigator.onLine) {
             showOfflineUI(true);
             return;
         }
-        setText('weather-info', '날씨 정보를 불러오지 못했습니다. 지역/좌표를 확인해주세요.');
+        setText('weather-info', '날씨 정보를 불러오지 못했습니다.');
     }
 }
 
@@ -209,6 +131,19 @@ function extractMealRows(data) {
     return mealInfo?.row || [];
 }
 
+async function fetchMealData(params) {
+    const searchParams = new URLSearchParams();
+    Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined && value !== null && value !== '') {
+            searchParams.set(key, value);
+        }
+    });
+
+    const response = await fetch(`/api/meals?${searchParams.toString()}`);
+    if (!response.ok) throw new Error('급식 API 응답 오류');
+    return response.json();
+}
+
 async function fetchMeals(targetDate) {
     const ymd = formatDate(targetDate);
     const dateStr = targetDate.toLocaleDateString('ko-KR', {
@@ -224,17 +159,8 @@ async function fetchMeals(targetDate) {
     setText('lunch-cal', '');
     setText('dinner-cal', '');
 
-    const apiKey = typeof CONFIG !== 'undefined' ? CONFIG.API_KEY : '';
-    let url = `https://open.neis.go.kr/hub/mealServiceDietInfo?Type=json&ATPT_OFCDC_SC_CODE=J10&SD_SCHUL_CODE=7530908&MLSV_YMD=${ymd}&pSize=100`;
-    if (apiKey) {
-        url += `&KEY=${apiKey}`;
-    }
-
     try {
-        const response = await fetch(url);
-        if (!response.ok) throw new Error('NEIS API 응답 오류');
-
-        const data = await response.json();
+        const data = await fetchMealData({ ymd, pSize: 100 });
         const rows = extractMealRows(data);
 
         setText('lunch-menu', '정보가 없습니다.');
@@ -287,11 +213,11 @@ function buildMealTextByWeek(mealMap, mealCode, monday) {
         const weekday = date.toLocaleDateString('ko-KR', { weekday: 'short' });
         const menu = escapeHTML(mealMap[ymd]?.[mealCode] || '정보가 없습니다.').replace(/\n/g, '<br>');
         lines.push(`
-            <div style="margin-bottom: 20px; padding-bottom: 12px; border-bottom: 1px solid var(--border-color);">
-                <div style="font-weight: 800; color: var(--primary-color); font-size: 14px; margin-bottom: 6px;">
+            <div class="weekly-meal-day">
+                <div class="weekly-meal-date">
                     ${formatMonthDay(date)} (${weekday})
                 </div>
-                <div style="line-height: 1.6; font-size: 15px;">${menu}</div>
+                <div class="weekly-meal-menu">${menu}</div>
             </div>
         `);
     }
@@ -327,15 +253,15 @@ async function showWeeklyMeals(baseDate) {
 
     const fromYmd = formatDate(monday);
     const toYmd = formatDate(friday);
-    const apiKey = typeof CONFIG !== 'undefined' ? CONFIG.API_KEY : '';
 
     async function fetchMealByCode(code) {
-        let url = `https://open.neis.go.kr/hub/mealServiceDietInfo?Type=json&ATPT_OFCDC_SC_CODE=J10&SD_SCHUL_CODE=7530908&MLSV_FROM_YMD=${fromYmd}&MLSV_TO_YMD=${toYmd}&MMEAL_SC_CODE=${code}&pSize=50`;
-        if (apiKey) url += `&KEY=${apiKey}`;
-
         try {
-            const response = await fetch(url);
-            const data = await response.json();
+            const data = await fetchMealData({
+                from: fromYmd,
+                to: toYmd,
+                mealCode: code,
+                pSize: 50
+            });
             const rows = extractMealRows(data);
             const map = {};
             rows.forEach((row) => {
@@ -467,7 +393,31 @@ async function toggleNoti() {
     }
 }
 
+async function getTokenDatabaseKey(token) {
+    if (!token || !window.crypto?.subtle || typeof TextEncoder === 'undefined') {
+        return null;
+    }
+
+    const tokenBytes = new TextEncoder().encode(token);
+    const hashBuffer = await window.crypto.subtle.digest('SHA-256', tokenBytes);
+    return Array.from(new Uint8Array(hashBuffer))
+        .map((byte) => byte.toString(16).padStart(2, '0'))
+        .join('');
+}
+
 async function requestNoti() {
+    if (!('Notification' in window)) {
+        alert('이 브라우저는 알림 기능을 지원하지 않습니다.');
+        updateNotiButton();
+        return;
+    }
+
+    if (!('serviceWorker' in navigator)) {
+        alert('이 브라우저는 서비스 워커를 지원하지 않아 알림을 사용할 수 없습니다.');
+        updateNotiButton();
+        return;
+    }
+
     const permission = await Notification.requestPermission();
     if (permission !== 'granted') {
         alert('알림 권한을 허용해야 알림을 받을 수 있습니다.');
@@ -515,14 +465,17 @@ async function requestNoti() {
             return;
         }
 
-        console.log('FCM Token:', currentToken);
         localStorage.setItem('noti-enabled', 'true');
-        localStorage.setItem('fcm-token', currentToken);
         updateNotiButton();
 
         try {
+            const tokenKey = await getTokenDatabaseKey(currentToken);
+            if (!tokenKey) {
+                throw new Error('토큰 저장 키를 생성하지 못했습니다.');
+            }
+
             const db = firebase.database();
-            const tokenRef = db.ref('tokens/' + currentToken.replace(/\W/g, '_'));
+            const tokenRef = db.ref('tokens/' + tokenKey);
             await tokenRef.set({
                 lastUpdated: firebase.database.ServerValue.TIMESTAMP,
                 platform: 'web'
@@ -554,12 +507,11 @@ async function cancelNoti() {
         notiInterval = null;
     }
 
-    const currentToken = localStorage.getItem('fcm-token');
     localStorage.removeItem('noti-enabled');
     localStorage.removeItem('fcm-token');
     updateNotiButton();
 
-    if (currentToken && typeof firebase !== 'undefined' && typeof CONFIG !== 'undefined' && CONFIG.FIREBASE) {
+    if (typeof firebase !== 'undefined' && typeof CONFIG !== 'undefined' && CONFIG.FIREBASE) {
         try {
             if (!firebase.apps.length) {
                 firebase.initializeApp({
@@ -573,17 +525,35 @@ async function cancelNoti() {
                 });
             }
 
-            try {
-                const db = firebase.database();
-                await db.ref('tokens/' + currentToken.replace(/\W/g, '_')).remove();
-            } catch (tokenRemoveError) {
-                console.warn('FCM token remove failed:', tokenRemoveError);
-            }
+            const messaging = firebase.messaging();
+            const vapidKey = CONFIG.FIREBASE.VAPID_KEY;
 
-            try {
-                await firebase.messaging().deleteToken(currentToken);
-            } catch (tokenDeleteError) {
-                console.warn('FCM token delete skipped:', tokenDeleteError);
+            if (vapidKey && !vapidKey.includes('YOUR_') && 'serviceWorker' in navigator) {
+                const serviceWorkerRegistration = await navigator.serviceWorker.ready;
+                const currentToken = await messaging.getToken({
+                    vapidKey,
+                    serviceWorkerRegistration
+                });
+
+                if (currentToken) {
+                    try {
+                        const tokenKey = await getTokenDatabaseKey(currentToken);
+                        if (!tokenKey) {
+                            throw new Error('토큰 저장 키를 생성하지 못했습니다.');
+                        }
+
+                        const db = firebase.database();
+                        await db.ref('tokens/' + tokenKey).remove();
+                    } catch (tokenRemoveError) {
+                        console.warn('FCM token remove failed:', tokenRemoveError);
+                    }
+
+                    try {
+                        await messaging.deleteToken(currentToken);
+                    } catch (tokenDeleteError) {
+                        console.warn('FCM token delete skipped:', tokenDeleteError);
+                    }
+                }
             }
         } catch (error) {
             console.warn('Notification cancel cleanup failed:', error);
@@ -594,6 +564,7 @@ async function cancelNoti() {
 }
 
 function scheduleDailyNotification() {
+    if (!('Notification' in window) || !('serviceWorker' in navigator)) return;
     if (localStorage.getItem('noti-enabled') !== 'true') return;
 
     if (notiTimer) clearTimeout(notiTimer);
@@ -616,17 +587,14 @@ function scheduleDailyNotification() {
 }
 
 async function showLocalNotification() {
+    if (!('Notification' in window) || !('serviceWorker' in navigator)) return;
     if (Notification.permission !== 'granted') return;
 
     const targetDate = new Date();
     const ymd = formatDate(targetDate);
-    const apiKey = typeof CONFIG !== 'undefined' ? CONFIG.API_KEY : '';
-    let url = `https://open.neis.go.kr/hub/mealServiceDietInfo?Type=json&ATPT_OFCDC_SC_CODE=J10&SD_SCHUL_CODE=7530908&MLSV_YMD=${ymd}`;
-    if (apiKey) url += `&KEY=${apiKey}`;
 
     try {
-        const response = await fetch(url);
-        const data = await response.json();
+        const data = await fetchMealData({ ymd, pSize: 100 });
         const rows = extractMealRows(data);
 
         if (rows.length === 0) {
@@ -695,13 +663,12 @@ function decodeSubject(rawName) {
 
 async function fetchTimetable(grade, classNum, targetDate) {
     const ymd = formatDate(targetDate);
-    const apiKey = typeof CONFIG !== 'undefined' ? CONFIG.API_KEY : '';
-
-    let url = `https://open.neis.go.kr/hub/hisTimetable?Type=json&ATPT_OFCDC_SC_CODE=J10&SD_SCHUL_CODE=7530908&GRADE=${grade}&CLASS_NM=${classNum}&ALL_TI_YMD=${ymd}&pSize=100`;
-    if (apiKey) url += `&KEY=${apiKey}`;
+    const url = `/api/timetable?ymd=${ymd}&grade=${grade}&classNum=${classNum}&pSize=100`;
 
     try {
         const response = await fetch(url);
+        if (!response.ok) throw new Error('Timetable API 응답 오류');
+        
         const data = await response.json();
 
         if (data.hisTimetable) {
@@ -865,6 +832,41 @@ function updateTimetableHeader(titleText, targetDate, nextButtonText) {
     if (titleEl) titleEl.textContent = titleText;
     if (dateEl) dateEl.textContent = formatTimetableDateLabel(targetDate);
     if (buttonEl) buttonEl.textContent = nextButtonText;
+}
+
+function registerAppEventHandlers() {
+    const clickHandlers = [
+        ['btn-share', shareApp],
+        ['btn-today', () => showMeals('today')],
+        ['btn-tomorrow', () => showMeals('tomorrow')],
+        ['btn-week', () => showMeals('week')],
+        ['btn-timetable', showTimetable],
+        ['btn-noti', toggleNoti],
+        ['btn-theme', toggleTheme],
+        ['btn-retry', () => window.location.reload()]
+    ];
+
+    clickHandlers.forEach(([id, handler]) => {
+        const element = document.getElementById(id);
+        if (element) element.addEventListener('click', handler);
+    });
+
+    ['grade-select', 'class-select'].forEach((id) => {
+        const element = document.getElementById(id);
+        if (element) element.addEventListener('change', updateTimetable);
+    });
+}
+
+function registerServiceWorker() {
+    if (!('serviceWorker' in navigator)) {
+        return;
+    }
+
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register('sw.js').catch((error) => {
+            console.warn('Service worker registration failed:', error);
+        });
+    });
 }
 
 function getTimetableLabel(referenceDate, targetDate, fallbackLabel = '다음 시간표') {
@@ -1050,11 +1052,10 @@ function initVisitorCounter() {
     try {
         const messaging = firebase.messaging();
         messaging.onMessage((payload) => {
-            console.log('Foreground message received:', payload);
             const title = payload?.notification?.title;
             const body = payload?.notification?.body;
 
-            if (!title || Notification.permission !== 'granted') {
+            if (!title || !('Notification' in window) || Notification.permission !== 'granted') {
                 return;
             }
 
@@ -1069,6 +1070,8 @@ function initVisitorCounter() {
 }
 
 // 초기화 호출
+registerServiceWorker();
+registerAppEventHandlers();
 initTheme();
 updateNotiButton();
 showMeals('today');

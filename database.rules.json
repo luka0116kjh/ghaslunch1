@@ -3,13 +3,13 @@
     "stats": {
       "visitCount": {
         ".read": true,
-        ".write": "newData.isNumber() && (!data.exists() || newData.val() >= data.val())"
+        ".write": "newData.isNumber() && ((!data.exists() && newData.val() === 1) || (data.exists() && newData.val() === data.val() + 1))"
       }
     },
     "tokens": {
       "$token_id": {
         ".read": false,
-        ".write": "newData.hasChildren(['lastUpdated', 'platform'])",
+        ".write": "$token_id.matches(/^[0-9a-f]{64}$/) && (!newData.exists() || newData.hasChildren(['lastUpdated', 'platform']))",
         "lastUpdated": {
           ".validate": "newData.isNumber() || newData.val() == now"
         },
@@ -22,13 +22,8 @@
       }
     },
     "status": {
-      "onlineUsers": {
-        ".read": true,
-        "$user_id": {
-          ".write": "newData.exists() || data.exists()",
-          ".validate": "newData.val() === true"
-        }
-      }
+      ".read": false,
+      ".write": false
     }
   }
 }
