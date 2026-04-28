@@ -24,6 +24,35 @@ function setText(id, value) {
     el.textContent = value;
 }
 
+const NEIS_BASE_URL = 'https://open.neis.go.kr/hub/';
+const NEIS_OFFICE_CODE = 'J10';
+const NEIS_SCHOOL_CODE = '7530908';
+const FIREBASE_CONFIG = {
+    apiKey: "AIzaSyDuqKOq-5dRC8dClv7fRBULA0lows-RHUg",
+    authDomain: "ghaslunch1.firebaseapp.com",
+    databaseURL: "https://ghaslunch1-default-rtdb.asia-southeast1.firebasedatabase.app",
+    projectId: "ghaslunch1",
+    storageBucket: "ghaslunch1.firebasestorage.app",
+    messagingSenderId: "348512527529",
+    appId: "1:348512527529:web:fee72bc56b6a44bfda75b8"
+};
+const FIREBASE_VAPID_KEY = "BBgDLFBJt3E1eA5UtvC1IOusTUzUinGk6zLqe1PLELuusOqZo0loSMNUdMbKt1Uldj2g1ueUU5vt_JFEPHyLU7U";
+
+function buildNeisUrl(endpoint, params) {
+    const url = new URL(endpoint, NEIS_BASE_URL);
+    url.searchParams.set('Type', 'json');
+    url.searchParams.set('ATPT_OFCDC_SC_CODE', NEIS_OFFICE_CODE);
+    url.searchParams.set('SD_SCHUL_CODE', NEIS_SCHOOL_CODE);
+
+    Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined && value !== null && value !== '') {
+            url.searchParams.set(key, value);
+        }
+    });
+
+    return url.toString();
+}
+
 function showOfflineUI(isOffline) {
     const offlineContainer = document.getElementById('offline-container');
     const mealContainer = document.getElementById('meal-container');
@@ -132,14 +161,13 @@ function extractMealRows(data) {
 }
 
 async function fetchMealData(params) {
-    const searchParams = new URLSearchParams();
-    Object.entries(params).forEach(([key, value]) => {
-        if (value !== undefined && value !== null && value !== '') {
-            searchParams.set(key, value);
-        }
-    });
-
-    const response = await fetch(`/api/meals?${searchParams.toString()}`);
+    const response = await fetch(buildNeisUrl('mealServiceDietInfo', {
+        MLSV_YMD: params.ymd,
+        MLSV_FROM_YMD: params.from,
+        MLSV_TO_YMD: params.to,
+        MMEAL_SC_CODE: params.mealCode,
+        pSize: params.pSize || 100
+    }));
     if (!response.ok) throw new Error('급식 API 응답 오류');
     return response.json();
 }
@@ -426,27 +454,19 @@ async function requestNoti() {
     }
 
     try {
-        if (typeof firebase === 'undefined' || typeof CONFIG === 'undefined' || !CONFIG.FIREBASE) {
+        if (typeof firebase === 'undefined') {
             throw new Error('Firebase 설정을 찾지 못했습니다.');
         }
 
         if (!firebase.apps.length) {
-            firebase.initializeApp({
-                apiKey: CONFIG.FIREBASE.API_KEY,
-                authDomain: CONFIG.FIREBASE.AUTH_DOMAIN,
-                databaseURL: CONFIG.FIREBASE.DATABASE_URL,
-                projectId: CONFIG.FIREBASE.PROJECT_ID,
-                storageBucket: CONFIG.FIREBASE.STORAGE_BUCKET,
-                messagingSenderId: CONFIG.FIREBASE.MESSAGING_SENDER_ID,
-                appId: CONFIG.FIREBASE.APP_ID
-            });
+            firebase.initializeApp(FIREBASE_CONFIG);
         }
 
         const messaging = firebase.messaging();
-        const vapidKey = CONFIG.FIREBASE.VAPID_KEY;
+        const vapidKey = FIREBASE_VAPID_KEY;
 
         if (!vapidKey || vapidKey.includes('YOUR_')) {
-            console.warn('VAPID 키가 설정되지 않았습니다. config.js에서 설정이 필요합니다.');
+            console.warn('VAPID 키가 설정되지 않았습니다.');
             localStorage.setItem('noti-enabled', 'true');
             updateNotiButton();
             alert('알림 권한은 허용되었지만 VAPID 키가 없어 로컬 알림 모드로 동작합니다.');
@@ -511,22 +531,14 @@ async function cancelNoti() {
     localStorage.removeItem('fcm-token');
     updateNotiButton();
 
-    if (typeof firebase !== 'undefined' && typeof CONFIG !== 'undefined' && CONFIG.FIREBASE) {
+    if (typeof firebase !== 'undefined') {
         try {
             if (!firebase.apps.length) {
-                firebase.initializeApp({
-                    apiKey: CONFIG.FIREBASE.API_KEY,
-                    authDomain: CONFIG.FIREBASE.AUTH_DOMAIN,
-                    databaseURL: CONFIG.FIREBASE.DATABASE_URL,
-                    projectId: CONFIG.FIREBASE.PROJECT_ID,
-                    storageBucket: CONFIG.FIREBASE.STORAGE_BUCKET,
-                    messagingSenderId: CONFIG.FIREBASE.MESSAGING_SENDER_ID,
-                    appId: CONFIG.FIREBASE.APP_ID
-                });
+                firebase.initializeApp(FIREBASE_CONFIG);
             }
 
             const messaging = firebase.messaging();
-            const vapidKey = CONFIG.FIREBASE.VAPID_KEY;
+            const vapidKey = FIREBASE_VAPID_KEY;
 
             if (vapidKey && !vapidKey.includes('YOUR_') && 'serviceWorker' in navigator) {
                 const serviceWorkerRegistration = await navigator.serviceWorker.ready;
@@ -663,7 +675,12 @@ function decodeSubject(rawName) {
 
 async function fetchTimetable(grade, classNum, targetDate) {
     const ymd = formatDate(targetDate);
-    const url = `/api/timetable?ymd=${ymd}&grade=${grade}&classNum=${classNum}&pSize=100`;
+    const url = buildNeisUrl('hisTimetable', {
+        ALL_TI_YMD: ymd,
+        GRADE: grade,
+        CLASS_NM: classNum,
+        pSize: 100
+    });
 
     try {
         const response = await fetch(url);
@@ -1006,23 +1023,13 @@ function initTheme() {
 
 // Firebase 및 누적 방문자 카운터 초기화
 function initVisitorCounter() {
-    if (typeof firebase === 'undefined' || typeof CONFIG === 'undefined' || !CONFIG.FIREBASE) {
+    if (typeof firebase === 'undefined') {
         return;
     }
 
     try {
-        const firebaseConfig = {
-            apiKey: CONFIG.FIREBASE.API_KEY,
-            authDomain: CONFIG.FIREBASE.AUTH_DOMAIN,
-            databaseURL: CONFIG.FIREBASE.DATABASE_URL,
-            projectId: CONFIG.FIREBASE.PROJECT_ID,
-            storageBucket: CONFIG.FIREBASE.STORAGE_BUCKET,
-            messagingSenderId: CONFIG.FIREBASE.MESSAGING_SENDER_ID,
-            appId: CONFIG.FIREBASE.APP_ID
-        };
-
         if (!firebase.apps.length) {
-            firebase.initializeApp(firebaseConfig);
+            firebase.initializeApp(FIREBASE_CONFIG);
         }
 
         const db = firebase.database();
