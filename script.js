@@ -27,16 +27,28 @@ function setText(id, value) {
 const NEIS_BASE_URL = 'https://open.neis.go.kr/hub/';
 const NEIS_OFFICE_CODE = 'J10';
 const NEIS_SCHOOL_CODE = '7530908';
-const FIREBASE_CONFIG = {
-    apiKey: "AIzaSyDuqKOq-5dRC8dClv7fRBULA0lows-RHUg",
-    authDomain: "ghaslunch1.firebaseapp.com",
-    databaseURL: "https://ghaslunch1-default-rtdb.asia-southeast1.firebasedatabase.app",
-    projectId: "ghaslunch1",
-    storageBucket: "ghaslunch1.firebasestorage.app",
-    messagingSenderId: "348512527529",
-    appId: "1:348512527529:web:fee72bc56b6a44bfda75b8"
-};
-const FIREBASE_VAPID_KEY = "BBgDLFBJt3E1eA5UtvC1IOusTUzUinGk6zLqe1PLELuusOqZo0loSMNUdMbKt1Uldj2g1ueUU5vt_JFEPHyLU7U";
+
+function getFirebaseConfig() {
+    if (typeof CONFIG === 'undefined' || !CONFIG.FIREBASE) {
+        throw new Error('Firebase 설정을 찾지 못했습니다.');
+    }
+
+    return {
+        apiKey: CONFIG.FIREBASE.API_KEY,
+        authDomain: CONFIG.FIREBASE.AUTH_DOMAIN,
+        databaseURL: CONFIG.FIREBASE.DATABASE_URL,
+        projectId: CONFIG.FIREBASE.PROJECT_ID,
+        storageBucket: CONFIG.FIREBASE.STORAGE_BUCKET,
+        messagingSenderId: CONFIG.FIREBASE.MESSAGING_SENDER_ID,
+        appId: CONFIG.FIREBASE.APP_ID
+    };
+}
+
+function getFirebaseVapidKey() {
+    return typeof CONFIG !== 'undefined' && CONFIG.FIREBASE
+        ? CONFIG.FIREBASE.VAPID_KEY
+        : '';
+}
 
 function buildNeisUrl(endpoint, params) {
     const url = new URL(endpoint, NEIS_BASE_URL);
@@ -459,11 +471,11 @@ async function requestNoti() {
         }
 
         if (!firebase.apps.length) {
-            firebase.initializeApp(FIREBASE_CONFIG);
+            firebase.initializeApp(getFirebaseConfig());
         }
 
         const messaging = firebase.messaging();
-        const vapidKey = FIREBASE_VAPID_KEY;
+        const vapidKey = getFirebaseVapidKey();
 
         if (!vapidKey || vapidKey.includes('YOUR_')) {
             console.warn('VAPID 키가 설정되지 않았습니다.');
@@ -534,11 +546,11 @@ async function cancelNoti() {
     if (typeof firebase !== 'undefined') {
         try {
             if (!firebase.apps.length) {
-                firebase.initializeApp(FIREBASE_CONFIG);
+                firebase.initializeApp(getFirebaseConfig());
             }
 
             const messaging = firebase.messaging();
-            const vapidKey = FIREBASE_VAPID_KEY;
+            const vapidKey = getFirebaseVapidKey();
 
             if (vapidKey && !vapidKey.includes('YOUR_') && 'serviceWorker' in navigator) {
                 const serviceWorkerRegistration = await navigator.serviceWorker.ready;
@@ -1029,7 +1041,7 @@ function initVisitorCounter() {
 
     try {
         if (!firebase.apps.length) {
-            firebase.initializeApp(FIREBASE_CONFIG);
+            firebase.initializeApp(getFirebaseConfig());
         }
 
         const db = firebase.database();

@@ -1,25 +1,16 @@
 importScripts('https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js');
 importScripts('https://www.gstatic.com/firebasejs/10.7.1/firebase-messaging-compat.js');
+importScripts('config.js');
 
-const FIREBASE_CONFIG = {
-    apiKey: "AIzaSyDuqKOq-5dRC8dClv7fRBULA0lows-RHUg",
-    authDomain: "ghaslunch1.firebaseapp.com",
-    databaseURL: "https://ghaslunch1-default-rtdb.asia-southeast1.firebasedatabase.app",
-    projectId: "ghaslunch1",
-    storageBucket: "ghaslunch1.firebasestorage.app",
-    messagingSenderId: "348512527529",
-    appId: "1:348512527529:web:fee72bc56b6a44bfda75b8"
-};
-
-if (typeof firebase !== 'undefined') {
+if (typeof firebase !== 'undefined' && typeof CONFIG !== 'undefined' && CONFIG.FIREBASE) {
     firebase.initializeApp({
-        apiKey: FIREBASE_CONFIG.apiKey,
-        authDomain: FIREBASE_CONFIG.authDomain,
-        databaseURL: FIREBASE_CONFIG.databaseURL,
-        projectId: FIREBASE_CONFIG.projectId,
-        storageBucket: FIREBASE_CONFIG.storageBucket,
-        messagingSenderId: FIREBASE_CONFIG.messagingSenderId,
-        appId: FIREBASE_CONFIG.appId
+        apiKey: CONFIG.FIREBASE.API_KEY,
+        authDomain: CONFIG.FIREBASE.AUTH_DOMAIN,
+        databaseURL: CONFIG.FIREBASE.DATABASE_URL,
+        projectId: CONFIG.FIREBASE.PROJECT_ID,
+        storageBucket: CONFIG.FIREBASE.STORAGE_BUCKET,
+        messagingSenderId: CONFIG.FIREBASE.MESSAGING_SENDER_ID,
+        appId: CONFIG.FIREBASE.APP_ID
     });
 
     const messaging = firebase.messaging();
