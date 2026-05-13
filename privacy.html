@@ -324,7 +324,7 @@
                     <img src="logo.svg" alt="GHAS Logo" class="logo">
                     <h1>개인정보처리방침</h1>
                 </div>
-                <a class="btn-icon" href="/" aria-label="앱으로 돌아가기">
+                <a class="btn-icon" href="/" aria-label="홈으로 돌아가기">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
                         stroke-linejoin="round">
                         <path d="M19 12H5"></path>
@@ -340,40 +340,57 @@
         <main>
             <article class="policy-card">
                 <p class="policy-intro">
-                    GHAS 오늘의 급식은 경기자동차과학고등학교 학생의 급식 및 시간표 확인을 돕기 위해 제작된 비공식 정보 제공 앱입니다.
-                    본 앱은 학교 또는 교육청의 공식 앱이 아닙니다.
+                    GHAS 오늘의 급식은 경기자동차과학고등학교 학생들의 급식 및 시간표 확인을 돕기 위해 제작된 비공식 정보 제공 서비스입니다.
+                    본 서비스는 학교 또는 교육청의 공식 앱이 아닙니다.
                 </p>
 
                 <section class="policy-section">
                     <h2>수집하는 정보</h2>
+                    <p>본 서비스는 다음 정보를 수집하거나 저장할 수 있습니다.</p>
                     <ul>
-                        <li>방문자 수 집계를 위한 익명 방문 카운트</li>
-                        <li>사용자가 알림을 허용한 경우 Firebase Cloud Messaging 토큰을 해시 처리한 식별자, 갱신 시각, 플랫폼 정보</li>
-                        <li>앱 설정을 유지하기 위한 브라우저 로컬 저장소 정보(테마, 알림 설정 등)</li>
+                        <li>방문자 수 집계를 위한 익명 방문 정보</li>
+                        <li>사용자가 알림을 허용한 경우 Firebase Cloud Messaging(FCM) 토큰의 해시 식별자, 갱신 시각, 플랫폼 정보</li>
+                        <li>사용자 설정 유지를 위한 브라우저 로컬 저장소 정보</li>
+                        <li>테마 설정</li>
+                        <li>알림 설정</li>
+                        <li>기타 앱 사용 설정</li>
                     </ul>
                 </section>
 
                 <section class="policy-section">
                     <h2>정보 이용 목적</h2>
+                    <p>수집된 정보는 다음 목적으로 사용됩니다.</p>
                     <ul>
                         <li>급식 및 시간표 정보 제공</li>
                         <li>사용자가 요청한 알림 기능 제공</li>
-                        <li>서비스 이용량 확인 및 안정성 개선</li>
+                        <li>서비스 이용 통계 확인 및 안정성 개선</li>
+                        <li>오류 분석 및 서비스 품질 향상</li>
                     </ul>
                 </section>
 
                 <section class="policy-section">
-                    <h2>제3자 서비스</h2>
-                    <p>이 앱은 NEIS 오픈 API와 Firebase Hosting, Firebase Realtime Database, Firebase Cloud Messaging을 사용합니다. 각 서비스 제공
-                        과정에서 Google/Firebase의 정책이 적용될 수 있습니다.</p>
+                    <h2>제3자 서비스 이용</h2>
+                    <p>본 서비스는 다음 외부 서비스를 사용합니다.</p>
+                    <ul>
+                        <li>NEIS 교육정보 개방포털 Open API</li>
+                        <li>Firebase Hosting</li>
+                        <li>Firebase Realtime Database</li>
+                        <li>Firebase Cloud Messaging</li>
+                    </ul>
+                    <p>서비스 이용 과정에서 Google 및 Firebase의 정책이 적용될 수 있습니다.</p>
                 </section>
 
                 <section class="policy-section">
-                    <h2>데이터 출처 및 고지</h2>
+                    <h2>데이터 출처 및 안내</h2>
+                    <p>본 서비스는 NEIS 교육정보 개방포털의 Open API를 활용하여 급식 및 시간표 정보를 제공합니다.</p>
                     <p>
-                        본 서비스는 NEIS 교육정보 개방포털의 Open API를 활용하여 급식 및 시간표 정보를 제공합니다.
-                        제공되는 급식 및 시간표 정보는 학교 또는 교육청 사정에 따라 실제와 다를 수 있습니다.
+                        급식 및 시간표 정보는 학교 또는 교육청에서 제공한 원본 데이터를 기반으로 하며,
+                        데이터 등록 지연·누락·변경 등에 따라 실제 정보와 다르게 표시될 수 있습니다.
                     </p>
+                    <p>
+                        특히 일부 날짜에는 시간표 데이터가 4~5교시까지만 제공되어 실제 6·7교시 수업 정보가 표시되지 않을 수 있습니다.
+                    </p>
+                    <p>이는 원본 데이터 제공 상태에 따른 현상이며, 본 서비스에서 직접 수정하거나 보장할 수 없습니다.</p>
                     <p>
                         데이터 출처: <a class="policy-link" href="https://open.neis.go.kr" target="_blank"
                             rel="noopener noreferrer">NEIS 교육정보 개방포털</a>
@@ -381,27 +398,37 @@
                 </section>
 
                 <section class="policy-section">
-                    <h2>보관 및 삭제</h2>
-                    <p>알림을 해제하면 앱은 저장된 알림 토큰 식별자 삭제를 시도합니다. 브라우저 또는 WebView의 앱 데이터를 삭제하면 로컬 설정도 함께 삭제됩니다.</p>
+                    <h2>정보 보관 및 삭제</h2>
+                    <p>사용자가 알림 기능을 해제할 경우 저장된 알림 토큰 식별자 삭제를 시도합니다.</p>
+                    <p>또한 브라우저 또는 WebView의 앱 데이터를 삭제하면 저장된 로컬 설정 정보도 함께 삭제됩니다.</p>
                 </section>
 
                 <section class="policy-section">
-                    <h2>권한</h2>
-                    <p>앱은 알림 권한만 요청하며, 카메라, 마이크, 위치, 결제 권한을 요청하지 않습니다.</p>
+                    <h2>권한 안내</h2>
+                    <p>본 서비스는 알림 기능 제공을 위해 알림 권한만 요청합니다.</p>
+                    <p>다음 권한은 요청하지 않습니다.</p>
+                    <ul>
+                        <li>카메라</li>
+                        <li>마이크</li>
+                        <li>위치 정보</li>
+                        <li>결제 권한</li>
+                    </ul>
                 </section>
 
                 <section class="policy-section">
                     <h2>문의</h2>
-                    <p>문의와 개선 요청은 <a class="policy-link" href="https://github.com/luka0116kjh" target="_blank"
-                            rel="noopener noreferrer">GitHub</a>를 통해 전달할 수 있습니다.</p>
+                    <p>
+                        문의 및 개선 요청은 <a class="policy-link" href="https://github.com/luka0116kjh" target="_blank"
+                            rel="noopener noreferrer">GitHub</a>를 통해 전달할 수 있습니다.
+                    </p>
                 </section>
             </article>
 
-            <a class="back-link" href="/">앱으로 돌아가기</a>
+            <a class="back-link" href="/">홈으로 돌아가기</a>
         </main>
 
         <footer class="footer">
-            <p class="footer-note">이 앱은 학교 공식 앱이 아닌 학생 제작 정보 제공 앱입니다.</p>
+            <p class="footer-note">본 서비스는 학교 공식 앱이 아닌 학생 제작 정보 제공 서비스입니다.</p>
             <div class="footer-links">
                 <a href="/" class="footer-link">GHAS 오늘의 급식</a>
                 <a href="https://github.com/luka0116kjh" class="footer-link" target="_blank" rel="noopener noreferrer">
