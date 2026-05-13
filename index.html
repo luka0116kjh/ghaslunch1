@@ -408,6 +408,22 @@
             color: #c9d1d9;
         }
 
+        .footer-note {
+            margin: 0 0 6px;
+            color: var(--text-sub);
+            font-size: 10px;
+            line-height: 1.45;
+            opacity: 0.75;
+        }
+
+        .footer-links {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
         /* Animations */
         @keyframes fadeIn {
             from {
@@ -498,7 +514,6 @@
             </div>
             <div class="header-info">
                 <span id="today-date">0000.00.00</span>
-                <span id="weather-info">날씨 정보를 불러오는 중...</span>
             </div>
         </header>
 
@@ -560,13 +575,16 @@
             <div id="visitor-counter" class="visitor-counter">
                 <span id="visitor-label">방문자 수: </span><span id="visit-count">...</span>
             </div>
-            <a href="https://github.com/luka0116kjh" class="footer-link" rel="noopener noreferrer">
-                GITHUB: luka</a>
+            <p class="footer-note">이 앱은 학교 공식 앱이 아닌 학생 제작 정보 제공 앱입니다.</p>
+            <div class="footer-links">
+                <a href="privacy.html" class="footer-link">개인정보처리방침</a>
+                <a href="https://github.com/luka0116kjh" class="footer-link" target="_blank" rel="noopener noreferrer">
+                    GITHUB: luka</a>
+            </div>
         </footer>
     </div>
 
-    <script src="config.js"></script>
-    <script src="script.js?v=35"></script>
+    <script src="script.js?v=44"></script>
 </body>
 
 </html>

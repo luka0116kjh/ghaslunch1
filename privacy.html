@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>개인정보처리방침 | GHAS 오늘의 급식</title>
+    <link rel="manifest" href="manifest.json?v=9">
+    <link rel="icon" type="image/png" href="icon1.png">
+    <link rel="apple-touch-icon" href="icon1.png">
+    <meta name="theme-color" content="#FEE500" media="(prefers-color-scheme: light)">
+    <meta name="theme-color" content="#121212" media="(prefers-color-scheme: dark)">
+    <script>
+        try {
+            const savedTheme = localStorage.getItem('theme');
+            if (savedTheme === 'dark') {
+                document.documentElement.classList.add('dark-theme');
+            } else if (savedTheme === 'light') {
+                document.documentElement.classList.add('light-theme');
+            }
+        } catch (error) {
+            console.warn('Theme preference read failed:', error);
+        }
+    </script>
+    <link rel="stylesheet" as="style" crossorigin
+        href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css" />
+    <style>
+        :root {
+            --primary-color: #FEE500;
+            --primary-text: #191919;
+            --bg-color: #F6F6F6;
+            --card-bg: #FFFFFF;
+            --text-main: #191919;
+            --text-sub: #707070;
+            --border-color: #F2F2F2;
+            --pill-inactive: #EEEEEE;
+            --pill-text-inactive: #8E8E8E;
+            --shadow: 0 8px 24px rgba(0, 0, 0, 0.04);
+            --radius-card: 24px;
+            --radius-pill: 100px;
+            color-scheme: light dark;
+        }
+
+        :root.dark-theme {
+            --bg-color: #121212;
+            --card-bg: #1E1E1E;
+            --text-main: #FFFFFF;
+            --text-sub: #AAAAAA;
+            --border-color: #2C2C2C;
+            --pill-inactive: #2C2C2C;
+            --pill-text-inactive: #707070;
+            --shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+        }
+
+        :root.light-theme {
+            --bg-color: #F6F6F6;
+            --card-bg: #FFFFFF;
+            --text-main: #191919;
+            --text-sub: #707070;
+            --border-color: #F2F2F2;
+            --pill-inactive: #EEEEEE;
+            --pill-text-inactive: #8E8E8E;
+            --shadow: 0 8px 24px rgba(0, 0, 0, 0.04);
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root:not(.light-theme) {
+                --bg-color: #121212;
+                --card-bg: #1E1E1E;
+                --text-main: #FFFFFF;
+                --text-sub: #AAAAAA;
+                --border-color: #2C2C2C;
+                --pill-inactive: #2C2C2C;
+                --pill-text-inactive: #707070;
+                --shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+            }
+        }
+
+        * {
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            min-height: 100vh;
+            line-height: 1.65;
+            transition: background-color 0.3s ease;
+        }
+
+        a {
+            color: inherit;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 480px;
+            padding: 24px 20px;
+        }
+
+        .header {
+            padding: 10px 4px 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .header-top {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+        }
+
+        .header-title-area {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            min-width: 0;
+        }
+
+        .logo {
+            width: 32px;
+            height: 32px;
+            object-fit: contain;
+            flex: 0 0 auto;
+        }
+
+        .header h1 {
+            margin: 0;
+            font-size: 22px;
+            font-weight: 800;
+            letter-spacing: -0.5px;
+        }
+
+        .header-info {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            margin-top: 4px;
+            color: var(--text-sub);
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .btn-icon {
+            width: 38px;
+            height: 38px;
+            border: none;
+            border-radius: 50%;
+            background: transparent;
+            color: var(--text-main);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            flex: 0 0 auto;
+        }
+
+        .btn-icon:active {
+            background-color: var(--pill-inactive);
+        }
+
+        .btn-icon svg {
+            width: 20px;
+            height: 20px;
+        }
+
+        .policy-card {
+            background-color: var(--card-bg);
+            border-radius: var(--radius-card);
+            padding: 24px;
+            margin-bottom: 16px;
+            box-shadow: var(--shadow);
+            animation: fadeIn 0.4s ease forwards;
+        }
+
+        .policy-intro {
+            margin: 0 0 22px;
+            color: var(--text-main);
+            font-size: 15px;
+            opacity: 0.9;
+        }
+
+        .policy-section {
+            padding: 20px 0;
+            border-top: 1px solid var(--border-color);
+        }
+
+        .policy-section:first-of-type {
+            padding-top: 0;
+            border-top: none;
+        }
+
+        .policy-section:last-child {
+            padding-bottom: 0;
+        }
+
+        .policy-section h2 {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin: 0 0 10px;
+            color: var(--text-main);
+            font-size: 18px;
+            font-weight: 700;
+            letter-spacing: -0.2px;
+        }
+
+        .policy-section h2::before {
+            content: '';
+            display: inline-block;
+            width: 4px;
+            height: 18px;
+            background-color: var(--primary-color);
+            border-radius: 2px;
+            flex: 0 0 auto;
+        }
+
+        .policy-section p,
+        .policy-section li {
+            color: var(--text-sub);
+            font-size: 15px;
+        }
+
+        .policy-section p {
+            margin: 0;
+        }
+
+        .policy-section p + p {
+            margin-top: 10px;
+        }
+
+        .policy-section ul {
+            margin: 0;
+            padding-left: 20px;
+        }
+
+        .policy-section li + li {
+            margin-top: 8px;
+        }
+
+        .policy-link {
+            color: var(--text-main);
+            font-weight: 800;
+            text-decoration-color: var(--primary-color);
+            text-decoration-thickness: 3px;
+            text-underline-offset: 4px;
+        }
+
+        .back-link {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            width: 100%;
+            padding: 13px 18px;
+            border-radius: var(--radius-pill);
+            background-color: var(--primary-color);
+            color: var(--primary-text);
+            font-size: 15px;
+            font-weight: 800;
+            text-decoration: none;
+            box-shadow: 0 4px 12px rgba(254, 229, 0, 0.2);
+        }
+
+        .footer {
+            text-align: center;
+            margin-top: 40px;
+            padding-bottom: 30px;
+        }
+
+        .footer-note {
+            margin: 0 0 6px;
+            color: var(--text-sub);
+            font-size: 10px;
+            line-height: 1.45;
+            opacity: 0.75;
+        }
+
+        .footer-links {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .footer-link {
+            text-decoration: none;
+            color: var(--text-sub);
+            font-size: 12px;
+            font-weight: 600;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            opacity: 0.5;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <header class="header">
+            <div class="header-top">
+                <div class="header-title-area">
+                    <img src="logo.svg" alt="GHAS Logo" class="logo">
+                    <h1>개인정보처리방침</h1>
+                </div>
+                <a class="btn-icon" href="/" aria-label="앱으로 돌아가기">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round">
+                        <path d="M19 12H5"></path>
+                        <polyline points="12 19 5 12 12 5"></polyline>
+                    </svg>
+                </a>
+            </div>
+            <div class="header-info">
+                <span>시행일: 2026년 4월 30일</span>
+            </div>
+        </header>
+
+        <main>
+            <article class="policy-card">
+                <p class="policy-intro">
+                    GHAS 오늘의 급식은 경기자동차과학고등학교 학생의 급식 및 시간표 확인을 돕기 위해 제작된 비공식 정보 제공 앱입니다.
+                    본 앱은 학교 또는 교육청의 공식 앱이 아닙니다.
+                </p>
+
+                <section class="policy-section">
+                    <h2>수집하는 정보</h2>
+                    <ul>
+                        <li>방문자 수 집계를 위한 익명 방문 카운트</li>
+                        <li>사용자가 알림을 허용한 경우 Firebase Cloud Messaging 토큰을 해시 처리한 식별자, 갱신 시각, 플랫폼 정보</li>
+                        <li>앱 설정을 유지하기 위한 브라우저 로컬 저장소 정보(테마, 알림 설정 등)</li>
+                    </ul>
+                </section>
+
+                <section class="policy-section">
+                    <h2>정보 이용 목적</h2>
+                    <ul>
+                        <li>급식 및 시간표 정보 제공</li>
+                        <li>사용자가 요청한 알림 기능 제공</li>
+                        <li>서비스 이용량 확인 및 안정성 개선</li>
+                    </ul>
+                </section>
+
+                <section class="policy-section">
+                    <h2>제3자 서비스</h2>
+                    <p>이 앱은 NEIS 오픈 API와 Firebase Hosting, Firebase Realtime Database, Firebase Cloud Messaging을 사용합니다. 각 서비스 제공
+                        과정에서 Google/Firebase의 정책이 적용될 수 있습니다.</p>
+                </section>
+
+                <section class="policy-section">
+                    <h2>데이터 출처 및 고지</h2>
+                    <p>
+                        본 서비스는 NEIS 교육정보 개방포털의 Open API를 활용하여 급식 및 시간표 정보를 제공합니다.
+                        제공되는 급식 및 시간표 정보는 학교 또는 교육청 사정에 따라 실제와 다를 수 있습니다.
+                    </p>
+                    <p>
+                        데이터 출처: <a class="policy-link" href="https://open.neis.go.kr" target="_blank"
+                            rel="noopener noreferrer">NEIS 교육정보 개방포털</a>
+                    </p>
+                </section>
+
+                <section class="policy-section">
+                    <h2>보관 및 삭제</h2>
+                    <p>알림을 해제하면 앱은 저장된 알림 토큰 식별자 삭제를 시도합니다. 브라우저 또는 WebView의 앱 데이터를 삭제하면 로컬 설정도 함께 삭제됩니다.</p>
+                </section>
+
+                <section class="policy-section">
+                    <h2>권한</h2>
+                    <p>앱은 알림 권한만 요청하며, 카메라, 마이크, 위치, 결제 권한을 요청하지 않습니다.</p>
+                </section>
+
+                <section class="policy-section">
+                    <h2>문의</h2>
+                    <p>문의와 개선 요청은 <a class="policy-link" href="https://github.com/luka0116kjh" target="_blank"
+                            rel="noopener noreferrer">GitHub</a>를 통해 전달할 수 있습니다.</p>
+                </section>
+            </article>
+
+            <a class="back-link" href="/">앱으로 돌아가기</a>
+        </main>
+
+        <footer class="footer">
+            <p class="footer-note">이 앱은 학교 공식 앱이 아닌 학생 제작 정보 제공 앱입니다.</p>
+            <div class="footer-links">
+                <a href="/" class="footer-link">GHAS 오늘의 급식</a>
+                <a href="https://github.com/luka0116kjh" class="footer-link" target="_blank" rel="noopener noreferrer">
+                    GITHUB: luka</a>
+            </div>
+        </footer>
+    </div>
+</body>
+
+</html>

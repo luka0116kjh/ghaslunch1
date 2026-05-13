@@ -2,13 +2,10 @@ const { onRequest } = require("firebase-functions/v2/https");
 const { defineSecret } = require("firebase-functions/params");
 
 const neisApiKey = defineSecret("NEIS_API_KEY");
-const openWeatherApiKey = defineSecret("OPENWEATHER_API_KEY");
 
 const NEIS_URL = "https://open.neis.go.kr/hub/";
 const OFFICE_CODE = "J10";
 const SCHOOL_CODE = "7530908";
-const SCHOOL_LAT = 37.38;
-const SCHOOL_LON = 126.803;
 const ALLOWED_ORIGINS = new Set([
   "https://ghaslunch1.web.app",
   "https://ghaslunch1.firebaseapp.com",
@@ -150,40 +147,6 @@ exports.timetable = onRequest(
     } catch (error) {
       console.error("NEIS timetable proxy failed:", error);
       sendJson(response, 502, { error: "Failed to fetch timetable data." });
-    }
-  }
-);
-
-exports.weather = onRequest(
-  {
-    region: "asia-east1",
-    secrets: [openWeatherApiKey],
-    timeoutSeconds: 30,
-  },
-  async (request, response) => {
-    setCorsHeaders(request, response);
-    if (!isAllowedBrowserOrigin(request)) return sendJson(response, 403, { error: "Origin is not allowed" });
-    if (request.method === "OPTIONS") return response.status(204).send("");
-    if (request.method !== "GET") return sendJson(response, 405, { error: "Method not allowed" });
-
-    const upstreamUrl = new URL("https://api.openweathermap.org/data/2.5/forecast");
-    upstreamUrl.searchParams.set("lat", String(SCHOOL_LAT));
-    upstreamUrl.searchParams.set("lon", String(SCHOOL_LON));
-    upstreamUrl.searchParams.set("units", "metric");
-    upstreamUrl.searchParams.set("lang", "kr");
-    upstreamUrl.searchParams.set("appid", openWeatherApiKey.value());
-
-    try {
-      const upstreamResponse = await fetch(upstreamUrl);
-      const text = await upstreamResponse.text();
-
-      response.set("Cache-Control", "public, max-age=300, s-maxage=1800");
-      response.status(upstreamResponse.status);
-      response.type(upstreamResponse.headers.get("content-type") || "application/json");
-      response.send(text);
-    } catch (error) {
-      console.error("OpenWeather proxy failed:", error);
-      sendJson(response, 502, { error: "Failed to fetch weather data." });
     }
   }
 );

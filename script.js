@@ -5,19 +5,6 @@ function formatDate(date) {
     return `${y}${m}${d}`;
 }
 
-function formatDateWithOffset(unixSeconds, timezoneOffsetSeconds) {
-    const shifted = new Date((unixSeconds + timezoneOffsetSeconds) * 1000);
-    const y = shifted.getUTCFullYear();
-    const m = String(shifted.getUTCMonth() + 1).padStart(2, '0');
-    const d = String(shifted.getUTCDate()).padStart(2, '0');
-    return `${y}${m}${d}`;
-}
-
-function hourWithOffset(unixSeconds, timezoneOffsetSeconds) {
-    const shifted = new Date((unixSeconds + timezoneOffsetSeconds) * 1000);
-    return shifted.getUTCHours();
-}
-
 function setText(id, value) {
     const el = document.getElementById(id);
     if (!el) return;
@@ -27,28 +14,17 @@ function setText(id, value) {
 const NEIS_BASE_URL = 'https://open.neis.go.kr/hub/';
 const NEIS_OFFICE_CODE = 'J10';
 const NEIS_SCHOOL_CODE = '7530908';
-
-function getFirebaseConfig() {
-    if (typeof CONFIG === 'undefined' || !CONFIG.FIREBASE) {
-        throw new Error('Firebase 설정을 찾지 못했습니다.');
-    }
-
-    return {
-        apiKey: CONFIG.FIREBASE.API_KEY,
-        authDomain: CONFIG.FIREBASE.AUTH_DOMAIN,
-        databaseURL: CONFIG.FIREBASE.DATABASE_URL,
-        projectId: CONFIG.FIREBASE.PROJECT_ID,
-        storageBucket: CONFIG.FIREBASE.STORAGE_BUCKET,
-        messagingSenderId: CONFIG.FIREBASE.MESSAGING_SENDER_ID,
-        appId: CONFIG.FIREBASE.APP_ID
-    };
-}
-
-function getFirebaseVapidKey() {
-    return typeof CONFIG !== 'undefined' && CONFIG.FIREBASE
-        ? CONFIG.FIREBASE.VAPID_KEY
-        : '';
-}
+const FIREBASE_CONFIG = {
+    apiKey: "AIzaSyDuqKOq-5dRC8dClv7fRBULA0lows-RHUg",
+    authDomain: "ghaslunch1.firebaseapp.com",
+    databaseURL: "https://ghaslunch1-default-rtdb.asia-southeast1.firebasedatabase.app",
+    projectId: "ghaslunch1",
+    storageBucket: "ghaslunch1.firebasestorage.app",
+    messagingSenderId: "348512527529",
+    appId: "1:348512527529:web:fee72bc56b6a44bfda75b8"
+};
+const FIREBASE_VAPID_KEY = "BBgDLFBJt3E1eA5UtvC1IOusTUzUinGk6zLqe1PLELuusOqZo0loSMNUdMbKt1Uldj2g1ueUU5vt_JFEPHyLU7U";
+const VISIT_COUNT_URL = `${FIREBASE_CONFIG.databaseURL}/stats/visitCount.json`;
 
 function buildNeisUrl(endpoint, params) {
     const url = new URL(endpoint, NEIS_BASE_URL);
@@ -69,13 +45,11 @@ function showOfflineUI(isOffline) {
     const offlineContainer = document.getElementById('offline-container');
     const mealContainer = document.getElementById('meal-container');
     const timetableContainer = document.getElementById('timetable-container');
-    const weatherInfo = document.getElementById('weather-info');
 
     if (isOffline) {
         if (mealContainer) mealContainer.style.display = 'none';
         if (timetableContainer) timetableContainer.style.display = 'none';
         if (offlineContainer) offlineContainer.style.display = 'flex';
-        if (weatherInfo) weatherInfo.textContent = '오프라인 (네트워크 끊김)';
     } else {
         if (offlineContainer) offlineContainer.style.display = 'none';
     }
@@ -93,54 +67,6 @@ window.addEventListener('online', () => {
 window.addEventListener('offline', () => {
     showOfflineUI(true);
 });
-
-async function fetchWeather(targetDate) {
-    setText('weather-info', '날씨 정보를 불러오는 중...');
-
-    const targetYmd = formatDate(targetDate);
-    const place = 'Siheung';
-
-    try {
-        const response = await fetch('/api/weather');
-        if (!response.ok) throw new Error('Weather API failed');
-
-        const data = await response.json();
-        let weatherData = null;
-
-        if (Array.isArray(data.list) && data.list.length > 0) {
-            const timezoneOffset = typeof data.city?.timezone === 'number' ? data.city.timezone : 0;
-            const sameDayForecasts = data.list.filter((item) => formatDateWithOffset(item.dt, timezoneOffset) === targetYmd);
-            const source = sameDayForecasts.length > 0 ? sameDayForecasts : data.list;
-            const picked = source.slice().sort((a, b) => {
-                const aDiff = Math.abs(hourWithOffset(a.dt, timezoneOffset) - 12);
-                const bDiff = Math.abs(hourWithOffset(b.dt, timezoneOffset) - 12);
-                return aDiff - bDiff;
-            })[0];
-
-            weatherData = {
-                temp: Math.round(picked.main.temp),
-                description: picked.weather?.[0]?.description,
-                pop: Math.round((picked.pop || 0) * 100)
-            };
-        }
-
-        if (!weatherData) throw new Error('No weather data found');
-
-        const { temp, description, pop } = weatherData;
-        const tempText = `${temp}°C`;
-        const popText = typeof pop === 'number' ? `강수확률 ${pop}%` : '';
-        const weatherLine = [tempText, description, popText].filter(Boolean).join(' | ');
-        setText('weather-info', place ? `${weatherLine} (${place})` : weatherLine);
-    } catch (error) {
-        console.error('Weather load failed:', error);
-
-        if (!navigator.onLine) {
-            showOfflineUI(true);
-            return;
-        }
-        setText('weather-info', '날씨 정보를 불러오지 못했습니다.');
-    }
-}
 
 function escapeHTML(str) {
     if (!str) return "";
@@ -200,11 +126,12 @@ async function fetchMeals(targetDate) {
     setText('dinner-cal', '');
 
     try {
-        const data = await fetchMealData({ ymd, pSize: 100 });
+        const data = await fetchMealData({ from: ymd, to: ymd, pSize: 100 });
         const rows = extractMealRows(data);
 
-        setText('lunch-menu', '정보가 없습니다.');
-        setText('dinner-menu', '정보가 없습니다.');
+        const emptyMessage = '급식 정보가 없습니다. (주말/휴일일 수 있습니다.)';
+        setText('lunch-menu', emptyMessage);
+        setText('dinner-menu', emptyMessage);
 
         rows.forEach(row => {
             const cleanMenu = normalizeMenuText(row.DDISH_NM);
@@ -285,7 +212,6 @@ async function showWeeklyMeals(baseDate) {
     setText('lunch-title', `${weekLabel} 중식`);
     setText('dinner-title', `${weekLabel} 석식`);
     setText('today-date', `${formatMonthDay(monday)} ~ ${formatMonthDay(friday)}`);
-    setText('weather-info', `${weekLabel} 모드에서는 날씨를 표시하지 않습니다.`);
     setText('lunch-menu', '데이터를 불러오는 중...');
     setText('dinner-menu', '데이터를 불러오는 중...');
     setText('lunch-cal', '');
@@ -407,7 +333,6 @@ function showMeals(type) {
         setText('dinner-title', `석식`);
 
         fetchMeals(targetDate);
-        fetchWeather(targetDate);
     }
 }
 
@@ -471,11 +396,11 @@ async function requestNoti() {
         }
 
         if (!firebase.apps.length) {
-            firebase.initializeApp(getFirebaseConfig());
+            firebase.initializeApp(FIREBASE_CONFIG);
         }
 
         const messaging = firebase.messaging();
-        const vapidKey = getFirebaseVapidKey();
+        const vapidKey = FIREBASE_VAPID_KEY;
 
         if (!vapidKey || vapidKey.includes('YOUR_')) {
             console.warn('VAPID 키가 설정되지 않았습니다.');
@@ -546,11 +471,11 @@ async function cancelNoti() {
     if (typeof firebase !== 'undefined') {
         try {
             if (!firebase.apps.length) {
-                firebase.initializeApp(getFirebaseConfig());
+                firebase.initializeApp(FIREBASE_CONFIG);
             }
 
             const messaging = firebase.messaging();
-            const vapidKey = getFirebaseVapidKey();
+            const vapidKey = FIREBASE_VAPID_KEY;
 
             if (vapidKey && !vapidKey.includes('YOUR_') && 'serviceWorker' in navigator) {
                 const serviceWorkerRegistration = await navigator.serviceWorker.ready;
@@ -618,7 +543,7 @@ async function showLocalNotification() {
     const ymd = formatDate(targetDate);
 
     try {
-        const data = await fetchMealData({ ymd, pSize: 100 });
+        const data = await fetchMealData({ from: ymd, to: ymd, pSize: 100 });
         const rows = extractMealRows(data);
 
         if (rows.length === 0) {
@@ -944,7 +869,6 @@ async function updateTimetable() {
 
     updateTimetableHeader(titleText, targetDate, buttonText);
     container.innerHTML = renderTimetableRows(rows, targetDate);
-    fetchWeather(targetDate);
     return;
 }
 
@@ -1035,36 +959,75 @@ function initTheme() {
 
 // Firebase 및 누적 방문자 카운터 초기화
 function initVisitorCounter() {
+    const counterEl = document.getElementById('visitor-counter');
+    let hasRenderedCount = false;
+
+    const renderCount = (count) => {
+        const countEl = document.getElementById('visit-count');
+        const labelEl = document.getElementById('visitor-label');
+        hasRenderedCount = true;
+        if (counterEl) counterEl.style.display = 'block';
+        if (labelEl) labelEl.textContent = '누적 방문자: ';
+        if (countEl) countEl.textContent = Number(count || 0).toLocaleString();
+    };
+
+    const showUnavailable = () => {
+        if (hasRenderedCount) return;
+        const countEl = document.getElementById('visit-count');
+        const labelEl = document.getElementById('visitor-label');
+        if (counterEl) counterEl.style.display = 'block';
+        if (labelEl) labelEl.textContent = '누적 방문자: ';
+        if (countEl) countEl.textContent = '확인 불가';
+    };
+
+    const loadVisitorCountFallback = async () => {
+        try {
+            const response = await fetch(VISIT_COUNT_URL, { cache: 'no-store' });
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            renderCount(await response.json());
+        } catch (error) {
+            console.warn('Visit count REST fallback failed:', error);
+            showUnavailable();
+        }
+    };
+
+    loadVisitorCountFallback();
+
     if (typeof firebase === 'undefined') {
         return;
     }
 
     try {
         if (!firebase.apps.length) {
-            firebase.initializeApp(getFirebaseConfig());
+            firebase.initializeApp(FIREBASE_CONFIG);
         }
 
         const db = firebase.database();
         const visitRef = db.ref('stats/visitCount');
 
-        if (!sessionStorage.getItem('hasVisitedCounted')) {
-            visitRef.transaction((currentValue) => (currentValue || 0) + 1);
-            sessionStorage.setItem('hasVisitedCounted', 'true');
-        }
+        visitRef.transaction(
+            (currentValue) => (currentValue || 0) + 1,
+            (error, committed, snapshot) => {
+                if (error) {
+                    console.warn('Visit count update failed:', error);
+                    return;
+                }
+                if (committed) {
+                    renderCount(snapshot.val());
+                }
+            },
+            false
+        );
 
         visitRef.on('value', (snapshot) => {
-            const count = snapshot.val() || 0;
-            const countEl = document.getElementById('visit-count');
-            const labelEl = document.getElementById('visitor-label');
-            if (countEl) {
-                countEl.textContent = count.toLocaleString();
-            }
-            if (labelEl) {
-                labelEl.textContent = '누적 방문자: ';
-            }
+            renderCount(snapshot.val());
+        }, (error) => {
+            console.warn('Visit count read failed:', error);
+            loadVisitorCountFallback();
         });
     } catch (e) {
         console.error('Firebase 초기화 실패:', e);
+        loadVisitorCountFallback();
         return;
     }
 
