@@ -371,6 +371,14 @@ async function getTokenDatabaseKey(token) {
 }
 
 async function requestNoti() {
+    if (window.GHASAndroidNotifications?.requestNotifications) {
+        localStorage.setItem('noti-enabled', 'true');
+        updateNotiButton();
+        window.GHASAndroidNotifications.requestNotifications();
+        alert('앱 알림 설정을 요청했습니다. 권한을 허용하면 앱 알림을 받을 수 있습니다.');
+        return;
+    }
+
     if (!('Notification' in window)) {
         alert('이 브라우저는 알림 기능을 지원하지 않습니다.');
         updateNotiButton();
@@ -455,6 +463,15 @@ async function requestNoti() {
 }
 
 async function cancelNoti() {
+    if (window.GHASAndroidNotifications?.cancelNotifications) {
+        localStorage.removeItem('noti-enabled');
+        localStorage.removeItem('fcm-token');
+        updateNotiButton();
+        window.GHASAndroidNotifications.cancelNotifications();
+        alert('앱 알림이 취소되었습니다.');
+        return;
+    }
+
     if (notiTimer) {
         clearTimeout(notiTimer);
         notiTimer = null;
@@ -961,6 +978,7 @@ function initTheme() {
 function initVisitorCounter() {
     const counterEl = document.getElementById('visitor-counter');
     let hasRenderedCount = false;
+    const MAX_REST_INCREMENT_ATTEMPTS = 3;
 
     const renderCount = (count) => {
         const countEl = document.getElementById('visit-count');
@@ -991,7 +1009,51 @@ function initVisitorCounter() {
         }
     };
 
+    const incrementVisitorCount = async () => {
+        for (let attempt = 0; attempt < MAX_REST_INCREMENT_ATTEMPTS; attempt += 1) {
+            const readResponse = await fetch(VISIT_COUNT_URL, {
+                cache: 'no-store',
+                headers: { 'X-Firebase-ETag': 'true' }
+            });
+
+            if (!readResponse.ok) {
+                throw new Error(`Visit count read failed: HTTP ${readResponse.status}`);
+            }
+
+            const etag = readResponse.headers.get('ETag');
+            const currentValue = await readResponse.json();
+            const nextValue = Number(currentValue || 0) + 1;
+
+            const writeResponse = await fetch(VISIT_COUNT_URL, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...(etag ? { 'if-match': etag } : {})
+                },
+                body: JSON.stringify(nextValue)
+            });
+
+            if (writeResponse.status === 412) {
+                continue;
+            }
+
+            if (!writeResponse.ok) {
+                throw new Error(`Visit count update failed: HTTP ${writeResponse.status}`);
+            }
+
+            renderCount(await writeResponse.json());
+            return;
+        }
+
+        throw new Error('Visit count update conflicted too many times');
+    };
+
     loadVisitorCountFallback();
+
+    incrementVisitorCount().catch((error) => {
+        console.warn('Visit count REST increment failed:', error);
+        loadVisitorCountFallback();
+    });
 
     if (typeof firebase === 'undefined') {
         return;
@@ -1004,20 +1066,6 @@ function initVisitorCounter() {
 
         const db = firebase.database();
         const visitRef = db.ref('stats/visitCount');
-
-        visitRef.transaction(
-            (currentValue) => (currentValue || 0) + 1,
-            (error, committed, snapshot) => {
-                if (error) {
-                    console.warn('Visit count update failed:', error);
-                    return;
-                }
-                if (committed) {
-                    renderCount(snapshot.val());
-                }
-            },
-            false
-        );
 
         visitRef.on('value', (snapshot) => {
             renderCount(snapshot.val());

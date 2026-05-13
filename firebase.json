@@ -34,6 +34,7 @@
       "**/node_modules/**",
       "config.js",
       "iosver/**",
+      "android/**",
       "cloudflare-worker/**",
       "dataconnect/**",
       "functions/**",
