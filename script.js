@@ -372,8 +372,6 @@ async function getTokenDatabaseKey(token) {
 
 async function requestNoti() {
     if (window.GHASAndroidNotifications?.requestNotifications) {
-        localStorage.setItem('noti-enabled', 'true');
-        updateNotiButton();
         window.GHASAndroidNotifications.requestNotifications();
         alert('앱 알림 설정을 요청했습니다. 권한을 허용하면 앱 알림을 받을 수 있습니다.');
         return;
@@ -464,11 +462,8 @@ async function requestNoti() {
 
 async function cancelNoti() {
     if (window.GHASAndroidNotifications?.cancelNotifications) {
-        localStorage.removeItem('noti-enabled');
-        localStorage.removeItem('fcm-token');
-        updateNotiButton();
         window.GHASAndroidNotifications.cancelNotifications();
-        alert('앱 알림이 취소되었습니다.');
+        alert('앱 알림 취소를 요청했습니다.');
         return;
     }
 
@@ -527,6 +522,16 @@ async function cancelNoti() {
     }
 
     alert('알림이 취소되었습니다.');
+}
+
+function setNativeNotificationEnabled(enabled) {
+    if (enabled) {
+        localStorage.setItem('noti-enabled', 'true');
+    } else {
+        localStorage.removeItem('noti-enabled');
+        localStorage.removeItem('fcm-token');
+    }
+    updateNotiButton();
 }
 
 function scheduleDailyNotification() {
@@ -939,6 +944,52 @@ if (localStorage.getItem('noti-enabled') === 'true') {
     scheduleDailyNotification();
 }
 
+function getAndroidAppBridge() {
+    return window.GHASAndroidApp || window.GHASAndroidNotifications;
+}
+
+function getThemeCookie() {
+    return document.cookie
+        .split('; ')
+        .find((row) => row.startsWith('theme='))
+        ?.split('=')[1];
+}
+
+function getSavedThemePreference() {
+    try {
+        const localTheme = localStorage.getItem('theme');
+        if (localTheme === 'dark' || localTheme === 'light') return localTheme;
+    } catch (error) {
+        console.warn('Theme preference read failed:', error);
+    }
+
+    try {
+        const nativeTheme = getAndroidAppBridge()?.getTheme?.();
+        if (nativeTheme === 'dark' || nativeTheme === 'light') return nativeTheme;
+    } catch (error) {
+        console.warn('Native theme preference read failed:', error);
+    }
+
+    const cookieTheme = getThemeCookie();
+    return cookieTheme === 'dark' || cookieTheme === 'light' ? cookieTheme : null;
+}
+
+function saveThemePreference(theme) {
+    try {
+        localStorage.setItem('theme', theme);
+    } catch (error) {
+        console.warn('Theme preference save failed:', error);
+    }
+
+    document.cookie = `theme=${theme}; Max-Age=31536000; Path=/; SameSite=Lax; Secure`;
+
+    try {
+        getAndroidAppBridge()?.setTheme?.(theme);
+    } catch (error) {
+        console.warn('Native theme preference save failed:', error);
+    }
+}
+
 function toggleTheme() {
     const body = document.body;
     const themeBtn = document.getElementById('btn-theme');
@@ -949,17 +1000,17 @@ function toggleTheme() {
         body.classList.remove('dark-theme');
         body.classList.add('light-theme');
         themeBtn.textContent = '☀️';
-        localStorage.setItem('theme', 'light');
+        saveThemePreference('light');
     } else {
         body.classList.remove('light-theme');
         body.classList.add('dark-theme');
         themeBtn.textContent = '🌙';
-        localStorage.setItem('theme', 'dark');
+        saveThemePreference('dark');
     }
 }
 
 function initTheme() {
-    const savedTheme = localStorage.getItem('theme');
+    const savedTheme = getSavedThemePreference();
     const themeBtn = document.getElementById('btn-theme');
     if (savedTheme === 'dark') {
         document.body.classList.add('dark-theme');

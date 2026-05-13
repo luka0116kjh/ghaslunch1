@@ -2,11 +2,13 @@ import SwiftUI
 
 struct ContentView: View {
     @AppStorage("themePreference") private var themePreference = ThemePreference.system.rawValue
+    @AppStorage("notificationsEnabled") private var notificationsEnabled = false
     @State private var selectedTab: HomeTab = .today
     @State private var selectedGrade = 1
     @State private var selectedClass = 1
     @State private var isShowingPrivacy = false
-    @State private var notificationsEnabled = false
+    @State private var visitorCountText = "..."
+    @State private var notificationStatusMessage: String?
 
     @Environment(\.colorScheme) private var scheme
 
@@ -53,7 +55,15 @@ struct ContentView: View {
                         .padding(.bottom, 20)
 
                     actionBar
-                        .padding(.bottom, 16)
+                        .padding(.bottom, notificationStatusMessage == nil ? 16 : 8)
+
+                    if let notificationStatusMessage {
+                        Text(notificationStatusMessage)
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundStyle(AppTheme.subText(scheme))
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.bottom, 16)
+                    }
 
                     currentContent
 
@@ -68,6 +78,9 @@ struct ContentView: View {
             .background(AppTheme.background(scheme).ignoresSafeArea())
             .navigationDestination(isPresented: $isShowingPrivacy) {
                 PrivacyPolicyView()
+            }
+            .task {
+                await refreshVisitorCount()
             }
         }
     }
@@ -197,7 +210,7 @@ struct ContentView: View {
     private var actionBar: some View {
         HStack(spacing: 8) {
             Button {
-                notificationsEnabled.toggle()
+                toggleNotifications()
             } label: {
                 Image(systemName: notificationsEnabled ? "bell.fill" : "bell")
                     .font(.system(size: 16, weight: .bold))
@@ -226,7 +239,7 @@ struct ContentView: View {
 
     private var footer: some View {
         VStack(spacing: 8) {
-            Text("방문자 수 ...")
+            Text("누적 방문자: \(visitorCountText)")
                 .font(.system(size: 11, weight: .regular))
                 .foregroundStyle(AppTheme.subText(scheme).opacity(0.8))
 
@@ -264,6 +277,49 @@ struct ContentView: View {
 
     private func cycleTheme() {
         themePreference = currentTheme.next.rawValue
+    }
+
+    private func toggleNotifications() {
+        if notificationsEnabled {
+            notificationsEnabled = false
+            notificationStatusMessage = "앱 알림이 취소되었습니다."
+
+            Task {
+                await NativeNotificationService.disableNotifications()
+            }
+            return
+        }
+
+        notificationStatusMessage = "앱 알림 권한을 요청하는 중입니다."
+
+        Task {
+            let granted = await NativeNotificationService.requestAuthorization()
+            await MainActor.run {
+                notificationsEnabled = granted
+                notificationStatusMessage = granted
+                    ? "앱 알림 설정이 완료되었습니다."
+                    : "알림 권한이 없어 앱 알림을 받을 수 없습니다."
+            }
+        }
+    }
+
+    private func refreshVisitorCount() async {
+        do {
+            let count = try await VisitorCounterService.incrementCount()
+            await MainActor.run {
+                visitorCountText = NumberFormatter.localizedString(from: NSNumber(value: count), number: .decimal)
+            }
+        } catch {
+            if let count = try? await VisitorCounterService.fetchCount() {
+                await MainActor.run {
+                    visitorCountText = NumberFormatter.localizedString(from: NSNumber(value: count), number: .decimal)
+                }
+            } else {
+                await MainActor.run {
+                    visitorCountText = "확인 불가"
+                }
+            }
+        }
     }
 
     private func shareApp() {

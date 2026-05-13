@@ -282,7 +282,7 @@ GHAS 오늘의 급식은 경기자동차과학고등학교 학생의 급식 및 
   - 라이트/다크 모드별 배경, 카드, 텍스트, pill 색상 정의
 - `ios/GHASLunchSwiftUI/Components.swift`
   - `AppHeader`
-  - `BrandMark`
+  - `BrandMark`는 `Assets.xcassets/AppIconSource` 사용
   - `PillTabBar`
   - `InfoCard`
   - `SectionTitle`
@@ -296,12 +296,19 @@ GHAS 오늘의 급식은 경기자동차과학고등학교 학생의 급식 및 
 - `ios/GHASLunchSwiftUI/ContentView.swift`
   - 메인 앱 화면
   - 오늘/내일/이번 주/시간표 탭
-  - 알림 토글 UI
+  - iOS 네이티브 알림 권한 요청 UI
   - 테마 전환 UI
-  - 방문자 수 placeholder
+  - Firebase Realtime Database REST 기반 누적 방문자 수 표시
   - 개인정보처리방침 이동
 - `ios/GHASLunchSwiftUI/PrivacyPolicyView.swift`
   - 웹 `privacy.html` 변경사항을 반영한 SwiftUI 개인정보처리방침 화면
+- `ios/GHASLunchSwiftUI/Services.swift`
+  - 방문자 수 REST 읽기/조건부 증가
+  - iOS 알림 권한 요청 및 원격 알림 등록 준비
+- `ios/GHASLunchSwiftUI/Assets.xcassets`
+  - 웹 `logo.svg` 기반 `BrandLogo`
+  - `icon1.png`, `icon-192.png` 기반 `AppIconSource`
+  - Android 알림 아이콘 기반 `LunchSymbol`
 - `ios/GHASLunchSwiftUI/README.md`
   - SwiftUI 시작점 설명과 다음 연동 작업
 
@@ -338,6 +345,8 @@ Windows에 설치한 Swift CLI는 Swift 언어와 패키지 실험에는 쓸 수
 - `Models.swift`
 - `ContentView.swift`
 - `PrivacyPolicyView.swift`
+- `Services.swift`
+- `Assets.xcassets`
 
 주의:
 
@@ -365,14 +374,14 @@ Windows에 설치한 Swift CLI는 Swift 언어와 패키지 실험에는 쓸 수
 
 - 급식 데이터는 샘플 하드코딩
 - 시간표 데이터는 샘플 하드코딩
-- 방문자 수는 placeholder
-- Firebase Realtime Database 미연결
-- Firebase Messaging 미연결
+- 방문자 수는 Firebase Realtime Database REST API에 연결됨
+- Firebase Messaging SDK와 `GoogleService-Info.plist`는 아직 미연결
+- 알림 버튼은 iOS 네이티브 알림 권한 요청과 원격 알림 등록 준비까지만 수행
 - NEIS API 미연결
 - 앱 아이콘/로고 asset 미적용
 - 공유 기능은 함수 placeholder
 
-즉, 현재 상태는 디자인과 화면 구조를 MacBook에서 확인하기 위한 SwiftUI 시작점이다.
+즉, 현재 상태는 디자인과 화면 구조에 더해 방문자 수 REST 집계와 iOS 알림 권한 요청 준비까지 포함한 SwiftUI 시작점이다.
 
 ## iOS에서 API 연결 시 필요한 작업
 
@@ -567,17 +576,17 @@ iOS 권한 요청 시 앱의 개인정보 문구와 일치해야 한다.
 
 iOS에서 필요한 작업:
 
-- `Assets.xcassets`에 AppIcon 구성
-- `logo.svg`는 SwiftUI에서 바로 쓰기보다는 PDF/vector asset 또는 PNG로 변환 권장
-- 현재 `BrandMark`는 임시 노란 원 + G 텍스트로 구현되어 있음
-- 실제 앱에서는 `Image("logo")` 형태로 교체 권장
+- `Assets.xcassets`에 출시용 `AppIcon.appiconset` 구성 필요
+- `BrandLogo`는 웹 `logo.svg`를 vector asset으로 반영함
+- `AppIconSource`는 `icon1.png`, `icon-192.png`를 iOS imageset으로 반영함
+- 현재 `BrandMark`는 `Image("AppIconSource")`를 사용함
 
 교체 방향:
 
 ```swift
-Image("logo")
+Image("AppIconSource")
     .resizable()
-    .scaledToFit()
+    .scaledToFill()
     .frame(width: 32, height: 32)
 ```
 

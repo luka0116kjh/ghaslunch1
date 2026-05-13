@@ -89,7 +89,7 @@ self.addEventListener('fetch', (event) => {
     // 같은 출처의 기본 에셋 요청에 대해서만 캐시 업데이트 (Stale-While-Revalidate)
     if (
         event.request.mode === 'navigate' ||
-        ['/index.html', '/script.js', '/manifest.json'].includes(requestUrl.pathname)
+        ['/index.html', '/script.js', '/privacy-theme.js', '/manifest.json'].includes(requestUrl.pathname)
     ) {
         event.respondWith(
             fetch(event.request).then((networkResponse) => {

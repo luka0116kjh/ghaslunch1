@@ -18,4 +18,14 @@ public class NativeNotificationBridge {
     public void cancelNotifications() {
         activity.runOnUiThread(activity::cancelMealNotifications);
     }
+
+    @JavascriptInterface
+    public void setTheme(String theme) {
+        activity.saveTheme(theme);
+    }
+
+    @JavascriptInterface
+    public String getTheme() {
+        return activity.getSavedTheme();
+    }
 }

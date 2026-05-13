@@ -42,16 +42,12 @@ struct AppHeader: View {
 
 struct BrandMark: View {
     var body: some View {
-        ZStack {
-            Circle()
-                .fill(AppTheme.primary)
-
-            Text("G")
-                .font(.system(size: 17, weight: .black))
-                .foregroundStyle(AppTheme.primaryText)
-        }
-        .frame(width: 32, height: 32)
-        .accessibilityHidden(true)
+        Image("AppIconSource")
+            .resizable()
+            .scaledToFill()
+            .frame(width: 32, height: 32)
+            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+            .accessibilityHidden(true)
     }
 }
 
