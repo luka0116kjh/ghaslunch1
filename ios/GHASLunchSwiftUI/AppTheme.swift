@@ -1,8 +1,8 @@
 import SwiftUI
 
 enum AppTheme {
-    static let primary = Color(hex: 0xFEE500)
-    static let primaryText = Color(hex: 0x191919)
+    static let primary = Color(hex: 0x2563EB)
+    static let primaryText = Color.white
     static let lightBackground = Color(hex: 0xF6F6F6)
     static let darkBackground = Color(hex: 0x121212)
     static let lightCard = Color.white

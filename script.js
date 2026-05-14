@@ -11,6 +11,14 @@ function setText(id, value) {
     el.textContent = value;
 }
 
+function getStoredStudentName() {
+    return localStorage.getItem(STUDENT_NAME_KEY) || '';
+}
+
+function getStoredStudentId() {
+    return localStorage.getItem(STUDENT_ID_KEY) || '';
+}
+
 const NEIS_BASE_URL = 'https://open.neis.go.kr/hub/';
 const NEIS_OFFICE_CODE = 'J10';
 const NEIS_SCHOOL_CODE = '7530908';
@@ -25,11 +33,27 @@ const FIREBASE_CONFIG = {
 };
 const FIREBASE_VAPID_KEY = "BBgDLFBJt3E1eA5UtvC1IOusTUzUinGk6zLqe1PLELuusOqZo0loSMNUdMbKt1Uldj2g1ueUU5vt_JFEPHyLU7U";
 const VISIT_COUNT_URL = `${FIREBASE_CONFIG.databaseURL}/stats/visitCount.json`;
+const STUDENT_NAME_KEY = 'ghas-student-name';
+const STUDENT_ID_KEY = 'ghas-student-id';
 const SCHEDULE_YEAR = window.GHAS_SCHEDULE_YEAR || 2026;
 const SCHEDULE_SOURCE = window.GHAS_SCHEDULE_SOURCE || '';
 const SCHEDULE_EVENTS = parseScheduleSource(SCHEDULE_SOURCE);
 let mealViewMode = 'today';
 let scheduleViewMode = 'current';
+
+const CODE39_PATTERNS = {
+    '0': 'nnnwwnwnn',
+    '1': 'wnnwnnnnw',
+    '2': 'nnwwnnnnw',
+    '3': 'wnwwnnnnn',
+    '4': 'nnnwwnnnw',
+    '5': 'wnnwwnnnn',
+    '6': 'nnwwwnnnn',
+    '7': 'nnnwnnwnw',
+    '8': 'wnnwnnwnn',
+    '9': 'nnwwnnwnn',
+    '*': 'nwnnwnwnn'
+};
 
 function buildNeisUrl(endpoint, params) {
     const url = new URL(endpoint, NEIS_BASE_URL);
@@ -58,14 +82,6 @@ function createScheduleDate(month, day) {
 
 function isSameScheduleDay(a, b) {
     return formatDate(a) === formatDate(b);
-}
-
-function formatScheduleShortDate(date) {
-    return date.toLocaleDateString('ko-KR', {
-        month: 'long',
-        day: 'numeric',
-        weekday: 'short'
-    });
 }
 
 function formatScheduleDotDate(date) {
@@ -176,20 +192,6 @@ function renderScheduleRow(event) {
             </div>
         </div>
     `;
-}
-
-function renderScheduleSummary() {
-    const today = startOfDay(new Date());
-    const visibleEvents = getVisibleScheduleEvents();
-    const upcomingEvents = visibleEvents.filter((event) => startOfDay(event.endDate) >= today);
-    const nextEvent = upcomingEvents[0];
-
-    setText('schedule-count', visibleEvents.length.toLocaleString());
-    setText('upcoming-count', upcomingEvents.length.toLocaleString());
-    setText(
-        'next-event-name',
-        nextEvent ? `${formatScheduleShortDate(nextEvent.startDate)} · ${getScheduleEventName(nextEvent)}` : '남은 일정 없음'
-    );
 }
 
 function renderScheduleList() {
@@ -515,6 +517,116 @@ function toggleMealView() {
     showMeals(nextType);
 }
 
+function getCode39Pattern(value) {
+    return `*${value}*`
+        .split('')
+        .map((char) => CODE39_PATTERNS[char] || '')
+        .filter(Boolean);
+}
+
+function buildCode39Svg(value) {
+    const patterns = getCode39Pattern(value);
+    if (patterns.length === 0) return '';
+
+    const narrow = 2;
+    const wide = 5;
+    const height = 72;
+    let x = 0;
+    const bars = [];
+
+    patterns.forEach((pattern, charIndex) => {
+        pattern.split('').forEach((widthCode, index) => {
+            const width = widthCode === 'w' ? wide : narrow;
+            const isBar = index % 2 === 0;
+
+            if (isBar) {
+                bars.push(`<rect x="${x}" y="0" width="${width}" height="${height}" fill="#000000"></rect>`);
+            }
+
+            x += width;
+        });
+
+        if (charIndex !== patterns.length - 1) {
+            x += narrow;
+        }
+    });
+
+    return `<svg viewBox="0 0 ${x} ${height}" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">${bars.join('')}</svg>`;
+}
+
+function isValidStudentId(studentId) {
+    return /^[1-3]0[1-8](0[1-9]|1[0-9]|2[0-4])$/.test(studentId);
+}
+
+function renderStudentCodeCard() {
+    const name = getStoredStudentName() || '이름';
+    const studentId = getStoredStudentId() || '00000';
+
+    setText('student-card-name', name);
+    setText('student-card-id', studentId);
+
+    const barcodeEl = document.getElementById('student-barcode-svg');
+    if (barcodeEl) {
+        const safeValue = isValidStudentId(studentId) ? studentId : '00000';
+        barcodeEl.innerHTML = buildCode39Svg(safeValue);
+    }
+}
+
+function openStudentCodeModal() {
+    const modal = document.getElementById('student-code-modal');
+    const nameInput = document.getElementById('student-name-input');
+    const idInput = document.getElementById('student-id-input');
+
+    if (nameInput) nameInput.value = getStoredStudentName();
+    if (idInput) idInput.value = getStoredStudentId();
+    renderStudentCodeCard();
+
+    if (modal) {
+        modal.classList.add('open');
+        modal.setAttribute('aria-hidden', 'false');
+    }
+}
+
+function closeStudentCodeModal() {
+    const modal = document.getElementById('student-code-modal');
+    if (!modal) return;
+    modal.classList.remove('open');
+    modal.setAttribute('aria-hidden', 'true');
+}
+
+function saveStudentCode() {
+    const nameInput = document.getElementById('student-name-input');
+    const idInput = document.getElementById('student-id-input');
+    const name = nameInput ? nameInput.value.trim() : '';
+    const studentId = idInput ? idInput.value.replace(/\D/g, '').trim() : '';
+
+    if (!name) {
+        alert('이름을 입력해 주세요.');
+        return;
+    }
+
+    if (!isValidStudentId(studentId)) {
+        alert('학번은 1~3학년, 01~08반, 01~24번 형식으로 입력해 주세요. 예: 10706');
+        return;
+    }
+
+    localStorage.setItem(STUDENT_NAME_KEY, name);
+    localStorage.setItem(STUDENT_ID_KEY, studentId);
+    renderStudentCodeCard();
+}
+
+function resetStudentCode() {
+    localStorage.removeItem(STUDENT_NAME_KEY);
+    localStorage.removeItem(STUDENT_ID_KEY);
+
+    const nameInput = document.getElementById('student-name-input');
+    const idInput = document.getElementById('student-id-input');
+    if (nameInput) nameInput.value = '';
+    if (idInput) idInput.value = '';
+
+    renderStudentCodeCard();
+}
+
 function showSchedule() {
     showOfflineUI(false);
 
@@ -533,7 +645,6 @@ function showSchedule() {
     });
 
     updateScheduleHeader();
-    renderScheduleSummary();
     renderScheduleList();
 }
 
@@ -1056,6 +1167,7 @@ function updateTimetableHeader(titleText, targetDate, nextButtonText) {
 
 function registerAppEventHandlers() {
     const clickHandlers = [
+        ['btn-qr', openStudentCodeModal],
         ['btn-share', shareApp],
         ['btn-today', () => showMeals('today')],
         ['btn-week', () => showMeals('week')],
@@ -1066,6 +1178,9 @@ function registerAppEventHandlers() {
         }],
         ['btn-meal-switch', toggleMealView],
         ['btn-schedule-switch', toggleScheduleView],
+        ['btn-close-student-code', closeStudentCodeModal],
+        ['btn-save-student-code', saveStudentCode],
+        ['btn-reset-student-code', resetStudentCode],
         ['btn-noti', toggleNoti],
         ['btn-theme', toggleTheme],
         ['btn-retry', () => window.location.reload()]
@@ -1080,6 +1195,29 @@ function registerAppEventHandlers() {
         const element = document.getElementById(id);
         if (element) element.addEventListener('change', updateTimetable);
     });
+
+    const modal = document.getElementById('student-code-modal');
+    if (modal) {
+        modal.addEventListener('click', (event) => {
+            if (event.target === modal) {
+                closeStudentCodeModal();
+            }
+        });
+    }
+
+    const studentNameInput = document.getElementById('student-name-input');
+    const studentIdInput = document.getElementById('student-id-input');
+
+    if (studentNameInput) {
+        studentNameInput.addEventListener('input', renderStudentCodeCard);
+    }
+
+    if (studentIdInput) {
+        studentIdInput.addEventListener('input', (event) => {
+            event.target.value = event.target.value.replace(/\D/g, '').slice(0, 5);
+            renderStudentCodeCard();
+        });
+    }
 }
 
 function registerServiceWorker() {

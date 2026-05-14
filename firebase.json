@@ -93,6 +93,15 @@
         ]
       },
       {
+        "source": "/schedule.js",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "no-cache, no-store, must-revalidate"
+          }
+        ]
+      },
+      {
         "source": "/privacy-theme.js",
         "headers": [
           {

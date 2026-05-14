@@ -8,7 +8,7 @@
     <link rel="manifest" href="manifest.json?v=9">
     <link rel="icon" type="image/png" href="icon1.png">
     <link rel="apple-touch-icon" href="icon1.png">
-    <meta name="theme-color" content="#FEE500" media="(prefers-color-scheme: light)">
+    <meta name="theme-color" content="#2563EB" media="(prefers-color-scheme: light)">
     <meta name="theme-color" content="#121212" media="(prefers-color-scheme: dark)">
 
     <!-- Firebase SDKs -->
@@ -20,8 +20,8 @@
         href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css" />
     <style>
         :root {
-            --primary-color: #FEE500;
-            --primary-text: #191919;
+            --primary-color: #2563EB;
+            --primary-text: #FFFFFF;
             --bg-color: #F6F6F6;
             --card-bg: #FFFFFF;
             --text-main: #191919;
@@ -100,6 +100,14 @@
             display: flex;
             align-items: center;
             gap: 12px;
+            min-width: 0;
+            flex: 1;
+        }
+
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 8px;
         }
 
         .btn-icon {
@@ -122,6 +130,17 @@
         .btn-icon svg {
             width: 20px;
             height: 20px;
+        }
+
+        .btn-qr {
+            border: none;
+            border-radius: 999px;
+            background-color: var(--pill-inactive);
+            color: var(--text-main);
+            padding: 10px 14px;
+            font-size: 13px;
+            font-weight: 800;
+            cursor: pointer;
         }
 
         .logo {
@@ -381,46 +400,6 @@
         }
 
         /* Schedule UI */
-        .schedule-summary {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 10px;
-            margin-bottom: 18px;
-        }
-
-        .summary-item {
-            min-width: 0;
-            background-color: var(--pill-inactive);
-            border-radius: 16px;
-            padding: 14px;
-        }
-
-        .summary-item.next {
-            grid-column: 1 / -1;
-        }
-
-        .summary-label {
-            display: block;
-            margin-bottom: 8px;
-            font-size: 12px;
-            font-weight: 700;
-            color: var(--text-sub);
-        }
-
-        .summary-value {
-            display: block;
-            min-width: 0;
-            font-size: 20px;
-            font-weight: 800;
-            color: var(--text-main);
-            overflow-wrap: anywhere;
-        }
-
-        .summary-value.small {
-            font-size: 15px;
-            line-height: 1.4;
-        }
-
         .schedule-row {
             display: grid;
             grid-template-columns: 54px 1fr;
@@ -647,6 +626,160 @@
         .retry-btn:active {
             transform: scale(0.95);
         }
+
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.42);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            z-index: 1000;
+        }
+
+        .modal-overlay.open {
+            display: flex;
+        }
+
+        .modal-card {
+            width: 100%;
+            max-width: 420px;
+            background-color: var(--card-bg);
+            border-radius: 24px;
+            box-shadow: var(--shadow);
+            padding: 24px;
+            animation: fadeIn 0.25s ease forwards;
+        }
+
+        .modal-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 18px;
+        }
+
+        .modal-title {
+            margin: 0;
+            font-size: 20px;
+            font-weight: 800;
+            color: var(--text-main);
+        }
+
+        .modal-close {
+            border: none;
+            background: transparent;
+            color: var(--text-main);
+            font-size: 22px;
+            cursor: pointer;
+            padding: 0 4px;
+        }
+
+        .field-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-bottom: 14px;
+        }
+
+        .field-label {
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--text-sub);
+        }
+
+        .field-input {
+            width: 100%;
+            border: none;
+            border-radius: 16px;
+            background-color: var(--pill-inactive);
+            color: var(--text-main);
+            padding: 14px 16px;
+            font-size: 15px;
+            font-weight: 600;
+            outline: none;
+        }
+
+        .field-help {
+            margin: 4px 0 16px;
+            font-size: 12px;
+            line-height: 1.5;
+            color: var(--text-sub);
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 18px;
+        }
+
+        .modal-actions button {
+            flex: 1;
+            border: none;
+            border-radius: 999px;
+            padding: 12px 14px;
+            font-size: 14px;
+            font-weight: 800;
+            cursor: pointer;
+        }
+
+        .modal-primary {
+            background-color: var(--primary-color);
+            color: var(--primary-text);
+        }
+
+        .modal-secondary {
+            background-color: var(--pill-inactive);
+            color: var(--text-main);
+        }
+
+        .student-card {
+            border: 1px solid var(--border-color);
+            border-radius: 20px;
+            overflow: hidden;
+            background-color: #FFFFFF;
+            color: #111111;
+        }
+
+        .student-card-row {
+            border-bottom: 1px solid #E8E8E8;
+            min-height: 48px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 10px 16px;
+            text-align: center;
+        }
+
+        .student-card-row:last-child {
+            border-bottom: none;
+        }
+
+        .student-card-name {
+            font-size: 48px;
+            font-weight: 300;
+            line-height: 1.1;
+            letter-spacing: 0;
+        }
+
+        .student-card-id {
+            font-size: 62px;
+            font-weight: 700;
+            line-height: 1;
+            letter-spacing: 0;
+        }
+
+        .student-card-barcode {
+            padding: 18px 14px 16px;
+            overflow: hidden;
+        }
+
+        .student-card-barcode svg {
+            display: block;
+            width: 100%;
+            height: 72px;
+        }
     </style>
 </head>
 
@@ -658,14 +791,17 @@
                     <img src="logo.svg" alt="GHAS Logo" class="logo">
                     <h1 id="title-text">경기자동차과학고</h1>
                 </div>
-                <button id="btn-share" class="btn-icon" type="button" aria-label="공유하기">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                        stroke-linejoin="round">
-                        <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"></path>
-                        <polyline points="16 6 12 2 8 6"></polyline>
-                        <line x1="12" y1="2" x2="12" y2="15"></line>
-                    </svg>
-                </button>
+                <div class="header-actions">
+                    <button id="btn-qr" class="btn-qr" type="button" aria-label="학생 코드 보기">QR</button>
+                    <button id="btn-share" class="btn-icon" type="button" aria-label="공유하기">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                            stroke-linejoin="round">
+                            <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"></path>
+                            <polyline points="16 6 12 2 8 6"></polyline>
+                            <line x1="12" y1="2" x2="12" y2="15"></line>
+                        </svg>
+                    </button>
+                </div>
             </div>
             <div class="header-info">
                 <span id="today-date">0000.00.00</span>
@@ -708,20 +844,6 @@
                     <div id="schedule-view-title" class="meal-type">이번달 일정표</div>
                     <button id="btn-schedule-switch" class="timetable-switch-btn" type="button">다음달 일정표</button>
                 </div>
-                <div class="schedule-summary">
-                    <div class="summary-item">
-                        <span class="summary-label">전체 일정</span>
-                        <strong id="schedule-count" class="summary-value">0</strong>
-                    </div>
-                    <div class="summary-item">
-                        <span class="summary-label">남은 일정</span>
-                        <strong id="upcoming-count" class="summary-value">0</strong>
-                    </div>
-                    <div class="summary-item next">
-                        <span class="summary-label">다음 일정</span>
-                        <strong id="next-event-name" class="summary-value small">확인 중...</strong>
-                    </div>
-                </div>
                 <div id="schedule-list" aria-live="polite"></div>
             </article>
         </section>
@@ -757,6 +879,41 @@
             <button id="btn-retry" class="retry-btn" type="button">다시 시도</button>
         </section>
 
+        <section id="student-code-modal" class="modal-overlay" aria-hidden="true">
+            <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="student-code-title">
+                <div class="modal-header">
+                    <h2 id="student-code-title" class="modal-title">학생 코드</h2>
+                    <button id="btn-close-student-code" class="modal-close" type="button" aria-label="닫기">×</button>
+                </div>
+
+                <div class="field-group">
+                    <label class="field-label" for="student-name-input">이름</label>
+                    <input id="student-name-input" class="field-input" type="text" maxlength="12" placeholder="예: 홍길동">
+                </div>
+
+                <div class="field-group">
+                    <label class="field-label" for="student-id-input">학번</label>
+                    <input id="student-id-input" class="field-input" type="text" inputmode="numeric" maxlength="5" placeholder="예: 10101">
+                </div>
+
+                <p class="field-help">학번은 1~3학년, 01~08반, 01~24번만 저장할 수 있습니다. 입력한 정보는 이 기기 안에만 저장됩니다.</p>
+
+                <div class="modal-actions">
+                    <button id="btn-save-student-code" class="modal-primary" type="button">저장</button>
+                    <button id="btn-reset-student-code" class="modal-secondary" type="button">초기화</button>
+                </div>
+
+                <div id="student-card" class="student-card">
+                    <div class="student-card-row" style="min-height: 88px;"></div>
+                    <div id="student-card-name" class="student-card-row student-card-name">이름</div>
+                    <div id="student-card-id" class="student-card-row student-card-id">00000</div>
+                    <div class="student-card-row student-card-barcode">
+                        <div id="student-barcode-svg" style="width: 100%;"></div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
         <footer class="footer">
             <div id="visitor-counter" class="visitor-counter">
                 <span id="visitor-label">방문자 수: </span><span id="visit-count">...</span>
@@ -770,8 +927,8 @@
         </footer>
     </div>
 
-    <script src="schedule.js?v=1"></script>
-    <script src="script.js?v=47"></script>
+    <script src="schedule.js?v=2"></script>
+    <script src="script.js?v=51"></script>
 </body>
 
 </html>

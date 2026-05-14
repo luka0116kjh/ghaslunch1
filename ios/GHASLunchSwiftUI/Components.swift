@@ -3,11 +3,34 @@ import SwiftUI
 struct AppHeader: View {
     let title: String
     let subtitle: String
+    let secondaryTitle: String?
+    let secondaryActionLabel: String?
+    let secondaryAction: (() -> Void)?
     let actionIcon: String
     let actionLabel: String
     let action: () -> Void
 
     @Environment(\.colorScheme) private var scheme
+
+    init(
+        title: String,
+        subtitle: String,
+        secondaryTitle: String? = nil,
+        secondaryActionLabel: String? = nil,
+        secondaryAction: (() -> Void)? = nil,
+        actionIcon: String,
+        actionLabel: String,
+        action: @escaping () -> Void
+    ) {
+        self.title = title
+        self.subtitle = subtitle
+        self.secondaryTitle = secondaryTitle
+        self.secondaryActionLabel = secondaryActionLabel
+        self.secondaryAction = secondaryAction
+        self.actionIcon = actionIcon
+        self.actionLabel = actionLabel
+        self.action = action
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -19,6 +42,18 @@ struct AppHeader: View {
                     .foregroundStyle(AppTheme.text(scheme))
                     .lineLimit(2)
                     .frame(maxWidth: .infinity, alignment: .leading)
+
+                if let secondaryTitle, let secondaryAction {
+                    Button(action: secondaryAction) {
+                        Text(secondaryTitle)
+                            .font(.system(size: 13, weight: .heavy))
+                            .foregroundStyle(AppTheme.text(scheme))
+                            .frame(width: 38, height: 38)
+                            .background(AppTheme.pill(scheme))
+                            .clipShape(Capsule())
+                    }
+                    .accessibilityLabel(secondaryActionLabel ?? secondaryTitle)
+                }
 
                 Button(action: action) {
                     Image(systemName: actionIcon)
@@ -91,7 +126,7 @@ struct InfoCard<Content: View>: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(AppTheme.card(scheme))
         .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
-        .shadow(color: Color.black.opacity(scheme == .dark ? 0.2 : 0.04), radius: scheme == .dark ? 16 : 12, y: 8)
+        .shadow(color: Color.black.opacity(scheme == .dark ? 0.2 : 0.04), radius: scheme == .dark ? 32 : 12, y: 8)
     }
 }
 

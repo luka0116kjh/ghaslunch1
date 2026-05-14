@@ -10,7 +10,7 @@ struct MealCardData: Identifiable {
 struct WeeklyMealData: Identifiable {
     let id = UUID()
     let date: String
-    let menu: String
+    let meals: [MealCardData]
 }
 
 struct TimetableRowData: Identifiable {

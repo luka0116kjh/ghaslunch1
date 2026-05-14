@@ -3,11 +3,14 @@ import SwiftUI
 struct ContentView: View {
     @AppStorage("themePreference") private var themePreference = ThemePreference.system.rawValue
     @AppStorage("notificationsEnabled") private var notificationsEnabled = false
+    @AppStorage("ghasStudentName") private var studentName = ""
+    @AppStorage("ghasStudentId") private var studentId = ""
     @State private var selectedTab: HomeTab = .today
     @State private var selectedGrade = 1
     @State private var selectedClass = 1
     @State private var mealViewMode: MealViewMode = .today
     @State private var scheduleViewMode: ScheduleViewMode = .current
+    @State private var isShowingStudentCode = false
     @State private var isShowingPrivacy = false
     @State private var visitorCountText = "..."
     @State private var notificationStatusMessage: String?
@@ -15,21 +18,24 @@ struct ContentView: View {
     @Environment(\.colorScheme) private var scheme
 
     private let todayMeals = [
-        MealCardData(title: "점심", menu: "쌀밥\n미역국\n닭갈비\n배추김치\n요구르트", calories: "812.4 kcal"),
-        MealCardData(title: "저녁", menu: "김치볶음밥\n계란국\n치킨너겟\n깍두기", calories: "745.1 kcal")
+        MealCardData(title: "중식", menu: "쌀밥\n미역국\n닭갈비\n배추김치\n요구르트", calories: "812.4 kcal"),
+        MealCardData(title: "석식", menu: "김치볶음밥\n계란국\n치킨너겟\n깍두기", calories: "745.1 kcal")
     ]
 
     private let tomorrowMeals = [
-        MealCardData(title: "점심", menu: "잡곡밥\n된장찌개\n제육볶음\n상추겉절이\n배추김치", calories: "801.7 kcal"),
-        MealCardData(title: "저녁", menu: "카레라이스\n유부장국\n왕새우튀김\n깍두기", calories: "779.5 kcal")
+        MealCardData(title: "중식", menu: "잡곡밥\n된장찌개\n제육볶음\n상추겉절이\n배추김치", calories: "801.7 kcal"),
+        MealCardData(title: "석식", menu: "카레라이스\n유부장국\n왕새우튀김\n깍두기", calories: "779.5 kcal")
     ]
 
     private let weekMeals = [
-        WeeklyMealData(date: "월요일", menu: "쌀밥, 미역국, 닭갈비, 배추김치"),
-        WeeklyMealData(date: "화요일", menu: "잡곡밥, 된장찌개, 제육볶음, 깍두기"),
-        WeeklyMealData(date: "수요일", menu: "카레라이스, 유부장국, 왕새우튀김"),
-        WeeklyMealData(date: "목요일", menu: "김치볶음밥, 계란국, 치킨너겟"),
-        WeeklyMealData(date: "금요일", menu: "현미밥, 순두부찌개, 돈가스, 배추김치")
+        WeeklyMealData(date: "월요일", meals: [
+            MealCardData(title: "중식", menu: "쌀밥\n미역국\n닭갈비\n배추김치", calories: "812.4 kcal"),
+            MealCardData(title: "석식", menu: "김치볶음밥\n계란국\n치킨너겟\n깍두기", calories: "745.1 kcal")
+        ]),
+        WeeklyMealData(date: "화요일", meals: [
+            MealCardData(title: "중식", menu: "잡곡밥\n된장찌개\n제육볶음\n깍두기", calories: "801.7 kcal"),
+            MealCardData(title: "석식", menu: "카레라이스\n유부장국\n왕새우튀김", calories: "779.5 kcal")
+        ])
     ]
 
     private let timetable = [
@@ -48,6 +54,11 @@ struct ContentView: View {
                     AppHeader(
                         title: "경기자동차과학고등학교",
                         subtitle: formattedToday,
+                        secondaryTitle: "QR",
+                        secondaryActionLabel: "학생 코드 보기",
+                        secondaryAction: {
+                            isShowingStudentCode = true
+                        },
                         actionIcon: "square.and.arrow.up",
                         actionLabel: "공유하기",
                         action: shareApp
@@ -80,6 +91,9 @@ struct ContentView: View {
             .background(AppTheme.background(scheme).ignoresSafeArea())
             .navigationDestination(isPresented: $isShowingPrivacy) {
                 PrivacyPolicyView()
+            }
+            .sheet(isPresented: $isShowingStudentCode) {
+                StudentCodeSheet(studentName: $studentName, studentId: $studentId)
             }
             .task {
                 await refreshVisitorCount()
@@ -152,9 +166,6 @@ struct ContentView: View {
             }
             .padding(.bottom, 18)
 
-            scheduleSummary
-                .padding(.bottom, 18)
-
             if visibleScheduleEvents.isEmpty {
                 Text("등록된 행사 일정이 없습니다.")
                     .font(.system(size: 13, weight: .regular))
@@ -184,41 +195,6 @@ struct ContentView: View {
                 }
             }
         }
-    }
-
-    private var scheduleSummary: some View {
-        let upcomingEvents = visibleScheduleEvents.filter { Calendar.current.startOfDay(for: $0.endDate) >= Calendar.current.startOfDay(for: Date()) }
-        let nextEvent = upcomingEvents.first
-
-        return VStack(spacing: 10) {
-            HStack(spacing: 10) {
-                summaryBox(label: "전체 일정", value: "\(visibleScheduleEvents.count)")
-                summaryBox(label: "남은 일정", value: "\(upcomingEvents.count)")
-            }
-
-            summaryBox(
-                label: "다음 일정",
-                value: nextEvent.map { "\(shortDate($0.startDate)) · \($0.title)" } ?? "남은 일정 없음",
-                isSmall: true
-            )
-        }
-    }
-
-    private func summaryBox(label: String, value: String, isSmall: Bool = false) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(label)
-                .font(.system(size: 12, weight: .bold))
-                .foregroundStyle(AppTheme.subText(scheme))
-
-            Text(value)
-                .font(.system(size: isSmall ? 15 : 20, weight: .heavy))
-                .foregroundStyle(AppTheme.text(scheme))
-                .lineLimit(nil)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(14)
-        .background(AppTheme.pill(scheme))
-        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
     }
 
     private func scheduleRow(_ event: ScheduleEventData) -> some View {
@@ -274,10 +250,28 @@ struct ContentView: View {
                             .font(.system(size: 14, weight: .heavy))
                             .foregroundStyle(AppTheme.primary)
 
-                        Text(meal.menu)
-                            .font(.system(size: 15, weight: .regular))
-                            .lineSpacing(4)
-                            .foregroundStyle(AppTheme.text(scheme))
+                        ForEach(Array(meal.meals.enumerated()), id: \.element.id) { mealIndex, dayMeal in
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(dayMeal.title)
+                                    .font(.system(size: 13, weight: .heavy))
+                                    .foregroundStyle(AppTheme.text(scheme))
+
+                                Text(dayMeal.menu)
+                                    .font(.system(size: 14, weight: .regular))
+                                    .lineSpacing(2)
+                                    .foregroundStyle(AppTheme.text(scheme))
+                                    .fixedSize(horizontal: false, vertical: true)
+
+                                if !dayMeal.calories.isEmpty {
+                                    Text(dayMeal.calories)
+                                        .font(.system(size: 12, weight: .medium))
+                                        .foregroundStyle(AppTheme.subText(scheme))
+                                        .frame(maxWidth: .infinity, alignment: .trailing)
+                                        .padding(.top, 2)
+                                }
+                            }
+                            .padding(.top, mealIndex == 0 ? 0 : 8)
+                        }
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.bottom, index == weekMeals.count - 1 ? 0 : 12)
@@ -479,13 +473,6 @@ struct ContentView: View {
         return formatter.string(from: date)
     }
 
-    private func shortDate(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "ko_KR")
-        formatter.dateFormat = "M월 d일 E"
-        return formatter.string(from: date)
-    }
-
     private func weekday(_ date: Date) -> String {
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: "ko_KR")
@@ -605,6 +592,226 @@ private enum ScheduleViewMode {
 private struct ScheduleMonthGroup {
     let month: Int
     let events: [ScheduleEventData]
+}
+
+private struct StudentCodeSheet: View {
+    @Binding var studentName: String
+    @Binding var studentId: String
+
+    @Environment(\.dismiss) private var dismiss
+    @Environment(\.colorScheme) private var scheme
+    @State private var draftName = ""
+    @State private var draftId = ""
+    @State private var errorMessage: String?
+
+    private var trimmedName: String {
+        draftName.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private var trimmedId: String {
+        draftId.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private var canRenderBarcode: Bool {
+        isValidStudentId(trimmedId)
+    }
+
+    private func isValidStudentId(_ value: String) -> Bool {
+        value.range(of: #"^[1-3]0[1-8](0[1-9]|1[0-9]|2[0-4])$"#, options: .regularExpression) != nil
+    }
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(spacing: 18) {
+                    studentCard
+
+                    VStack(spacing: 12) {
+                        TextField("이름", text: $draftName)
+                            .textInputAutocapitalization(.never)
+                            .autocorrectionDisabled()
+                            .textFieldStyle(.roundedBorder)
+
+                        TextField("학번", text: $draftId)
+                            .keyboardType(.numberPad)
+                            .textFieldStyle(.roundedBorder)
+                            .onChange(of: draftId) { newValue in
+                                let filtered = newValue.filter(\.isNumber)
+                                if filtered != newValue {
+                                    draftId = String(filtered.prefix(5))
+                                } else if newValue.count > 5 {
+                                    draftId = String(newValue.prefix(5))
+                                }
+                            }
+
+                        if let errorMessage {
+                            Text(errorMessage)
+                                .font(.system(size: 12, weight: .semibold))
+                                .foregroundStyle(.red)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                        }
+                    }
+
+                    HStack(spacing: 10) {
+                        Button("초기화") {
+                            studentName = ""
+                            studentId = ""
+                            draftName = ""
+                            draftId = ""
+                            errorMessage = nil
+                        }
+                        .font(.system(size: 15, weight: .heavy))
+                        .foregroundStyle(AppTheme.text(scheme))
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 13)
+                        .background(AppTheme.pill(scheme))
+                        .clipShape(Capsule())
+
+                        PrimaryButton(title: "저장", systemImage: "checkmark") {
+                            guard canRenderBarcode else {
+                                errorMessage = "학번은 1~3학년, 01~08반, 01~24번 형식으로 입력해 주세요."
+                                return
+                            }
+
+                            studentName = trimmedName
+                            studentId = trimmedId
+                            errorMessage = nil
+                            dismiss()
+                        }
+                    }
+                }
+                .padding(20)
+            }
+            .background(AppTheme.background(scheme).ignoresSafeArea())
+            .navigationTitle("학생 코드")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("닫기") {
+                        dismiss()
+                    }
+                }
+            }
+            .onAppear {
+                draftName = studentName
+                draftId = studentId
+            }
+        }
+    }
+
+    private var studentCard: some View {
+        VStack(spacing: 0) {
+            Rectangle()
+                .fill(Color.white)
+                .frame(height: 72)
+
+            Divider()
+
+            Text(trimmedName.isEmpty ? "이름" : trimmedName)
+                .font(.system(size: 44, weight: .regular))
+                .foregroundStyle(Color.black)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 16)
+
+            Divider()
+
+            Text(trimmedId.isEmpty ? "학번" : trimmedId)
+                .font(.system(size: 46, weight: .medium))
+                .foregroundStyle(Color.black)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 10)
+
+            Divider()
+
+            if canRenderBarcode {
+                Code39BarcodeView(value: trimmedId)
+                    .padding(.horizontal, 28)
+                    .padding(.vertical, 22)
+            } else {
+                Text("학번을 입력하면 바코드가 표시됩니다.")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(Color.black.opacity(0.45))
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 46)
+            }
+        }
+        .background(Color.white)
+        .overlay(
+            RoundedRectangle(cornerRadius: 0)
+                .stroke(Color.black.opacity(0.12), lineWidth: 1)
+        )
+    }
+}
+
+private struct Code39BarcodeView: View {
+    let value: String
+
+    private var modules: [BarcodeModule] {
+        Code39Encoder.modules(for: value)
+    }
+
+    var body: some View {
+        GeometryReader { proxy in
+            let totalUnits = max(1, modules.reduce(0) { $0 + $1.units })
+            let unitWidth = proxy.size.width / CGFloat(totalUnits)
+
+            HStack(spacing: 0) {
+                ForEach(Array(modules.enumerated()), id: \.offset) { _, module in
+                    if module.isBar {
+                        Rectangle()
+                            .fill(Color.black)
+                            .frame(width: max(1, CGFloat(module.units) * unitWidth))
+                    } else {
+                        Color.clear
+                            .frame(width: CGFloat(module.units) * unitWidth)
+                    }
+                }
+            }
+            .frame(width: proxy.size.width, height: proxy.size.height, alignment: .center)
+        }
+        .frame(height: 72)
+        .accessibilityLabel("학번 바코드")
+    }
+}
+
+private struct BarcodeModule {
+    let isBar: Bool
+    let units: Int
+}
+
+private enum Code39Encoder {
+    private static let patterns: [Character: String] = [
+        "0": "nnnwwnwnw",
+        "1": "wnnwnnnnw",
+        "2": "nnwwnnnnw",
+        "3": "wnwwnnnnn",
+        "4": "nnnwwnnnw",
+        "5": "wnnwwnnnn",
+        "6": "nnwwwnnnn",
+        "7": "nnnwnnwnw",
+        "8": "wnnwnnwnn",
+        "9": "nnwwnnwnn",
+        "*": "nwnnwnwnn"
+    ]
+
+    static func modules(for rawValue: String) -> [BarcodeModule] {
+        let encoded = "*\(rawValue.uppercased())*"
+        var modules: [BarcodeModule] = []
+
+        for character in encoded {
+            guard let pattern = patterns[character] else {
+                continue
+            }
+
+            for (index, width) in pattern.enumerated() {
+                modules.append(BarcodeModule(isBar: index.isMultiple(of: 2), units: width == "w" ? 3 : 1))
+            }
+
+            modules.append(BarcodeModule(isBar: false, units: 1))
+        }
+
+        return modules
+    }
 }
 
 #Preview {
