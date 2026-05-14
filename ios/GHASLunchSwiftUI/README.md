@@ -1,28 +1,21 @@
-# GHAS Lunch SwiftUI Starter
+# GHAS Lunch iOS WebView
 
-이 폴더는 웹 버전에서 최근 반영한 디자인과 개인정보처리방침 변경사항을 iOS SwiftUI 화면으로 옮긴 시작점입니다.
+이 폴더는 GHAS 오늘의 급식 웹 배포본을 iOS `WKWebView`로 표시하는 소스입니다.
 
 ## 포함된 내용
 
-- `GHASLunchApp.swift`: SwiftUI 앱 진입점과 테마 적용
-- `AppTheme.swift`: 웹 `index.html`/`privacy.html` 기준 색상 토큰
-- `Components.swift`: 헤더, 로고 마크, pill 탭, 카드, 섹션 제목, 기본 버튼
-- `ContentView.swift`: 메인 급식/이번 주/시간표/일정표/알림/테마/푸터 화면
-- `PrivacyPolicyView.swift`: 웹 `privacy.html`과 같은 카드형 개인정보처리방침 화면
-- `Models.swift`: 화면 표시용 데이터 모델
-- `Services.swift`: 방문자 수 REST 집계와 iOS 네이티브 알림 권한 요청 준비
-- `Assets.xcassets`: 웹 `logo.svg` 기반 `BrandLogo`, 앱 아이콘 원본 `AppIconSource`, Android 알림 아이콘 기반 `LunchSymbol` asset
+- `ContentView.swift`: `https://ghaslunch1.web.app/`를 로드하는 `WKWebView` 화면
+- Android 웹뷰와 같은 이름의 JS 브리지:
+  - `window.GHASAndroidApp`
+  - `window.GHASAndroidNotifications`
+- 네이티브 처리:
+  - 알림 권한 요청
+  - 알림 해제 시 iOS 알림 요청/표시 정리
+  - 테마 값을 `UserDefaults`에 저장하고 웹 `localStorage`에 재주입
+  - 외부 링크는 Safari 등 시스템 앱으로 열기
+  - 웹 `alert()`를 iOS 기본 알림창으로 표시
+- 기존 SwiftUI 디자인 파일과 asset은 보존되어 있지만, 현재 앱 화면은 웹뷰가 기준입니다.
 
-## 다음 연동 작업
+## Firebase/푸시 참고
 
-- 샘플 급식/시간표 데이터를 실제 NEIS API 응답으로 교체
-- 일정표 데이터는 `Models.swift`의 `ScheduleEventData` 원문 목록에서 관리합니다.
-- 방문자 수는 Firebase Realtime Database REST API의 `stats/visitCount`와 연결되어 있으며, 웹과 같은 조건부 증가 흐름을 사용합니다.
-- iOS 원격 푸시는 Apple Developer Program, APNs 키, `GoogleService-Info.plist`, Firebase iOS SDK 추가 뒤 `Services.swift`의 연결 지점에 FCM topic `meal` 구독을 붙입니다.
-- 앱 출시용 `AppIcon.appiconset`은 Xcode에서 `AppIconSource` 또는 별도 1024px 원본으로 생성
-- `shareApp()`을 `ShareLink` 또는 UIKit activity sheet로 연결
-
-## 주의
-
-현재 코드는 iOS 프로젝트에 붙여 넣기 위한 SwiftUI 소스 시작점입니다. 아직 `.xcodeproj` 또는 `.xcworkspace`는 포함하지 않았습니다.
-Firebase iOS SDK와 `GoogleService-Info.plist`가 없으면 원격 푸시 수신은 동작하지 않지만, 알림 권한 요청과 원격 알림 등록 준비 코드는 포함되어 있습니다.
+현재 웹뷰 브리지는 iOS 알림 권한과 원격 알림 등록까지 연결합니다. 실제 FCM topic `meal` 구독까지 사용하려면 Apple Developer Program, APNs 키, `GoogleService-Info.plist`, Firebase iOS SDK, Push Notifications/Background Modes 설정이 추가로 필요합니다.
