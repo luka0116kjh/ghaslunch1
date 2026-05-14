@@ -344,6 +344,7 @@
             display: none;
         }
 
+        #schedule-container,
         #timetable-container,
         #offline-container {
             display: none;
@@ -377,6 +378,160 @@
             font-size: 13px;
             font-weight: 600;
             color: var(--text-sub);
+        }
+
+        /* Schedule UI */
+        .schedule-summary {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 18px;
+        }
+
+        .summary-item {
+            min-width: 0;
+            background-color: var(--pill-inactive);
+            border-radius: 16px;
+            padding: 14px;
+        }
+
+        .summary-item.next {
+            grid-column: 1 / -1;
+        }
+
+        .summary-label {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--text-sub);
+        }
+
+        .summary-value {
+            display: block;
+            min-width: 0;
+            font-size: 20px;
+            font-weight: 800;
+            color: var(--text-main);
+            overflow-wrap: anywhere;
+        }
+
+        .summary-value.small {
+            font-size: 15px;
+            line-height: 1.4;
+        }
+
+        .schedule-row {
+            display: grid;
+            grid-template-columns: 54px 1fr;
+            gap: 16px;
+            padding: 16px 0;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .schedule-row:first-child {
+            padding-top: 0;
+        }
+
+        .schedule-row:last-child {
+            padding-bottom: 0;
+            border-bottom: none;
+        }
+
+        .schedule-row.is-today .date-badge {
+            background-color: var(--primary-color);
+            color: var(--primary-text);
+        }
+
+        .date-badge {
+            width: 54px;
+            height: 60px;
+            border-radius: 16px;
+            background-color: var(--pill-inactive);
+            color: var(--text-main);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .date-day {
+            font-size: 21px;
+            line-height: 1;
+            font-weight: 800;
+        }
+
+        .date-weekday {
+            margin-top: 6px;
+            font-size: 12px;
+            font-weight: 700;
+            color: currentColor;
+            opacity: 0.72;
+        }
+
+        .schedule-content {
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 7px;
+            justify-content: center;
+        }
+
+        .schedule-line {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 10px;
+        }
+
+        .schedule-title {
+            min-width: 0;
+            color: var(--text-main);
+            font-size: 16px;
+            font-weight: 700;
+            line-height: 1.35;
+            overflow-wrap: anywhere;
+        }
+
+        .status-pill {
+            flex: 0 0 auto;
+            border-radius: 999px;
+            padding: 4px 9px;
+            font-size: 11px;
+            font-weight: 800;
+            color: var(--text-sub);
+            background-color: var(--pill-inactive);
+        }
+
+        .status-pill.today {
+            color: var(--primary-text);
+            background-color: var(--primary-color);
+        }
+
+        .status-pill.upcoming {
+            color: var(--text-main);
+        }
+
+        .schedule-meta,
+        .schedule-empty {
+            color: var(--text-sub);
+            font-size: 13px;
+            line-height: 1.5;
+        }
+
+        .schedule-month-title {
+            margin: 22px 0 10px;
+            font-size: 14px;
+            font-weight: 800;
+            color: var(--primary-text);
+            background-color: var(--primary-color);
+            border-radius: 999px;
+            padding: 7px 12px;
+            display: inline-flex;
+        }
+
+        .schedule-month-title:first-child {
+            margin-top: 0;
         }
 
         /* Footer */
@@ -519,14 +674,21 @@
 
         <nav class="btn-group">
             <button id="btn-today" class="active" type="button">오늘</button>
-            <button id="btn-tomorrow" type="button">내일</button>
             <button id="btn-week" type="button">이번 주</button>
             <button id="btn-timetable" type="button">시간표</button>
+            <button id="btn-schedule" type="button">일정표</button>
             <button id="btn-noti" type="button" aria-label="알림 설정" title="알림 설정">🔔</button>
             <button id="btn-theme" type="button">🌓</button>
         </nav>
 
         <main id="meal-container">
+            <article id="meal-toolbar-card" class="meal-card">
+                <div class="timetable-toolbar">
+                    <div id="meal-view-title" class="meal-type">오늘의 급식</div>
+                    <button id="btn-meal-switch" class="timetable-switch-btn" type="button">내일의 급식</button>
+                </div>
+            </article>
+
             <article class="meal-card">
                 <div id="lunch-title" class="meal-type">중식</div>
                 <div id="lunch-menu" class="meal-list">데이터를 불러오는 중...</div>
@@ -539,6 +701,30 @@
                 <div id="dinner-cal" class="calorie"></div>
             </article>
         </main>
+
+        <section id="schedule-container">
+            <article class="meal-card">
+                <div class="timetable-toolbar">
+                    <div id="schedule-view-title" class="meal-type">이번달 일정표</div>
+                    <button id="btn-schedule-switch" class="timetable-switch-btn" type="button">다음달 일정표</button>
+                </div>
+                <div class="schedule-summary">
+                    <div class="summary-item">
+                        <span class="summary-label">전체 일정</span>
+                        <strong id="schedule-count" class="summary-value">0</strong>
+                    </div>
+                    <div class="summary-item">
+                        <span class="summary-label">남은 일정</span>
+                        <strong id="upcoming-count" class="summary-value">0</strong>
+                    </div>
+                    <div class="summary-item next">
+                        <span class="summary-label">다음 일정</span>
+                        <strong id="next-event-name" class="summary-value small">확인 중...</strong>
+                    </div>
+                </div>
+                <div id="schedule-list" aria-live="polite"></div>
+            </article>
+        </section>
 
         <section id="timetable-container">
             <div class="class-selector">
@@ -584,7 +770,8 @@
         </footer>
     </div>
 
-    <script src="script.js?v=44"></script>
+    <script src="schedule.js?v=1"></script>
+    <script src="script.js?v=47"></script>
 </body>
 
 </html>

@@ -7,7 +7,7 @@
 - `GHASLunchApp.swift`: SwiftUI 앱 진입점과 테마 적용
 - `AppTheme.swift`: 웹 `index.html`/`privacy.html` 기준 색상 토큰
 - `Components.swift`: 헤더, 로고 마크, pill 탭, 카드, 섹션 제목, 기본 버튼
-- `ContentView.swift`: 메인 급식/이번 주/시간표/알림/테마/푸터 화면
+- `ContentView.swift`: 메인 급식/이번 주/시간표/일정표/알림/테마/푸터 화면
 - `PrivacyPolicyView.swift`: 웹 `privacy.html`과 같은 카드형 개인정보처리방침 화면
 - `Models.swift`: 화면 표시용 데이터 모델
 - `Services.swift`: 방문자 수 REST 집계와 iOS 네이티브 알림 권한 요청 준비
@@ -16,6 +16,7 @@
 ## 다음 연동 작업
 
 - 샘플 급식/시간표 데이터를 실제 NEIS API 응답으로 교체
+- 일정표 데이터는 `Models.swift`의 `ScheduleEventData` 원문 목록에서 관리합니다.
 - 방문자 수는 Firebase Realtime Database REST API의 `stats/visitCount`와 연결되어 있으며, 웹과 같은 조건부 증가 흐름을 사용합니다.
 - iOS 원격 푸시는 Apple Developer Program, APNs 키, `GoogleService-Info.plist`, Firebase iOS SDK 추가 뒤 `Services.swift`의 연결 지점에 FCM topic `meal` 구독을 붙입니다.
 - 앱 출시용 `AppIcon.appiconset`은 Xcode에서 `AppIconSource` 또는 별도 1024px 원본으로 생성

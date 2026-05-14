@@ -25,6 +25,11 @@ const FIREBASE_CONFIG = {
 };
 const FIREBASE_VAPID_KEY = "BBgDLFBJt3E1eA5UtvC1IOusTUzUinGk6zLqe1PLELuusOqZo0loSMNUdMbKt1Uldj2g1ueUU5vt_JFEPHyLU7U";
 const VISIT_COUNT_URL = `${FIREBASE_CONFIG.databaseURL}/stats/visitCount.json`;
+const SCHEDULE_YEAR = window.GHAS_SCHEDULE_YEAR || 2026;
+const SCHEDULE_SOURCE = window.GHAS_SCHEDULE_SOURCE || '';
+const SCHEDULE_EVENTS = parseScheduleSource(SCHEDULE_SOURCE);
+let mealViewMode = 'today';
+let scheduleViewMode = 'current';
 
 function buildNeisUrl(endpoint, params) {
     const url = new URL(endpoint, NEIS_BASE_URL);
@@ -41,14 +46,202 @@ function buildNeisUrl(endpoint, params) {
     return url.toString();
 }
 
+function startOfDay(date) {
+    const next = new Date(date);
+    next.setHours(0, 0, 0, 0);
+    return next;
+}
+
+function createScheduleDate(month, day) {
+    return new Date(SCHEDULE_YEAR, Number(month) - 1, Number(day));
+}
+
+function isSameScheduleDay(a, b) {
+    return formatDate(a) === formatDate(b);
+}
+
+function formatScheduleShortDate(date) {
+    return date.toLocaleDateString('ko-KR', {
+        month: 'long',
+        day: 'numeric',
+        weekday: 'short'
+    });
+}
+
+function formatScheduleDotDate(date) {
+    return `${date.getFullYear()}.${String(date.getMonth() + 1).padStart(2, '0')}.${String(date.getDate()).padStart(2, '0')}`;
+}
+
+function formatScheduleRange(event) {
+    if (isSameScheduleDay(event.startDate, event.endDate)) {
+        return formatScheduleDotDate(event.startDate);
+    }
+    return `${formatScheduleDotDate(event.startDate)} ~ ${formatScheduleDotDate(event.endDate)}`;
+}
+
+function parseScheduleSource(source) {
+    return source
+        .trim()
+        .split('\n')
+        .map((line, index) => {
+            const normalized = line.trim().replace(/\s+/g, ' ');
+            const lineWithoutMonthHeader = normalized.replace(/^\d{2} 월\s+/, '');
+            const match = lineWithoutMonthHeader.match(/^(\d{2})\.(\d{2}) \([^)]+\) ~ (\d{2})\.(\d{2}) \([^)]+\) (.+)$/);
+
+            if (!match) {
+                console.warn('Invalid schedule line skipped:', line);
+                return null;
+            }
+
+            const [, startMonth, startDay, endMonth, endDay, title] = match;
+            return {
+                id: `${SCHEDULE_YEAR}-${index}`,
+                startDate: createScheduleDate(startMonth, startDay),
+                endDate: createScheduleDate(endMonth, endDay),
+                title: title.trim()
+            };
+        })
+        .filter(Boolean)
+        .sort((a, b) => a.startDate - b.startDate || a.endDate - b.endDate || a.title.localeCompare(b.title, 'ko'));
+}
+
+function getScheduleEventName(event) {
+    return event.title || '행사 일정';
+}
+
+function getScheduleCategory(event) {
+    const title = getScheduleEventName(event);
+    if (/공휴일|노동절|현충일|추석|개천절|재량휴업일/.test(title)) return '휴일';
+    if (/시험|정기시험|평가|검정|합격|접수/.test(title)) return '시험/검정';
+    if (/신입학|입학식|예비소집|원서접수|면접/.test(title)) return '입학/전형';
+    return '행사';
+}
+
+function getScheduleStatus(event) {
+    const today = startOfDay(new Date());
+    const start = startOfDay(event.startDate);
+    const end = startOfDay(event.endDate);
+
+    if (today >= start && today <= end) {
+        return { label: isSameScheduleDay(start, end) ? '오늘' : '진행중', className: 'today' };
+    }
+    if (start > today) {
+        return { label: '예정', className: 'upcoming' };
+    }
+    return { label: '완료', className: 'past' };
+}
+
+function getScheduleBaseMonth() {
+    const baseDate = new Date();
+    if (scheduleViewMode === 'next') {
+        baseDate.setMonth(baseDate.getMonth() + 1, 1);
+    }
+    return new Date(baseDate.getFullYear(), baseDate.getMonth(), 1);
+}
+
+function getScheduleRange() {
+    const start = getScheduleBaseMonth();
+    const end = new Date(start.getFullYear(), start.getMonth() + 1, 0);
+    return { start, end };
+}
+
+function isRangeOverlapping(startA, endA, startB, endB) {
+    return startOfDay(startA) <= startOfDay(endB) && startOfDay(endA) >= startOfDay(startB);
+}
+
+function getVisibleScheduleEvents() {
+    const { start, end } = getScheduleRange();
+    return SCHEDULE_EVENTS.filter((event) => isRangeOverlapping(event.startDate, event.endDate, start, end));
+}
+
+function renderScheduleRow(event) {
+    const status = getScheduleStatus(event);
+    const meta = [
+        formatScheduleRange(event),
+        getScheduleCategory(event)
+    ].join(' · ');
+
+    return `
+        <div class="schedule-row ${status.className === 'today' ? 'is-today' : ''}">
+            <div class="date-badge">
+                <span class="date-day">${event.startDate.getDate()}</span>
+                <span class="date-weekday">${event.startDate.toLocaleDateString('ko-KR', { weekday: 'short' })}</span>
+            </div>
+            <div class="schedule-content">
+                <div class="schedule-line">
+                    <div class="schedule-title">${escapeHTML(getScheduleEventName(event))}</div>
+                    <span class="status-pill ${status.className}">${status.label}</span>
+                </div>
+                <div class="schedule-meta">${escapeHTML(meta)}</div>
+            </div>
+        </div>
+    `;
+}
+
+function renderScheduleSummary() {
+    const today = startOfDay(new Date());
+    const visibleEvents = getVisibleScheduleEvents();
+    const upcomingEvents = visibleEvents.filter((event) => startOfDay(event.endDate) >= today);
+    const nextEvent = upcomingEvents[0];
+
+    setText('schedule-count', visibleEvents.length.toLocaleString());
+    setText('upcoming-count', upcomingEvents.length.toLocaleString());
+    setText(
+        'next-event-name',
+        nextEvent ? `${formatScheduleShortDate(nextEvent.startDate)} · ${getScheduleEventName(nextEvent)}` : '남은 일정 없음'
+    );
+}
+
+function renderScheduleList() {
+    const list = document.getElementById('schedule-list');
+    if (!list) return;
+
+    const visibleEvents = getVisibleScheduleEvents();
+    if (visibleEvents.length === 0) {
+        list.innerHTML = '<div class="schedule-empty">등록된 행사 일정이 없습니다.</div>';
+        return;
+    }
+
+    const groups = visibleEvents.reduce((acc, event) => {
+        const month = event.startDate.getMonth() + 1;
+        if (!acc[month]) acc[month] = [];
+        acc[month].push(event);
+        return acc;
+    }, {});
+
+    list.innerHTML = Object.entries(groups).map(([month, events]) => `
+        <div class="schedule-month-title">${Number(month)}월</div>
+        ${events.map(renderScheduleRow).join('')}
+    `).join('');
+}
+
+function updateScheduleHeader() {
+    const baseMonth = getScheduleBaseMonth();
+    const label = `${baseMonth.getMonth() + 1}월 일정표`;
+    const titlePrefix = scheduleViewMode === 'next' ? '다음달' : '이번달';
+    const buttonText = scheduleViewMode === 'next' ? '이번달 일정표' : '다음달 일정표';
+    const button = document.getElementById('btn-schedule-switch');
+
+    setText('schedule-view-title', `${titlePrefix} 일정표`);
+    setText('today-date', `${SCHEDULE_YEAR}년 ${label}`);
+    if (button) button.textContent = buttonText;
+}
+
+function toggleScheduleView() {
+    scheduleViewMode = scheduleViewMode === 'current' ? 'next' : 'current';
+    showSchedule();
+}
+
 function showOfflineUI(isOffline) {
     const offlineContainer = document.getElementById('offline-container');
     const mealContainer = document.getElementById('meal-container');
     const timetableContainer = document.getElementById('timetable-container');
+    const scheduleContainer = document.getElementById('schedule-container');
 
     if (isOffline) {
         if (mealContainer) mealContainer.style.display = 'none';
         if (timetableContainer) timetableContainer.style.display = 'none';
+        if (scheduleContainer) scheduleContainer.style.display = 'none';
         if (offlineContainer) offlineContainer.style.display = 'flex';
     } else {
         if (offlineContainer) offlineContainer.style.display = 'none';
@@ -59,13 +252,18 @@ window.addEventListener('online', () => {
     showOfflineUI(false);
     const activeBtn = document.querySelector('.btn-group button.active');
     if (activeBtn && activeBtn.id === 'btn-timetable') showTimetable();
+    else if (activeBtn && activeBtn.id === 'btn-schedule') showSchedule();
     else if (activeBtn && activeBtn.id === 'btn-week') showMeals('week');
-    else if (activeBtn && activeBtn.id === 'btn-tomorrow') showMeals('tomorrow');
     else showMeals('today');
 });
 
 window.addEventListener('offline', () => {
-    showOfflineUI(true);
+    const activeBtn = document.querySelector('.btn-group button.active');
+    if (activeBtn && activeBtn.id === 'btn-schedule') {
+        showSchedule();
+    } else {
+        showOfflineUI(true);
+    }
 });
 
 function escapeHTML(str) {
@@ -205,8 +403,12 @@ async function showWeeklyMeals(baseDate) {
 
     document.getElementById('meal-container').style.display = 'block';
     document.getElementById('timetable-container').style.display = 'none';
+    const scheduleContainer = document.getElementById('schedule-container');
+    if (scheduleContainer) scheduleContainer.style.display = 'none';
+    const mealToolbarCard = document.getElementById('meal-toolbar-card');
+    if (mealToolbarCard) mealToolbarCard.style.display = 'none';
     document.getElementById('btn-today').classList.remove('active');
-    if (document.getElementById('btn-tomorrow')) document.getElementById('btn-tomorrow').classList.remove('active');
+    if (document.getElementById('btn-schedule')) document.getElementById('btn-schedule').classList.remove('active');
     document.getElementById('btn-week').classList.add('active');
     if (document.getElementById('btn-timetable')) document.getElementById('btn-timetable').classList.remove('active');
     setText('lunch-title', `${weekLabel} 중식`);
@@ -299,6 +501,42 @@ async function shareApp() {
     }
 }
 
+function updateMealSwitchUI(type) {
+    const title = type === 'tomorrow' ? '내일의 급식' : '오늘의 급식';
+    const buttonText = type === 'tomorrow' ? '오늘의 급식' : '내일의 급식';
+    const button = document.getElementById('btn-meal-switch');
+
+    setText('meal-view-title', title);
+    if (button) button.textContent = buttonText;
+}
+
+function toggleMealView() {
+    const nextType = mealViewMode === 'today' ? 'tomorrow' : 'today';
+    showMeals(nextType);
+}
+
+function showSchedule() {
+    showOfflineUI(false);
+
+    const mealContainer = document.getElementById('meal-container');
+    const timetableContainer = document.getElementById('timetable-container');
+    const scheduleContainer = document.getElementById('schedule-container');
+
+    if (mealContainer) mealContainer.style.display = 'none';
+    if (timetableContainer) timetableContainer.style.display = 'none';
+    if (scheduleContainer) scheduleContainer.style.display = 'block';
+
+    const btns = ['btn-today', 'btn-week', 'btn-timetable', 'btn-schedule'];
+    btns.forEach(id => {
+        const btn = document.getElementById(id);
+        if (btn) btn.classList.toggle('active', id === 'btn-schedule');
+    });
+
+    updateScheduleHeader();
+    renderScheduleSummary();
+    renderScheduleList();
+}
+
 function showMeals(type) {
     if (!navigator.onLine) {
         showOfflineUI(true);
@@ -308,25 +546,31 @@ function showMeals(type) {
 
     const targetDate = new Date();
 
-    if (type === 'tomorrow') {
-        targetDate.setDate(targetDate.getDate() + 1);
-    }
-
     if (type === 'week') {
         showWeeklyMeals(new Date());
     } else {
+        mealViewMode = type === 'tomorrow' ? 'tomorrow' : 'today';
+        if (mealViewMode === 'tomorrow') {
+            targetDate.setDate(targetDate.getDate() + 1);
+        }
+
         document.getElementById('meal-container').style.display = 'block';
         document.getElementById('timetable-container').style.display = 'none';
+        const scheduleContainer = document.getElementById('schedule-container');
+        if (scheduleContainer) scheduleContainer.style.display = 'none';
+        const mealToolbarCard = document.getElementById('meal-toolbar-card');
+        if (mealToolbarCard) mealToolbarCard.style.display = 'block';
 
         const btnToday = document.getElementById('btn-today');
-        const btnTomorrow = document.getElementById('btn-tomorrow');
+        const btnSchedule = document.getElementById('btn-schedule');
         const btnWeek = document.getElementById('btn-week');
         const btnTimetable = document.getElementById('btn-timetable');
 
-        if (btnToday) btnToday.classList.toggle('active', type === 'today');
-        if (btnTomorrow) btnTomorrow.classList.toggle('active', type === 'tomorrow');
+        if (btnToday) btnToday.classList.toggle('active', true);
+        if (btnSchedule) btnSchedule.classList.toggle('active', false);
         if (btnWeek) btnWeek.classList.toggle('active', false);
         if (btnTimetable) btnTimetable.classList.toggle('active', false);
+        updateMealSwitchUI(mealViewMode);
 
         // 타이틀 접두사 제거 (카카오 스타일은 심플함이 생명)
         setText('lunch-title', `중식`);
@@ -814,9 +1058,14 @@ function registerAppEventHandlers() {
     const clickHandlers = [
         ['btn-share', shareApp],
         ['btn-today', () => showMeals('today')],
-        ['btn-tomorrow', () => showMeals('tomorrow')],
         ['btn-week', () => showMeals('week')],
         ['btn-timetable', showTimetable],
+        ['btn-schedule', () => {
+            scheduleViewMode = 'current';
+            showSchedule();
+        }],
+        ['btn-meal-switch', toggleMealView],
+        ['btn-schedule-switch', toggleScheduleView],
         ['btn-noti', toggleNoti],
         ['btn-theme', toggleTheme],
         ['btn-retry', () => window.location.reload()]
@@ -923,8 +1172,10 @@ function showTimetable() {
 
     document.getElementById('meal-container').style.display = 'none';
     document.getElementById('timetable-container').style.display = 'block';
+    const scheduleContainer = document.getElementById('schedule-container');
+    if (scheduleContainer) scheduleContainer.style.display = 'none';
 
-    const btns = ['btn-today', 'btn-tomorrow', 'btn-week', 'btn-timetable'];
+    const btns = ['btn-today', 'btn-week', 'btn-timetable', 'btn-schedule'];
     btns.forEach(id => {
         const btn = document.getElementById(id);
         if (btn) btn.classList.toggle('active', id === 'btn-timetable');

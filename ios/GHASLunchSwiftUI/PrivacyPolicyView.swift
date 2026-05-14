@@ -16,7 +16,7 @@ struct PrivacyPolicyView: View {
                 )
 
                 InfoCard {
-                    Text("GHAS 오늘의 급식은 경기자동차과학고등학교 학생의 급식 및 시간표 확인을 돕기 위해 제작된 비공식 정보 제공 앱입니다. 본 앱은 학교 또는 교육청의 공식 앱이 아닙니다.")
+                    Text("GHAS 오늘의 급식은 경기자동차과학고등학교 학생의 급식, 시간표 및 일정표 확인을 돕기 위해 제작된 비공식 정보 제공 앱입니다. 본 앱은 학교 또는 교육청의 공식 앱이 아닙니다.")
                         .font(.system(size: 15, weight: .regular))
                         .lineSpacing(5)
                         .foregroundStyle(AppTheme.text(scheme).opacity(0.9))
@@ -32,7 +32,7 @@ struct PrivacyPolicyView: View {
                     }
 
                     PolicySection(title: "정보 이용 목적") {
-                        PolicyBullet("급식 및 시간표 정보 제공")
+                        PolicyBullet("급식, 시간표 및 일정표 정보 제공")
                         PolicyBullet("사용자가 요청한 알림 기능 제공")
                         PolicyBullet("서비스 이용 통계 확인 및 안정성 개선")
                         PolicyBullet("오류 분석 및 서비스 품질 향상")
@@ -48,8 +48,8 @@ struct PrivacyPolicyView: View {
                     }
 
                     PolicySection(title: "데이터 출처 및 안내") {
-                        PolicyText("본 서비스는 NEIS 교육정보 개방포털의 Open API를 활용하여 급식 및 시간표 정보를 제공합니다.")
-                        PolicyText("급식 및 시간표 정보는 학교 또는 교육청에서 제공한 원본 데이터를 기반으로 하며, 데이터 등록 지연·누락·변경 등에 따라 실제 정보와 다르게 표시될 수 있습니다.")
+                        PolicyText("본 서비스는 NEIS 교육정보 개방포털의 Open API와 앱에 포함된 행사 일정 데이터를 활용하여 급식, 시간표 및 일정표 정보를 제공합니다.")
+                        PolicyText("급식, 시간표 및 일정표 정보는 학교 또는 교육청에서 제공한 원본 데이터를 기반으로 하며, 데이터 등록 지연·누락·변경 등에 따라 실제 정보와 다르게 표시될 수 있습니다.")
                         PolicyText("특히 일부 날짜에는 시간표 데이터가 4~5교시까지만 제공되어 실제 6·7교시 수업 정보가 표시되지 않을 수 있습니다.")
                         PolicyText("이는 원본 데이터 제공 상태에 따른 현상이며, 본 서비스에서 직접 수정하거나 보장할 수 없습니다.")
                         Link("NEIS 교육정보 개방포털", destination: URL(string: "https://open.neis.go.kr")!)

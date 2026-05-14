@@ -113,6 +113,25 @@ struct SectionTitle: View {
     }
 }
 
+struct SwitchPillButton: View {
+    let title: String
+    let action: () -> Void
+
+    @Environment(\.colorScheme) private var scheme
+
+    var body: some View {
+        Button(action: action) {
+            Text(title)
+                .font(.system(size: 13, weight: .heavy))
+                .foregroundStyle(AppTheme.text(scheme))
+                .padding(.horizontal, 14)
+                .padding(.vertical, 10)
+                .background(AppTheme.pill(scheme))
+                .clipShape(Capsule())
+        }
+    }
+}
+
 struct PrimaryButton: View {
     let title: String
     let systemImage: String?

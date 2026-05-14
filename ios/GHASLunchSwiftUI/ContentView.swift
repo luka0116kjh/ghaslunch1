@@ -6,6 +6,8 @@ struct ContentView: View {
     @State private var selectedTab: HomeTab = .today
     @State private var selectedGrade = 1
     @State private var selectedClass = 1
+    @State private var mealViewMode: MealViewMode = .today
+    @State private var scheduleViewMode: ScheduleViewMode = .current
     @State private var isShowingPrivacy = false
     @State private var visitorCountText = "..."
     @State private var notificationStatusMessage: String?
@@ -89,19 +91,35 @@ struct ContentView: View {
     private var currentContent: some View {
         switch selectedTab {
         case .today:
-            mealList(todayMeals)
-        case .tomorrow:
-            mealList(tomorrowMeals)
+            mealList
         case .week:
             weeklyMealList
         case .timetable:
             timetableView
+        case .schedule:
+            scheduleView
         }
     }
 
-    private func mealList(_ meals: [MealCardData]) -> some View {
+    private var visibleMeals: [MealCardData] {
+        mealViewMode == .today ? todayMeals : tomorrowMeals
+    }
+
+    private var mealList: some View {
         VStack(spacing: 16) {
-            ForEach(meals) { meal in
+            InfoCard {
+                HStack(spacing: 12) {
+                    SectionTitle(title: mealViewMode.title)
+
+                    Spacer()
+
+                    SwitchPillButton(title: mealViewMode.switchTitle) {
+                        mealViewMode = mealViewMode == .today ? .tomorrow : .today
+                    }
+                }
+            }
+
+            ForEach(visibleMeals) { meal in
                 InfoCard {
                     SectionTitle(title: meal.title)
                         .padding(.bottom, 18)
@@ -119,6 +137,129 @@ struct ContentView: View {
                 }
             }
         }
+    }
+
+    private var scheduleView: some View {
+        InfoCard {
+            HStack(spacing: 12) {
+                SectionTitle(title: scheduleViewMode.title)
+
+                Spacer()
+
+                SwitchPillButton(title: scheduleViewMode.switchTitle) {
+                    scheduleViewMode = scheduleViewMode == .current ? .next : .current
+                }
+            }
+            .padding(.bottom, 18)
+
+            scheduleSummary
+                .padding(.bottom, 18)
+
+            if visibleScheduleEvents.isEmpty {
+                Text("등록된 행사 일정이 없습니다.")
+                    .font(.system(size: 13, weight: .regular))
+                    .foregroundStyle(AppTheme.subText(scheme))
+            } else {
+                VStack(alignment: .leading, spacing: 0) {
+                    ForEach(groupedScheduleEvents, id: \.month) { group in
+                        Text("\(group.month)월")
+                            .font(.system(size: 14, weight: .heavy))
+                            .foregroundStyle(AppTheme.primaryText)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 7)
+                            .background(AppTheme.primary)
+                            .clipShape(Capsule())
+                            .padding(.top, group.month == groupedScheduleEvents.first?.month ? 0 : 22)
+                            .padding(.bottom, 10)
+
+                        ForEach(Array(group.events.enumerated()), id: \.element.id) { index, event in
+                            scheduleRow(event)
+
+                            if index != group.events.count - 1 {
+                                Divider()
+                                    .background(AppTheme.border(scheme))
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private var scheduleSummary: some View {
+        let upcomingEvents = visibleScheduleEvents.filter { Calendar.current.startOfDay(for: $0.endDate) >= Calendar.current.startOfDay(for: Date()) }
+        let nextEvent = upcomingEvents.first
+
+        return VStack(spacing: 10) {
+            HStack(spacing: 10) {
+                summaryBox(label: "전체 일정", value: "\(visibleScheduleEvents.count)")
+                summaryBox(label: "남은 일정", value: "\(upcomingEvents.count)")
+            }
+
+            summaryBox(
+                label: "다음 일정",
+                value: nextEvent.map { "\(shortDate($0.startDate)) · \($0.title)" } ?? "남은 일정 없음",
+                isSmall: true
+            )
+        }
+    }
+
+    private func summaryBox(label: String, value: String, isSmall: Bool = false) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(label)
+                .font(.system(size: 12, weight: .bold))
+                .foregroundStyle(AppTheme.subText(scheme))
+
+            Text(value)
+                .font(.system(size: isSmall ? 15 : 20, weight: .heavy))
+                .foregroundStyle(AppTheme.text(scheme))
+                .lineLimit(nil)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(14)
+        .background(AppTheme.pill(scheme))
+        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+    }
+
+    private func scheduleRow(_ event: ScheduleEventData) -> some View {
+        HStack(alignment: .center, spacing: 16) {
+            VStack(spacing: 6) {
+                Text("\(Calendar.current.component(.day, from: event.startDate))")
+                    .font(.system(size: 21, weight: .heavy))
+
+                Text(weekday(event.startDate))
+                    .font(.system(size: 12, weight: .bold))
+                    .opacity(0.72)
+            }
+            .foregroundStyle(status(for: event).isActive ? AppTheme.primaryText : AppTheme.text(scheme))
+            .frame(width: 54, height: 60)
+            .background(status(for: event).isActive ? AppTheme.primary : AppTheme.pill(scheme))
+            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+
+            VStack(alignment: .leading, spacing: 7) {
+                HStack(alignment: .top, spacing: 10) {
+                    Text(event.title)
+                        .font(.system(size: 16, weight: .bold))
+                        .foregroundStyle(AppTheme.text(scheme))
+                        .fixedSize(horizontal: false, vertical: true)
+
+                    Spacer(minLength: 0)
+
+                    Text(status(for: event).label)
+                        .font(.system(size: 11, weight: .heavy))
+                        .foregroundStyle(status(for: event).isActive ? AppTheme.primaryText : AppTheme.subText(scheme))
+                        .padding(.horizontal, 9)
+                        .padding(.vertical, 4)
+                        .background(status(for: event).isActive ? AppTheme.primary : AppTheme.pill(scheme))
+                        .clipShape(Capsule())
+                }
+
+                Text("\(eventRange(event)) · \(category(for: event))")
+                    .font(.system(size: 13, weight: .regular))
+                    .foregroundStyle(AppTheme.subText(scheme))
+            }
+        }
+        .padding(.vertical, 16)
     }
 
     private var weeklyMealList: some View {
@@ -264,6 +405,94 @@ struct ContentView: View {
         .padding(.bottom, 30)
     }
 
+    private var visibleScheduleEvents: [ScheduleEventData] {
+        let calendar = Calendar.current
+        let start = scheduleBaseMonth
+        let end = calendar.date(byAdding: DateComponents(month: 1, day: -1), to: start) ?? start
+
+        return ScheduleEventData.events.filter { event in
+            calendar.startOfDay(for: event.startDate) <= calendar.startOfDay(for: end)
+                && calendar.startOfDay(for: event.endDate) >= calendar.startOfDay(for: start)
+        }
+    }
+
+    private var groupedScheduleEvents: [ScheduleMonthGroup] {
+        let grouped = Dictionary(grouping: visibleScheduleEvents) {
+            Calendar.current.component(.month, from: $0.startDate)
+        }
+
+        return grouped.keys.sorted().map { month in
+            ScheduleMonthGroup(month: month, events: grouped[month] ?? [])
+        }
+    }
+
+    private var scheduleBaseMonth: Date {
+        let calendar = Calendar.current
+        let today = Date()
+        let base = scheduleViewMode == .next
+            ? (calendar.date(byAdding: .month, value: 1, to: today) ?? today)
+            : today
+        let components = calendar.dateComponents([.year, .month], from: base)
+        return calendar.date(from: components) ?? today
+    }
+
+    private func status(for event: ScheduleEventData) -> (label: String, isActive: Bool) {
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: Date())
+        let start = calendar.startOfDay(for: event.startDate)
+        let end = calendar.startOfDay(for: event.endDate)
+
+        if today >= start && today <= end {
+            return (calendar.isDate(start, inSameDayAs: end) ? "오늘" : "진행중", true)
+        }
+        if start > today {
+            return ("예정", false)
+        }
+        return ("완료", false)
+    }
+
+    private func category(for event: ScheduleEventData) -> String {
+        let title = event.title
+        if title.contains("공휴일") || title.contains("노동절") || title.contains("현충일") || title.contains("추석") || title.contains("개천절") || title.contains("재량휴업일") {
+            return "휴일"
+        }
+        if title.contains("시험") || title.contains("정기시험") || title.contains("평가") || title.contains("검정") || title.contains("합격") || title.contains("접수") {
+            return "시험/검정"
+        }
+        if title.contains("신입학") || title.contains("입학식") || title.contains("예비소집") || title.contains("원서접수") || title.contains("면접") {
+            return "입학/전형"
+        }
+        return "행사"
+    }
+
+    private func eventRange(_ event: ScheduleEventData) -> String {
+        if Calendar.current.isDate(event.startDate, inSameDayAs: event.endDate) {
+            return dotDate(event.startDate)
+        }
+        return "\(dotDate(event.startDate)) ~ \(dotDate(event.endDate))"
+    }
+
+    private func dotDate(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "ko_KR")
+        formatter.dateFormat = "yyyy.MM.dd"
+        return formatter.string(from: date)
+    }
+
+    private func shortDate(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "ko_KR")
+        formatter.dateFormat = "M월 d일 E"
+        return formatter.string(from: date)
+    }
+
+    private func weekday(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "ko_KR")
+        formatter.dateFormat = "E"
+        return formatter.string(from: date)
+    }
+
     private var formattedToday: String {
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: "ko_KR")
@@ -325,6 +554,57 @@ struct ContentView: View {
     private func shareApp() {
         // Connect this to ShareLink or UIKit activity presentation in the host app.
     }
+}
+
+private enum MealViewMode {
+    case today
+    case tomorrow
+
+    var title: String {
+        switch self {
+        case .today:
+            return "오늘의 급식"
+        case .tomorrow:
+            return "내일의 급식"
+        }
+    }
+
+    var switchTitle: String {
+        switch self {
+        case .today:
+            return "내일의 급식"
+        case .tomorrow:
+            return "오늘의 급식"
+        }
+    }
+}
+
+private enum ScheduleViewMode {
+    case current
+    case next
+
+    var title: String {
+        switch self {
+        case .current:
+            return "이번달 일정표"
+        case .next:
+            return "다음달 일정표"
+        }
+    }
+
+    var switchTitle: String {
+        switch self {
+        case .current:
+            return "다음달 일정표"
+        case .next:
+            return "이번달 일정표"
+        }
+    }
+}
+
+private struct ScheduleMonthGroup {
+    let month: Int
+    let events: [ScheduleEventData]
 }
 
 #Preview {
