@@ -15,6 +15,7 @@
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-messaging-compat.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
 
     <link rel="stylesheet" as="style" crossorigin
         href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css" />
@@ -683,103 +684,64 @@
             margin-bottom: 14px;
         }
 
-        .field-label {
-            font-size: 13px;
-            font-weight: 700;
-            color: var(--text-sub);
+        .file-input {
+            display: none;
         }
 
-        .field-input {
+        .upload-button {
             width: 100%;
             border: none;
-            border-radius: 16px;
-            background-color: var(--pill-inactive);
-            color: var(--text-main);
-            padding: 14px 16px;
-            font-size: 15px;
-            font-weight: 600;
-            outline: none;
+            border-radius: 18px;
+            background-color: var(--primary-color);
+            color: var(--primary-text);
+            padding: 18px 16px;
+            font-size: 17px;
+            font-weight: 800;
+            text-align: center;
+            cursor: pointer;
         }
 
-        .field-help {
-            margin: 4px 0 16px;
+        .upload-status {
+            min-height: 18px;
+            margin: -6px 0 0;
             font-size: 12px;
             line-height: 1.5;
             color: var(--text-sub);
         }
 
-        .modal-actions {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 18px;
-        }
-
-        .modal-actions button {
-            flex: 1;
-            border: none;
-            border-radius: 999px;
-            padding: 12px 14px;
-            font-size: 14px;
-            font-weight: 800;
-            cursor: pointer;
-        }
-
-        .modal-primary {
-            background-color: var(--primary-color);
-            color: var(--primary-text);
-        }
-
-        .modal-secondary {
-            background-color: var(--pill-inactive);
-            color: var(--text-main);
-        }
-
         .student-card {
             border: 1px solid var(--border-color);
-            border-radius: 20px;
+            border-radius: 18px;
             overflow: hidden;
             background-color: #FFFFFF;
             color: #111111;
         }
 
-        .student-card-row {
-            border-bottom: 1px solid #E8E8E8;
-            min-height: 48px;
+        .student-card-placeholder {
+            min-height: 180px;
             display: flex;
             align-items: center;
             justify-content: center;
-            padding: 10px 16px;
+            padding: 28px 18px;
             text-align: center;
-        }
-
-        .student-card-row:last-child {
-            border-bottom: none;
-        }
-
-        .student-card-name {
-            font-size: 48px;
-            font-weight: 300;
-            line-height: 1.1;
-            letter-spacing: 0;
-        }
-
-        .student-card-id {
-            font-size: 62px;
+            color: #777777;
+            font-size: 14px;
             font-weight: 700;
-            line-height: 1;
-            letter-spacing: 0;
+            line-height: 1.5;
         }
 
         .student-card-barcode {
-            padding: 18px 14px 16px;
+            min-height: 180px;
+            padding: 26px 10px 18px;
             overflow: hidden;
         }
 
         .student-card-barcode svg {
             display: block;
             width: 100%;
-            height: 72px;
+            height: 132px;
         }
+
     </style>
 </head>
 
@@ -887,27 +849,14 @@
                 </div>
 
                 <div class="field-group">
-                    <label class="field-label" for="student-name-input">이름</label>
-                    <input id="student-name-input" class="field-input" type="text" maxlength="12" placeholder="예: 홍길동">
-                </div>
-
-                <div class="field-group">
-                    <label class="field-label" for="student-id-input">학번</label>
-                    <input id="student-id-input" class="field-input" type="text" inputmode="numeric" maxlength="5" placeholder="예: 10101">
-                </div>
-
-                <p class="field-help">학번은 1~3학년, 01~08반, 01~24번만 저장할 수 있습니다. 입력한 정보는 이 기기 안에만 저장됩니다.</p>
-
-                <div class="modal-actions">
-                    <button id="btn-save-student-code" class="modal-primary" type="button">저장</button>
-                    <button id="btn-reset-student-code" class="modal-secondary" type="button">초기화</button>
+                    <label class="upload-button" for="student-code-image-input">사진 올리기</label>
+                    <input id="student-code-image-input" class="file-input" type="file" accept="image/*">
+                    <p id="student-code-upload-status" class="upload-status" aria-live="polite"></p>
                 </div>
 
                 <div id="student-card" class="student-card">
-                    <div class="student-card-row" style="min-height: 88px;"></div>
-                    <div id="student-card-name" class="student-card-row student-card-name">이름</div>
-                    <div id="student-card-id" class="student-card-row student-card-id">00000</div>
-                    <div class="student-card-row student-card-barcode">
+                    <div id="student-card-placeholder" class="student-card-placeholder">사진을 올리면 바코드가 표시됩니다.</div>
+                    <div id="student-card-barcode" class="student-card-barcode" hidden>
                         <div id="student-barcode-svg" style="width: 100%;"></div>
                     </div>
                 </div>
@@ -928,7 +877,7 @@
     </div>
 
     <script src="schedule.js?v=2"></script>
-    <script src="script.js?v=51"></script>
+    <script src="script.js?v=55"></script>
 </body>
 
 </html>

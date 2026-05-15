@@ -38,7 +38,7 @@ if (typeof firebase !== 'undefined') {
     });
 }
 
-const CACHE_NAME = 'ghas-lunch-v29';
+const CACHE_NAME = 'ghas-lunch-v33';
 const ASSETS = [
     './',
     './index.html',

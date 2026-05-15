@@ -52,6 +52,39 @@ const CODE39_PATTERNS = {
     '7': 'nnnwnnwnw',
     '8': 'wnnwnnwnn',
     '9': 'nnwwnnwnn',
+    'A': 'wnnnnwnnw',
+    'B': 'nnwnnwnnw',
+    'C': 'wnwnnwnnn',
+    'D': 'nnnnwwnnw',
+    'E': 'wnnnwwnnn',
+    'F': 'nnwnwwnnn',
+    'G': 'nnnnnwwnw',
+    'H': 'wnnnnwwnn',
+    'I': 'nnwnnwwnn',
+    'J': 'nnnnwwwnn',
+    'K': 'wnnnnnnww',
+    'L': 'nnwnnnnww',
+    'M': 'wnwnnnnwn',
+    'N': 'nnnnwnnww',
+    'O': 'wnnnwnnwn',
+    'P': 'nnwnwnnwn',
+    'Q': 'nnnnnnwww',
+    'R': 'wnnnnnwwn',
+    'S': 'nnwnnnwwn',
+    'T': 'nnnnwnwwn',
+    'U': 'wwnnnnnnw',
+    'V': 'nwwnnnnnw',
+    'W': 'wwwnnnnnn',
+    'X': 'nwnnwnnnw',
+    'Y': 'wwnnwnnnn',
+    'Z': 'nwwnwnnnn',
+    '-': 'nwnnnnwnw',
+    '.': 'wwnnnnwnn',
+    ' ': 'nwwnnnwnn',
+    '$': 'nwnwnwnnn',
+    '/': 'nwnwnnnwn',
+    '+': 'nwnnnwnwn',
+    '%': 'nnnwnwnwn',
     '*': 'nwnnwnwnn'
 };
 
@@ -554,31 +587,39 @@ function buildCode39Svg(value) {
     return `<svg viewBox="0 0 ${x} ${height}" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">${bars.join('')}</svg>`;
 }
 
+function normalizeStudentCode(value) {
+    return String(value || '').trim().toUpperCase().replace(/[^0-9A-Z ./$%+-]/g, '');
+}
+
 function isValidStudentId(studentId) {
-    return /^[1-3]0[1-8](0[1-9]|1[0-9]|2[0-4])$/.test(studentId);
+    return /^[0-9A-Z ./$%+-]{1,24}$/.test(studentId);
 }
 
 function renderStudentCodeCard() {
-    const name = getStoredStudentName() || '이름';
-    const studentId = getStoredStudentId() || '00000';
-
-    setText('student-card-name', name);
-    setText('student-card-id', studentId);
-
+    const studentId = getStoredStudentId();
+    const shouldShowBarcode = Boolean(studentId);
+    const placeholder = document.getElementById('student-card-placeholder');
     const barcodeEl = document.getElementById('student-barcode-svg');
-    if (barcodeEl) {
-        const safeValue = isValidStudentId(studentId) ? studentId : '00000';
-        barcodeEl.innerHTML = buildCode39Svg(safeValue);
+    const barcodeWrap = document.getElementById('student-card-barcode');
+
+    if (placeholder) {
+        placeholder.hidden = shouldShowBarcode;
     }
+
+    if (barcodeWrap) {
+        barcodeWrap.hidden = !shouldShowBarcode;
+    }
+
+    if (!barcodeEl) return;
+
+    barcodeEl.innerHTML = shouldShowBarcode && isValidStudentId(studentId) ? buildCode39Svg(studentId) : '';
 }
 
 function openStudentCodeModal() {
     const modal = document.getElementById('student-code-modal');
-    const nameInput = document.getElementById('student-name-input');
-    const idInput = document.getElementById('student-id-input');
+    const statusEl = document.getElementById('student-code-upload-status');
 
-    if (nameInput) nameInput.value = getStoredStudentName();
-    if (idInput) idInput.value = getStoredStudentId();
+    if (statusEl) statusEl.textContent = '';
     renderStudentCodeCard();
 
     if (modal) {
@@ -594,37 +635,131 @@ function closeStudentCodeModal() {
     modal.setAttribute('aria-hidden', 'true');
 }
 
-function saveStudentCode() {
-    const nameInput = document.getElementById('student-name-input');
-    const idInput = document.getElementById('student-id-input');
-    const name = nameInput ? nameInput.value.trim() : '';
-    const studentId = idInput ? idInput.value.replace(/\D/g, '').trim() : '';
+function extractStudentCodeFromScan(rawValue) {
+    const raw = String(rawValue || '').trim();
+    if (!raw) return '';
 
-    if (!name) {
-        alert('이름을 입력해 주세요.');
-        return;
+    const queryKeys = ['studentCode', 'student_code', 'code', 'studentId', 'student_id', 'id'];
+
+    try {
+        const url = new URL(raw);
+        for (const key of queryKeys) {
+            const value = normalizeStudentCode(url.searchParams.get(key));
+            if (isValidStudentId(value)) return value;
+        }
+    } catch (error) {
+        // Plain code text is expected for most QR images.
     }
 
-    if (!isValidStudentId(studentId)) {
-        alert('학번은 1~3학년, 01~08반, 01~24번 형식으로 입력해 주세요. 예: 10706');
-        return;
-    }
+    const normalizedRaw = normalizeStudentCode(raw);
+    if (isValidStudentId(normalizedRaw)) return normalizedRaw;
 
-    localStorage.setItem(STUDENT_NAME_KEY, name);
-    localStorage.setItem(STUDENT_ID_KEY, studentId);
-    renderStudentCodeCard();
+    const candidates = raw.match(/[0-9A-Za-z ./$%+-]{1,24}/g) || [];
+    return candidates
+        .map(normalizeStudentCode)
+        .find(candidate => isValidStudentId(candidate) && /\d/.test(candidate)) || '';
 }
 
-function resetStudentCode() {
-    localStorage.removeItem(STUDENT_NAME_KEY);
-    localStorage.removeItem(STUDENT_ID_KEY);
+async function getSupportedBarcodeFormats() {
+    const fallbackFormats = ['qr_code', 'code_39', 'code_128', 'ean_13', 'ean_8', 'itf', 'codabar', 'upc_a', 'upc_e'];
+    if (!('BarcodeDetector' in window)) return [];
+    if (typeof BarcodeDetector.getSupportedFormats !== 'function') return fallbackFormats;
 
-    const nameInput = document.getElementById('student-name-input');
-    const idInput = document.getElementById('student-id-input');
-    if (nameInput) nameInput.value = '';
-    if (idInput) idInput.value = '';
+    const supported = await BarcodeDetector.getSupportedFormats();
+    return fallbackFormats.filter(format => supported.includes(format));
+}
 
-    renderStudentCodeCard();
+async function scanStudentCodeImage(file) {
+    const formats = await getSupportedBarcodeFormats();
+    if (formats.length > 0) {
+        const detector = new BarcodeDetector({ formats });
+        const bitmap = await createImageBitmap(file);
+
+        try {
+            const detected = await detector.detect(bitmap);
+            if (detected.length > 0) return detected;
+        } finally {
+            bitmap.close?.();
+        }
+    }
+
+    return scanStudentQrImageWithJsQr(file);
+}
+
+function loadImageFromFile(file) {
+    return new Promise((resolve, reject) => {
+        const image = new Image();
+        const objectUrl = URL.createObjectURL(file);
+
+        image.onload = () => {
+            URL.revokeObjectURL(objectUrl);
+            resolve(image);
+        };
+
+        image.onerror = () => {
+            URL.revokeObjectURL(objectUrl);
+            reject(new Error('IMAGE_LOAD_FAILED'));
+        };
+
+        image.src = objectUrl;
+    });
+}
+
+async function scanStudentQrImageWithJsQr(file) {
+    if (typeof window.jsQR !== 'function') {
+        throw new Error('UNSUPPORTED_BARCODE_DETECTOR');
+    }
+
+    const image = await loadImageFromFile(file);
+    const canvas = document.createElement('canvas');
+    const maxSize = 1600;
+    const scale = Math.min(1, maxSize / Math.max(image.naturalWidth, image.naturalHeight));
+    canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
+    canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
+
+    const context = canvas.getContext('2d', { willReadFrequently: true });
+    context.drawImage(image, 0, 0, canvas.width, canvas.height);
+
+    const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+    const qr = window.jsQR(imageData.data, imageData.width, imageData.height, {
+        inversionAttempts: 'attemptBoth'
+    });
+
+    return qr ? [{ rawValue: qr.data, format: 'qr_code' }] : [];
+}
+
+async function handleStudentCodeImageUpload(event) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const statusEl = document.getElementById('student-code-upload-status');
+    if (statusEl) statusEl.textContent = 'QR/바코드를 읽는 중입니다...';
+
+    try {
+        const barcodes = await scanStudentCodeImage(file);
+        const studentId = barcodes
+            .map(barcode => extractStudentCodeFromScan(barcode.rawValue))
+            .find(Boolean);
+
+        if (!studentId) {
+            if (statusEl) statusEl.textContent = '사진에서 학생 고유코드를 찾지 못했습니다. 더 선명한 사진으로 다시 올려 주세요.';
+            return;
+        }
+
+        localStorage.removeItem(STUDENT_NAME_KEY);
+        localStorage.setItem(STUDENT_ID_KEY, studentId);
+        if (statusEl) statusEl.textContent = '바코드를 만들었습니다.';
+        renderStudentCodeCard();
+    } catch (error) {
+        console.error('Student code scan failed:', error);
+        if (statusEl) {
+            statusEl.textContent = error.message === 'UNSUPPORTED_BARCODE_DETECTOR'
+                ? '이 브라우저는 사진 속 QR/바코드 읽기를 지원하지 않습니다. 코드를 직접 입력해 주세요.'
+                : 'QR/바코드 사진을 읽지 못했습니다. 더 선명한 사진으로 다시 시도해 주세요.';
+        }
+    } finally {
+        event.target.value = '';
+    }
 }
 
 function showSchedule() {
@@ -1179,8 +1314,6 @@ function registerAppEventHandlers() {
         ['btn-meal-switch', toggleMealView],
         ['btn-schedule-switch', toggleScheduleView],
         ['btn-close-student-code', closeStudentCodeModal],
-        ['btn-save-student-code', saveStudentCode],
-        ['btn-reset-student-code', resetStudentCode],
         ['btn-noti', toggleNoti],
         ['btn-theme', toggleTheme],
         ['btn-retry', () => window.location.reload()]
@@ -1205,18 +1338,9 @@ function registerAppEventHandlers() {
         });
     }
 
-    const studentNameInput = document.getElementById('student-name-input');
-    const studentIdInput = document.getElementById('student-id-input');
-
-    if (studentNameInput) {
-        studentNameInput.addEventListener('input', renderStudentCodeCard);
-    }
-
-    if (studentIdInput) {
-        studentIdInput.addEventListener('input', (event) => {
-            event.target.value = event.target.value.replace(/\D/g, '').slice(0, 5);
-            renderStudentCodeCard();
-        });
+    const studentCodeImageInput = document.getElementById('student-code-image-input');
+    if (studentCodeImageInput) {
+        studentCodeImageInput.addEventListener('change', handleStudentCodeImageUpload);
     }
 }
 
