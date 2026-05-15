@@ -36,6 +36,7 @@
         }
 
         /* Dark Mode Overrides */
+        :root.dark-theme,
         body.dark-theme {
             --bg-color: #121212;
             --card-bg: #1E1E1E;
@@ -48,6 +49,7 @@
         }
 
         @media (prefers-color-scheme: dark) {
+            :root:not(.light-theme),
             body:not(.light-theme) {
                 --bg-color: #121212;
                 --card-bg: #1E1E1E;
