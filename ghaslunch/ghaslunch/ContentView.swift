@@ -6,7 +6,7 @@ import WebKit
 struct ContentView: View {
     var body: some View {
         GHASLunchWebView()
-            .ignoresSafeArea()
+            .ignoresSafeArea(.container, edges: .bottom)
     }
 }
 
