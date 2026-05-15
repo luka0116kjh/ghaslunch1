@@ -2,7 +2,7 @@ import SwiftUI
 
 @main
 struct GHASLunchApp: App {
-    @AppStorage("themePreference") private var themePreference = "system"
+    @AppStorage("theme") private var themePreference = ""
 
     var body: some Scene {
         WindowGroup {

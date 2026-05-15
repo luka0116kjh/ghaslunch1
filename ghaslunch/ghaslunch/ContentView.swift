@@ -4,9 +4,39 @@ import UserNotifications
 import WebKit
 
 struct ContentView: View {
+    @AppStorage("theme") private var savedTheme = ""
+    @Environment(\.colorScheme) private var colorScheme
+
     var body: some View {
-        GHASLunchWebView()
-            .ignoresSafeArea(.container, edges: .bottom)
+        ZStack {
+            backgroundColor
+                .ignoresSafeArea()
+            GHASLunchWebView()
+                .ignoresSafeArea(.container, edges: .bottom)
+        }
+    }
+
+    private var backgroundColor: Color {
+        switch savedTheme {
+        case "dark":
+            return Color(hex: 0x121212)
+        case "light":
+            return Color(hex: 0xF6F6F6)
+        default:
+            return colorScheme == .dark ? Color(hex: 0x121212) : Color(hex: 0xF6F6F6)
+        }
+    }
+}
+
+extension Color {
+    init(hex: UInt, alpha: Double = 1) {
+        self.init(
+            .sRGB,
+            red: Double((hex >> 16) & 0xFF) / 255,
+            green: Double((hex >> 8) & 0xFF) / 255,
+            blue: Double(hex & 0xFF) / 255,
+            opacity: alpha
+        )
     }
 }
 
@@ -43,6 +73,8 @@ struct GHASLunchWebView: UIViewRepresentable {
         )
 
         let webView = WKWebView(frame: .zero, configuration: configuration)
+        webView.backgroundColor = .clear
+        webView.isOpaque = false
         webView.navigationDelegate = context.coordinator
         webView.uiDelegate = context.coordinator
         webView.allowsBackForwardNavigationGestures = true
@@ -238,6 +270,7 @@ struct GHASLunchWebView: UIViewRepresentable {
                 return
             }
             UserDefaults.standard.set(theme, forKey: themeKey)
+            UserDefaults.standard.set(theme, forKey: "themePreference")
         }
 
         private func applySavedTheme() {

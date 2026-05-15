@@ -3,12 +3,12 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>개인정보처리방침 | GHAS 오늘의 급식</title>
     <link rel="manifest" href="manifest.json?v=9">
     <link rel="icon" type="image/png" href="icon1.png">
     <link rel="apple-touch-icon" href="icon1.png">
-    <meta name="theme-color" content="#2563EB" media="(prefers-color-scheme: light)">
+    <meta name="theme-color" content="#F6F6F6" media="(prefers-color-scheme: light)">
     <meta name="theme-color" content="#121212" media="(prefers-color-scheme: dark)">
     <script src="privacy-theme.js?v=1"></script>
     <link rel="stylesheet" as="style" crossorigin
@@ -70,6 +70,10 @@
             -webkit-tap-highlight-color: transparent;
         }
 
+        html {
+            background-color: var(--bg-color);
+        }
+
         body {
             font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
             background-color: var(--bg-color);
@@ -78,6 +82,7 @@
             display: flex;
             justify-content: center;
             min-height: 100vh;
+            min-height: 100dvh;
             line-height: 1.65;
             transition: background-color 0.3s ease;
         }
