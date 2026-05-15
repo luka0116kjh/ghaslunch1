@@ -9,7 +9,7 @@
     "tokens": {
       "$token_id": {
         ".read": false,
-        ".write": "$token_id.matches(/^[0-9a-f]{64}$/) && (!newData.exists() || newData.hasChildren(['lastUpdated', 'platform']))",
+        ".write": "$token_id.matches(/^[0-9a-f]{64}$/) && newData.exists() && newData.hasChildren(['lastUpdated', 'platform'])",
         "lastUpdated": {
           ".validate": "newData.isNumber() || newData.val() == now"
         },

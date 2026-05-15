@@ -38,7 +38,7 @@ struct GHASLunchWebView: UIViewRepresentable {
                     savedTheme: UserDefaults.standard.string(forKey: themeKey) ?? ""
                 ),
                 injectionTime: .atDocumentStart,
-                forMainFrameOnly: false
+                forMainFrameOnly: true
             )
         )
 
@@ -112,6 +112,7 @@ struct GHASLunchWebView: UIViewRepresentable {
         static let messageHandlerName = "ghasNative"
 
         private let allowedHosts: Set<String>
+        private let allowedExternalSchemes = Set(["https", "mailto"])
         private let themeKey: String
         private let notificationKey: String
         weak var webView: WKWebView?
@@ -128,6 +129,7 @@ struct GHASLunchWebView: UIViewRepresentable {
             didReceive message: WKScriptMessage
         ) {
             guard
+                message.frameInfo.securityOrigin.host == "ghaslunch1.web.app",
                 let body = message.body as? [String: Any],
                 let action = body["action"] as? String
             else {
@@ -156,23 +158,24 @@ struct GHASLunchWebView: UIViewRepresentable {
                 return
             }
 
-            if url.scheme == "http" || url.scheme == "https" {
-                let host = url.host ?? ""
-                if allowedHosts.contains(host) {
-                    decisionHandler(.allow)
-                } else {
-                    UIApplication.shared.open(url)
-                    decisionHandler(.cancel)
-                }
+            let scheme = url.scheme ?? ""
+            let host = url.host ?? ""
+
+            if scheme == "https", allowedHosts.contains(host) {
+                decisionHandler(.allow)
                 return
             }
 
             if url.scheme == "about" {
                 decisionHandler(.allow)
-            } else {
-                UIApplication.shared.open(url)
-                decisionHandler(.cancel)
+                return
             }
+
+            if allowedExternalSchemes.contains(scheme) {
+                UIApplication.shared.open(url)
+            }
+
+            decisionHandler(.cancel)
         }
 
         func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
@@ -189,7 +192,14 @@ struct GHASLunchWebView: UIViewRepresentable {
         ) -> WKWebView? {
             if navigationAction.targetFrame == nil,
                let url = navigationAction.request.url {
-                webView.load(URLRequest(url: url))
+                let scheme = url.scheme ?? ""
+                let host = url.host ?? ""
+
+                if scheme == "https", allowedHosts.contains(host) {
+                    webView.load(URLRequest(url: url))
+                } else if allowedExternalSchemes.contains(scheme) {
+                    UIApplication.shared.open(url)
+                }
             }
             return nil
         }
