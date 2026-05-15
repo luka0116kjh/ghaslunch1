@@ -48,7 +48,13 @@ struct GHASLunchWebView: UIViewRepresentable {
         webView.allowsBackForwardNavigationGestures = true
         webView.scrollView.contentInsetAdjustmentBehavior = .never
         context.coordinator.webView = webView
-        webView.load(URLRequest(url: appURL))
+        webView.load(
+            URLRequest(
+                url: appURL,
+                cachePolicy: .reloadIgnoringLocalCacheData,
+                timeoutInterval: 30
+            )
+        )
         return webView
     }
 
