@@ -19,6 +19,10 @@ function getStoredStudentId() {
     return localStorage.getItem(STUDENT_ID_KEY) || '';
 }
 
+function getStoredStudentCodeImage() {
+    return localStorage.getItem(STUDENT_CODE_IMAGE_KEY) || '';
+}
+
 const NEIS_BASE_URL = 'https://open.neis.go.kr/hub/';
 const NEIS_OFFICE_CODE = 'J10';
 const NEIS_SCHOOL_CODE = '7530908';
@@ -37,58 +41,12 @@ window.FIREBASE_VAPID_KEY = FIREBASE_VAPID_KEY;
 const VISIT_COUNT_URL = `${FIREBASE_CONFIG.databaseURL}/stats/visitCount.json`;
 const STUDENT_NAME_KEY = 'ghas-student-name';
 const STUDENT_ID_KEY = 'ghas-student-id';
+const STUDENT_CODE_IMAGE_KEY = 'ghas-student-code-image';
 const SCHEDULE_YEAR = window.GHAS_SCHEDULE_YEAR || 2026;
 const SCHEDULE_SOURCE = window.GHAS_SCHEDULE_SOURCE || '';
 const SCHEDULE_EVENTS = parseScheduleSource(SCHEDULE_SOURCE);
 let mealViewMode = 'today';
 let scheduleViewMode = 'current';
-
-const CODE39_PATTERNS = {
-    '0': 'nnnwwnwnn',
-    '1': 'wnnwnnnnw',
-    '2': 'nnwwnnnnw',
-    '3': 'wnwwnnnnn',
-    '4': 'nnnwwnnnw',
-    '5': 'wnnwwnnnn',
-    '6': 'nnwwwnnnn',
-    '7': 'nnnwnnwnw',
-    '8': 'wnnwnnwnn',
-    '9': 'nnwwnnwnn',
-    'A': 'wnnnnwnnw',
-    'B': 'nnwnnwnnw',
-    'C': 'wnwnnwnnn',
-    'D': 'nnnnwwnnw',
-    'E': 'wnnnwwnnn',
-    'F': 'nnwnwwnnn',
-    'G': 'nnnnnwwnw',
-    'H': 'wnnnnwwnn',
-    'I': 'nnwnnwwnn',
-    'J': 'nnnnwwwnn',
-    'K': 'wnnnnnnww',
-    'L': 'nnwnnnnww',
-    'M': 'wnwnnnnwn',
-    'N': 'nnnnwnnww',
-    'O': 'wnnnwnnwn',
-    'P': 'nnwnwnnwn',
-    'Q': 'nnnnnnwww',
-    'R': 'wnnnnnwwn',
-    'S': 'nnwnnnwwn',
-    'T': 'nnnnwnwwn',
-    'U': 'wwnnnnnnw',
-    'V': 'nwwnnnnnw',
-    'W': 'wwwnnnnnn',
-    'X': 'nwnnwnnnw',
-    'Y': 'wwnnwnnnn',
-    'Z': 'nwwnwnnnn',
-    '-': 'nwnnnnwnw',
-    '.': 'wwnnnnwnn',
-    ' ': 'nwwnnnwnn',
-    '$': 'nwnwnwnnn',
-    '/': 'nwnwnnnwn',
-    '+': 'nwnnnwnwn',
-    '%': 'nnnwnwnwn',
-    '*': 'nwnnwnwnn'
-};
 
 function buildNeisUrl(endpoint, params) {
     const url = new URL(endpoint, NEIS_BASE_URL);
@@ -552,43 +510,6 @@ function toggleMealView() {
     showMeals(nextType);
 }
 
-function getCode39Pattern(value) {
-    return `*${value}*`
-        .split('')
-        .map((char) => CODE39_PATTERNS[char] || '')
-        .filter(Boolean);
-}
-
-function buildCode39Svg(value) {
-    const patterns = getCode39Pattern(value);
-    if (patterns.length === 0) return '';
-
-    const narrow = 2;
-    const wide = 5;
-    const height = 72;
-    let x = 0;
-    const bars = [];
-
-    patterns.forEach((pattern, charIndex) => {
-        pattern.split('').forEach((widthCode, index) => {
-            const width = widthCode === 'w' ? wide : narrow;
-            const isBar = index % 2 === 0;
-
-            if (isBar) {
-                bars.push(`<rect x="${x}" y="0" width="${width}" height="${height}" fill="#000000"></rect>`);
-            }
-
-            x += width;
-        });
-
-        if (charIndex !== patterns.length - 1) {
-            x += narrow;
-        }
-    });
-
-    return `<svg viewBox="0 0 ${x} ${height}" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">${bars.join('')}</svg>`;
-}
-
 function normalizeStudentCode(value) {
     return String(value || '').trim().toUpperCase().replace(/[^0-9A-Z ./$%+-]/g, '');
 }
@@ -599,22 +520,29 @@ function isValidStudentId(studentId) {
 
 function renderStudentCodeCard() {
     const studentId = getStoredStudentId();
-    const shouldShowBarcode = Boolean(studentId);
+    const storedImage = getStoredStudentCodeImage();
+    const shouldShowImage = Boolean(studentId && storedImage);
     const placeholder = document.getElementById('student-card-placeholder');
-    const barcodeEl = document.getElementById('student-barcode-svg');
-    const barcodeWrap = document.getElementById('student-card-barcode');
+    const imageEl = document.getElementById('student-code-image');
+    const imageWrap = document.getElementById('student-card-image');
 
     if (placeholder) {
-        placeholder.hidden = shouldShowBarcode;
+        placeholder.hidden = shouldShowImage;
     }
 
-    if (barcodeWrap) {
-        barcodeWrap.hidden = !shouldShowBarcode;
+    if (imageWrap) {
+        imageWrap.hidden = !shouldShowImage;
     }
 
-    if (!barcodeEl) return;
+    if (!imageEl) return;
 
-    barcodeEl.innerHTML = shouldShowBarcode && isValidStudentId(studentId) ? buildCode39Svg(studentId) : '';
+    if (shouldShowImage) {
+        imageEl.src = storedImage;
+        imageEl.alt = '저장된 학생 코드 사진';
+    } else {
+        imageEl.removeAttribute('src');
+        imageEl.alt = '';
+    }
 }
 
 function openStudentCodeModal() {
@@ -707,6 +635,42 @@ function loadImageFromFile(file) {
     });
 }
 
+function readFileAsDataUrl(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result || ''));
+        reader.onerror = () => reject(new Error('IMAGE_READ_FAILED'));
+        reader.readAsDataURL(file);
+    });
+}
+
+async function createCompressedStudentCodeImage(file) {
+    const image = await loadImageFromFile(file);
+    const canvas = document.createElement('canvas');
+    const maxSize = 1600;
+    const scale = Math.min(1, maxSize / Math.max(image.naturalWidth, image.naturalHeight));
+    canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
+    canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
+
+    const context = canvas.getContext('2d');
+    context.drawImage(image, 0, 0, canvas.width, canvas.height);
+    return canvas.toDataURL('image/jpeg', 0.92);
+}
+
+async function saveStudentCodeImage(file) {
+    const originalDataUrl = await readFileAsDataUrl(file);
+
+    try {
+        localStorage.setItem(STUDENT_CODE_IMAGE_KEY, originalDataUrl);
+        return;
+    } catch (error) {
+        console.warn('Original student code image was too large, saving compressed copy:', error);
+    }
+
+    const compressedDataUrl = await createCompressedStudentCodeImage(file);
+    localStorage.setItem(STUDENT_CODE_IMAGE_KEY, compressedDataUrl);
+}
+
 async function scanStudentQrImageWithJsQr(file) {
     if (typeof window.jsQR !== 'function') {
         throw new Error('UNSUPPORTED_BARCODE_DETECTOR');
@@ -748,9 +712,10 @@ async function handleStudentCodeImageUpload(event) {
             return;
         }
 
+        await saveStudentCodeImage(file);
         localStorage.removeItem(STUDENT_NAME_KEY);
         localStorage.setItem(STUDENT_ID_KEY, studentId);
-        if (statusEl) statusEl.textContent = '바코드를 만들었습니다.';
+        if (statusEl) statusEl.textContent = '학생 코드 사진을 저장했습니다.';
         renderStudentCodeCard();
     } catch (error) {
         console.error('Student code scan failed:', error);
