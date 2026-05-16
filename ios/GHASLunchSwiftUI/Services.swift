@@ -1,9 +1,4 @@
 import Foundation
-import UserNotifications
-
-#if canImport(UIKit)
-import UIKit
-#endif
 
 enum VisitorCounterService {
     private static let visitCountURL = URL(string: "https://ghaslunch1-default-rtdb.asia-southeast1.firebasedatabase.app/stats/visitCount.json")!
@@ -70,37 +65,13 @@ enum VisitorCounterError: Error {
 
 enum NativeNotificationService {
     static func requestAuthorization() async -> Bool {
-        let granted = await withCheckedContinuation { continuation in
-            UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .badge, .sound]) { granted, _ in
-                continuation.resume(returning: granted)
-            }
-        }
-
-        if granted {
-            await registerForRemoteNotifications()
-        }
-
-        return granted
+        // Temporarily disabled while Web FCM/Web Push is removed.
+        // Reconnect through native FCM when FirebaseMessagingService-style handling
+        // is implemented for the iOS app.
+        false
     }
 
     static func disableNotifications() async {
-        await unregisterForRemoteNotifications()
-    }
-
-    @MainActor
-    private static func registerForRemoteNotifications() {
-        #if canImport(UIKit)
-        UIApplication.shared.registerForRemoteNotifications()
-        #endif
-
-        // FirebaseMessaging을 추가한 뒤에는 여기에서 iOS FCM 토큰을 받고
-        // Android와 같은 "meal" topic 구독 또는 토큰 저장 흐름을 연결합니다.
-    }
-
-    @MainActor
-    private static func unregisterForRemoteNotifications() {
-        #if canImport(UIKit)
-        UIApplication.shared.unregisterForRemoteNotifications()
-        #endif
+        // No-op while notifications are disabled.
     }
 }

@@ -1,6 +1,5 @@
 import SwiftUI
 import UIKit
-import UserNotifications
 import WebKit
 
 struct ContentView: View {
@@ -120,6 +119,8 @@ struct GHASLunchWebView: UIViewRepresentable {
             };
             var bridge = {
                 __iosBridge: true,
+                // Notifications are temporarily disabled in the web/iOS bridge.
+                // They will be reconnected later through native FCM.
                 requestNotifications: function() {
                     post('requestNotifications', null);
                 },
@@ -212,8 +213,8 @@ struct GHASLunchWebView: UIViewRepresentable {
 
         func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
             applySavedTheme()
-            let enabled = UserDefaults.standard.bool(forKey: notificationKey)
-            updateWebNotificationState(enabled)
+            UserDefaults.standard.set(false, forKey: notificationKey)
+            updateWebNotificationState(false)
         }
 
         func webView(
@@ -246,21 +247,13 @@ struct GHASLunchWebView: UIViewRepresentable {
         }
 
         private func requestNotifications() {
-            let defaultsKey = notificationKey
-            UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .badge, .sound]) { granted, _ in
-                DispatchQueue.main.async {
-                    UserDefaults.standard.set(granted, forKey: defaultsKey)
-                    self.updateWebNotificationState(granted)
-                    if granted {
-                        UIApplication.shared.registerForRemoteNotifications()
-                    }
-                }
-            }
+            // Temporarily disabled: iOS notification permission requests are paused
+            // until FirebaseMessagingService/native FCM migration is implemented.
+            UserDefaults.standard.set(false, forKey: notificationKey)
+            updateWebNotificationState(false)
         }
 
         private func cancelNotifications() {
-            UNUserNotificationCenter.current().removeAllPendingNotificationRequests()
-            UNUserNotificationCenter.current().removeAllDeliveredNotifications()
             UserDefaults.standard.set(false, forKey: notificationKey)
             updateWebNotificationState(false)
         }

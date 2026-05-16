@@ -1,44 +1,8 @@
-importScripts('https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js');
-importScripts('https://www.gstatic.com/firebasejs/10.7.1/firebase-messaging-compat.js');
+// Web FCM/Web Push is temporarily disabled because Android WebView push handling
+// is being moved to native FirebaseMessagingService-based FCM.
+// Keep this service worker focused on app shell caching only.
 
-const FIREBASE_CONFIG = {
-    apiKey: "AIzaSyDuqKOq-5dRC8dClv7fRBULA0lows-RHUg",
-    authDomain: "ghaslunch1.firebaseapp.com",
-    databaseURL: "https://ghaslunch1-default-rtdb.asia-southeast1.firebasedatabase.app",
-    projectId: "ghaslunch1",
-    storageBucket: "ghaslunch1.firebasestorage.app",
-    messagingSenderId: "348512527529",
-    appId: "1:348512527529:web:fee72bc56b6a44bfda75b8"
-};
-
-if (typeof firebase !== 'undefined') {
-    firebase.initializeApp({
-        apiKey: FIREBASE_CONFIG.apiKey,
-        authDomain: FIREBASE_CONFIG.authDomain,
-        databaseURL: FIREBASE_CONFIG.databaseURL,
-        projectId: FIREBASE_CONFIG.projectId,
-        storageBucket: FIREBASE_CONFIG.storageBucket,
-        messagingSenderId: FIREBASE_CONFIG.messagingSenderId,
-        appId: FIREBASE_CONFIG.appId
-    });
-
-    const messaging = firebase.messaging();
-
-    // 백그라운드 메시지 처리
-    messaging.onBackgroundMessage((payload) => {
-        const notificationTitle = payload.notification.title;
-        const notificationOptions = {
-            body: payload.notification.body,
-            icon: payload.notification.image || 'icon1.png',
-            badge: 'icon1.png',
-            data: payload.data
-        };
-
-        self.registration.showNotification(notificationTitle, notificationOptions);
-    });
-}
-
-const CACHE_NAME = 'ghas-lunch-v34';
+const CACHE_NAME = 'ghas-lunch-v35';
 const ASSETS = [
     './',
     './index.html',
@@ -82,7 +46,7 @@ self.addEventListener('fetch', (event) => {
         return;
     }
 
-    if (['/sw.js', '/firebase-messaging-sw.js'].includes(requestUrl.pathname)) {
+    if (['/sw.js', '/firebase-messaging-sw.js', '/notification.js'].includes(requestUrl.pathname)) {
         event.respondWith(fetch(event.request));
         return;
     }

@@ -1,25 +1,37 @@
 {
   "rules": {
+    ".read": false,
+    ".write": false,
+
     "stats": {
       "visitCount": {
         ".read": true,
-        ".write": "newData.isNumber() && ((!data.exists() && newData.val() === 1) || (data.exists() && newData.val() === data.val() + 1))"
+        ".write": "newData.isNumber() && newData.val() >= 0 && ((!data.exists() && newData.val() === 1) || (data.exists() && data.isNumber() && newData.val() === data.val() + 1))"
+      },
+      "$other": {
+        ".read": false,
+        ".write": false
       }
     },
     "tokens": {
-      "$token_id": {
-        ".read": false,
-        ".write": "$token_id.matches(/^[0-9a-f]{64}$/) && newData.exists() && newData.hasChildren(['lastUpdated', 'platform'])",
-        "lastUpdated": {
-          ".validate": "newData.isNumber() || newData.val() == now"
-        },
-        "platform": {
-          ".validate": "newData.val() === 'web'"
-        },
-        "$other": {
-          ".validate": false
-        }
-      }
+      ".read": false,
+      ".write": false
+    },
+    "notificationTokens": {
+      ".read": false,
+      ".write": false
+    },
+    "meals": {
+      ".read": true,
+      ".write": false
+    },
+    "timetable": {
+      ".read": true,
+      ".write": false
+    },
+    "notices": {
+      ".read": true,
+      ".write": false
     },
     "status": {
       ".read": false,

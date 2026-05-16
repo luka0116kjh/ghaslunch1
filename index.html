@@ -14,7 +14,9 @@
     <!-- Firebase SDKs -->
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-messaging-compat.js"></script>
+    <!-- Web FCM/Web Push is temporarily disabled in Android WebView.
+         Notification delivery will be reconnected later through Android native FCM
+         with FirebaseMessagingService. -->
     <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
 
     <link rel="stylesheet" as="style" crossorigin
@@ -782,7 +784,9 @@
             <button id="btn-week" type="button">이번 주</button>
             <button id="btn-timetable" type="button">시간표</button>
             <button id="btn-schedule" type="button">일정표</button>
-            <button id="btn-noti" type="button" aria-label="알림 설정" title="알림 설정">🔔</button>
+            <!-- WebView 알림은 Android WebView 제한으로 임시 비활성화했습니다.
+                 추후 FirebaseMessagingService 기반 Android 네이티브 FCM으로 전환 예정입니다. -->
+            <button id="btn-noti" type="button" aria-label="알림 임시 비활성화" title="알림 임시 비활성화" hidden disabled>🔔</button>
             <button id="btn-theme" type="button">🌓</button>
         </nav>
 
@@ -884,7 +888,9 @@
     </div>
 
     <script src="schedule.js?v=2"></script>
-    <script src="script.js?v=55"></script>
+    <script src="script.js?v=56"></script>
+    <!-- notification.js is intentionally unused while Web FCM/Web Push is disabled.
+         Keep the file for future Android native FCM migration reference. -->
 </body>
 
 </html>

@@ -24,16 +24,13 @@ struct PrivacyPolicyView: View {
 
                     PolicySection(title: "수집하는 정보") {
                         PolicyBullet("방문자 수 집계를 위한 익명 방문 카운트")
-                        PolicyBullet("사용자가 알림을 허용한 경우 Firebase Cloud Messaging 토큰을 해시 처리한 식별자, 갱신 시각, 플랫폼 정보")
                         PolicyBullet("사용자 설정 유지를 위한 앱 로컬 저장소 정보")
                         PolicyBullet("테마 설정")
-                        PolicyBullet("알림 설정")
                         PolicyBullet("기타 앱 사용 설정")
                     }
 
                     PolicySection(title: "정보 이용 목적") {
                         PolicyBullet("급식, 시간표 및 일정표 정보 제공")
-                        PolicyBullet("사용자가 요청한 알림 기능 제공")
                         PolicyBullet("서비스 이용 통계 확인 및 안정성 개선")
                         PolicyBullet("오류 분석 및 서비스 품질 향상")
                     }
@@ -43,7 +40,6 @@ struct PrivacyPolicyView: View {
                         PolicyBullet("NEIS 교육정보 개방포털 Open API")
                         PolicyBullet("Firebase Hosting")
                         PolicyBullet("Firebase Realtime Database")
-                        PolicyBullet("Firebase Cloud Messaging")
                         PolicyText("서비스 이용 과정에서 Google 및 Firebase의 정책이 적용될 수 있습니다.")
                     }
 
@@ -60,12 +56,13 @@ struct PrivacyPolicyView: View {
                     }
 
                     PolicySection(title: "정보 보관 및 삭제") {
-                        PolicyText("알림을 해제하면 앱은 저장된 알림 토큰 식별자 삭제를 시도합니다. 앱 데이터를 삭제하면 로컬 설정도 함께 삭제됩니다.")
+                        PolicyText("앱 데이터를 삭제하면 로컬 설정도 함께 삭제됩니다. 알림 기능은 현재 임시 비활성화되어 알림 토큰을 저장하지 않습니다.")
                     }
 
                     PolicySection(title: "권한 안내") {
-                        PolicyText("본 서비스는 알림 기능 제공을 위해 알림 권한만 요청합니다.")
-                        PolicyText("다음 권한은 요청하지 않습니다.")
+                        PolicyText("알림 기능은 현재 임시 비활성화되어 있으며, 추후 Android 네이티브 FCM/FirebaseMessagingService 기반 방식으로 전환할 예정입니다.")
+                        PolicyText("현재 앱은 다음 권한을 요청하지 않습니다.")
+                        PolicyBullet("알림")
                         PolicyBullet("카메라")
                         PolicyBullet("마이크")
                         PolicyBullet("위치 정보")
