@@ -836,9 +836,13 @@ const SUBJECT_ALIASES = {
     "자동차 등화장치 정비": "자동차정비"
 };
 
+function cleanTimetableSubject(rawName) {
+    return String(rawName || '').replace(/\*/g, '').trim();
+}
+
 function decodeSubject(rawName) {
-    if (!rawName) return "공강";
-    const trimmed = rawName.trim();
+    const trimmed = cleanTimetableSubject(rawName);
+    if (!trimmed) return "공강";
     // 딕셔너리에 매핑된 값이 있으면 그 값을, 없으면 원본을 그대로 반환
     return SUBJECT_ALIASES[trimmed] || trimmed;
 }
