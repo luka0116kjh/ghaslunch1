@@ -44,12 +44,14 @@ struct GHASLunchWebView: UIViewRepresentable {
     private let allowedHosts = Set(["ghaslunch1.web.app", "ghaslunch1.firebaseapp.com"])
     private let themeKey = "theme"
     private let notificationKey = "noti-enabled"
+    private let usesPadLayout = UIDevice.current.userInterfaceIdiom == .pad
 
     func makeCoordinator() -> Coordinator {
         Coordinator(
             allowedHosts: allowedHosts,
             themeKey: themeKey,
-            notificationKey: notificationKey
+            notificationKey: notificationKey,
+            usesPadLayout: usesPadLayout
         )
     }
 
@@ -70,6 +72,15 @@ struct GHASLunchWebView: UIViewRepresentable {
                 forMainFrameOnly: true
             )
         )
+        if usesPadLayout {
+            configuration.userContentController.addUserScript(
+                WKUserScript(
+                    source: padLayoutScript(),
+                    injectionTime: .atDocumentEnd,
+                    forMainFrameOnly: true
+                )
+            )
+        }
 
         let webView = WKWebView(frame: .zero, configuration: configuration)
         webView.backgroundColor = .clear
@@ -141,6 +152,34 @@ struct GHASLunchWebView: UIViewRepresentable {
         """
     }
 
+    private func padLayoutScript() -> String {
+        """
+        (function() {
+            var styleId = 'ghas-ios-pad-layout';
+            var css = [
+                'html, body { width: 100% !important; }',
+                '.container { max-width: none !important; width: 100% !important; padding: 32px max(32px, env(safe-area-inset-left)) 44px max(32px, env(safe-area-inset-right)) !important; }',
+                '.header { padding-top: 16px !important; }',
+                '.meal-card { padding: 28px !important; }'
+            ].join('\\n');
+            var apply = function() {
+                var existing = document.getElementById(styleId);
+                if (!existing) {
+                    existing = document.createElement('style');
+                    existing.id = styleId;
+                    document.head.appendChild(existing);
+                }
+                existing.textContent = css;
+            };
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', apply, { once: true });
+            } else {
+                apply();
+            }
+        }());
+        """
+    }
+
     final class Coordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WKScriptMessageHandler {
         static let messageHandlerName = "ghasNative"
 
@@ -148,12 +187,14 @@ struct GHASLunchWebView: UIViewRepresentable {
         private let allowedExternalSchemes = Set(["https", "mailto"])
         private let themeKey: String
         private let notificationKey: String
+        private let usesPadLayout: Bool
         weak var webView: WKWebView?
 
-        init(allowedHosts: Set<String>, themeKey: String, notificationKey: String) {
+        init(allowedHosts: Set<String>, themeKey: String, notificationKey: String, usesPadLayout: Bool) {
             self.allowedHosts = allowedHosts
             self.themeKey = themeKey
             self.notificationKey = notificationKey
+            self.usesPadLayout = usesPadLayout
             super.init()
         }
 
@@ -213,6 +254,7 @@ struct GHASLunchWebView: UIViewRepresentable {
 
         func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
             applySavedTheme()
+            applyPadLayoutIfNeeded()
             UserDefaults.standard.set(false, forKey: notificationKey)
             updateWebNotificationState(false)
         }
@@ -282,6 +324,30 @@ struct GHASLunchWebView: UIViewRepresentable {
                     document.body.classList.toggle('dark-theme', theme === 'dark');
                     document.body.classList.toggle('light-theme', theme === 'light');
                 }
+            }());
+            """
+            webView?.evaluateJavaScript(script)
+        }
+
+        private func applyPadLayoutIfNeeded() {
+            guard usesPadLayout else { return }
+
+            let script = """
+            (function() {
+                var styleId = 'ghas-ios-pad-layout';
+                var css = [
+                    'html, body { width: 100% !important; }',
+                    '.container { max-width: none !important; width: 100% !important; padding: 32px max(32px, env(safe-area-inset-left)) 44px max(32px, env(safe-area-inset-right)) !important; }',
+                    '.header { padding-top: 16px !important; }',
+                    '.meal-card { padding: 28px !important; }'
+                ].join('\\n');
+                var existing = document.getElementById(styleId);
+                if (!existing) {
+                    existing = document.createElement('style');
+                    existing.id = styleId;
+                    document.head.appendChild(existing);
+                }
+                existing.textContent = css;
             }());
             """
             webView?.evaluateJavaScript(script)

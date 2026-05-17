@@ -160,11 +160,22 @@ function isRangeOverlapping(startA, endA, startB, endB) {
 
 function getVisibleScheduleEvents() {
     const { start, end } = getScheduleRange();
-    return SCHEDULE_EVENTS.filter((event) => isRangeOverlapping(event.startDate, event.endDate, start, end));
+    const today = startOfDay(new Date());
+    return SCHEDULE_EVENTS.filter((event) => {
+        return startOfDay(event.endDate) >= today && isRangeOverlapping(event.startDate, event.endDate, start, end);
+    });
+}
+
+function getScheduleDisplayDate(event) {
+    const { start } = getScheduleRange();
+    const eventStart = startOfDay(event.startDate);
+    const rangeStart = startOfDay(start);
+    return eventStart < rangeStart ? rangeStart : event.startDate;
 }
 
 function renderScheduleRow(event) {
     const status = getScheduleStatus(event);
+    const displayDate = getScheduleDisplayDate(event);
     const meta = [
         formatScheduleRange(event),
         getScheduleCategory(event)
@@ -173,8 +184,8 @@ function renderScheduleRow(event) {
     return `
         <div class="schedule-row ${status.className === 'today' ? 'is-today' : ''}">
             <div class="date-badge">
-                <span class="date-day">${event.startDate.getDate()}</span>
-                <span class="date-weekday">${event.startDate.toLocaleDateString('ko-KR', { weekday: 'short' })}</span>
+                <span class="date-day">${displayDate.getDate()}</span>
+                <span class="date-weekday">${displayDate.toLocaleDateString('ko-KR', { weekday: 'short' })}</span>
             </div>
             <div class="schedule-content">
                 <div class="schedule-line">
@@ -198,7 +209,7 @@ function renderScheduleList() {
     }
 
     const groups = visibleEvents.reduce((acc, event) => {
-        const month = event.startDate.getMonth() + 1;
+        const month = getScheduleDisplayDate(event).getMonth() + 1;
         if (!acc[month]) acc[month] = [];
         acc[month].push(event);
         return acc;

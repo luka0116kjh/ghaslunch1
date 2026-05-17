@@ -3,6 +3,7 @@ import SwiftUI
 struct PrivacyPolicyView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var scheme
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
     var body: some View {
         ScrollView {
@@ -88,14 +89,22 @@ struct PrivacyPolicyView: View {
 
                 privacyFooter
             }
-            .padding(.horizontal, 20)
+            .padding(.horizontal, horizontalPadding)
             .padding(.top, 14)
             .padding(.bottom, 30)
-            .frame(maxWidth: 480)
+            .frame(maxWidth: contentMaxWidth)
             .frame(maxWidth: .infinity)
         }
         .background(AppTheme.background(scheme).ignoresSafeArea())
         .navigationBarBackButtonHidden(true)
+    }
+
+    private var horizontalPadding: CGFloat {
+        horizontalSizeClass == .regular ? 32 : 20
+    }
+
+    private var contentMaxWidth: CGFloat? {
+        horizontalSizeClass == .regular ? nil : 480
     }
 
     private var privacyFooter: some View {

@@ -91,6 +91,13 @@
             padding: 24px 20px;
         }
 
+        @media (min-width: 768px) {
+            .container {
+                max-width: none;
+                padding: 32px max(32px, env(safe-area-inset-left)) 44px max(32px, env(safe-area-inset-right));
+            }
+        }
+
         /* Header */
         .header {
             padding: 10px 4px 24px;
@@ -753,6 +760,16 @@
             border-radius: 12px;
         }
 
+        @media (min-width: 768px) {
+            .header {
+                padding-top: 16px;
+            }
+
+            .meal-card {
+                padding: 28px;
+            }
+        }
+
     </style>
 </head>
 
@@ -889,8 +906,8 @@
         </footer>
     </div>
 
-    <script src="schedule.js?v=2"></script>
-    <script src="script.js?v=57"></script>
+    <script src="schedule.js?v=3"></script>
+    <script src="script.js?v=59"></script>
     <!-- notification.js is intentionally unused while Web FCM/Web Push is disabled.
          Keep the file for future Android native FCM migration reference. -->
 </body>
