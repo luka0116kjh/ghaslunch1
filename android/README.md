@@ -5,7 +5,7 @@ This Android app wraps `https://ghaslunch1.web.app/` in a WebView and handles no
 ## Firebase setup
 
 1. Open Firebase Console for project `ghaslunch1`.
-2. Add an Android app with package name `com.ghas.lunch`.
+2. Add an Android app with package name `kr.hs.ghas.ghason`.
 3. Download `google-services.json`.
 4. Place it at `android/app/google-services.json`.
 5. Open the `android` folder in Android Studio and sync Gradle.

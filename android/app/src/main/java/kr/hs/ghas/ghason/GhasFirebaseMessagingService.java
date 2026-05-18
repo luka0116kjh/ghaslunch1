@@ -1,4 +1,4 @@
-package com.ghas.lunch;
+package kr.hs.ghas.ghason;
 
 import android.app.NotificationManager;
 import android.app.PendingIntent;
