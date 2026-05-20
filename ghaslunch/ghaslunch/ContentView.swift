@@ -40,7 +40,7 @@ extension Color {
 }
 
 struct GHASLunchWebView: UIViewRepresentable {
-    private let appURL = URL(string: "https://ghaslunch1.web.app/?v=20260520-fallback-ios-refresh")!
+    private let appURL = URL(string: "https://ghaslunch1.web.app/?v=20260520-afterschool-select")!
     private let allowedHosts = Set(["ghaslunch1.web.app", "ghaslunch1.firebaseapp.com"])
     private let themeKey = "theme"
     private let notificationKey = "noti-enabled"

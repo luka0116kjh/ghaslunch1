@@ -30,7 +30,7 @@ public class MainActivity extends AppCompatActivity {
     private static final String KEY_THEME = "theme";
     private static final String SCHEME_HTTPS = "https";
     private static final String SCHEME_MAILTO = "mailto";
-    private static final String APP_URL = "https://ghaslunch1.web.app/?v=20260520-fallback";
+    private static final String APP_URL = "https://ghaslunch1.web.app/?v=20260520-afterschool-select";
 
     private WebView webView;
     private SharedPreferences preferences;
