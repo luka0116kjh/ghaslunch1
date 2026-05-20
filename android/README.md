@@ -18,6 +18,37 @@ The debug APK is written to:
 android/app/build/outputs/apk/debug/app-debug.apk
 ```
 
+## Install and run from a terminal
+
+Start an existing emulator or connect a USB device, then run:
+
+```powershell
+cd D:\Projects\ghaslunch\android
+$env:JAVA_HOME="C:\Program Files\Android\Android Studio\jbr"
+$env:Path="$env:JAVA_HOME\bin;C:\Users\GHAS\AppData\Local\Android\Sdk\platform-tools;$env:Path"
+.\gradlew.bat installDebug
+adb shell monkey -p kr.hs.ghas.ghason -c android.intent.category.LAUNCHER 1
+```
+
+For one-command emulator boot, install, and launch:
+
+```powershell
+cd D:\Projects\ghaslunch\android
+.\scripts\run-debug.ps1
+```
+
+For headless emulator runs in terminal-only environments:
+
+```powershell
+.\scripts\run-debug.ps1 -NoWindow
+```
+
+To watch app and WebView logs:
+
+```powershell
+.\scripts\logcat.ps1 -Clear
+```
+
 ## Firebase setup
 
 1. Open Firebase Console for project `ghaslunch1`.
