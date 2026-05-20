@@ -9,6 +9,7 @@ firebase-debug.log*
 
 # Android local build/signing secrets
 android/local.properties
+android/**/google-services.json
 android/**/*.keystore
 android/**/*.jks
 android/**/*keystore*.properties

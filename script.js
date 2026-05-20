@@ -302,6 +302,26 @@ function extractMealRows(data) {
     return mealInfo?.row || [];
 }
 
+function extractTimetableRows(data) {
+    const timetableInfo = Array.isArray(data?.hisTimetable)
+        ? data.hisTimetable.find(section => Array.isArray(section.row))
+        : null;
+
+    if (timetableInfo) {
+        return timetableInfo.row;
+    }
+
+    const result = Array.isArray(data?.RESULT) ? data.RESULT[0] : data?.RESULT;
+    const resultMessage = result?.MESSAGE || result?.CODE;
+    if (resultMessage) {
+        console.warn('Timetable API returned no rows:', resultMessage);
+    } else {
+        console.warn('Timetable API response did not include rows.');
+    }
+
+    return [];
+}
+
 async function fetchMealData(params) {
     const response = await fetch(buildNeisUrl('mealServiceDietInfo', {
         MLSV_YMD: params.ymd,
@@ -862,29 +882,24 @@ async function fetchTimetable(grade, classNum, targetDate) {
         
         const data = await response.json();
 
-        if (data.hisTimetable) {
-            const rows = data.hisTimetable[1].row;
+        const rows = extractTimetableRows(data);
+        const uniqueRows = [];
+        const seenPeriods = new Set();
 
-            const uniqueRows = [];
-            const seenPeriods = new Set();
+        rows.forEach(row => {
+            if (!row?.PERIO || seenPeriods.has(row.PERIO)) return;
 
-            rows.forEach(row => {
-                if (!seenPeriods.has(row.PERIO)) {
-                    seenPeriods.add(row.PERIO);
-                    uniqueRows.push({
-                        period: row.PERIO,                 // 교시
-                        originalSubject: row.ITRT_CNTNT,   // API 원본 과목명
-                        subject: decodeSubject(row.ITRT_CNTNT) // 변환된 친숙한 과목명
-                    });
-                }
+            seenPeriods.add(row.PERIO);
+            uniqueRows.push({
+                period: row.PERIO,                 // 교시
+                originalSubject: row.ITRT_CNTNT,   // API 원본 과목명
+                subject: decodeSubject(row.ITRT_CNTNT) // 변환된 친숙한 과목명
             });
+        });
 
-            return uniqueRows.sort((a, b) => a.period - b.period);
-        } else {
-            return [];
-        }
+        return uniqueRows.sort((a, b) => Number(a.period) - Number(b.period));
     } catch (e) {
-        console.error('Timetable Fetch Error:', e);
+        console.warn('Timetable fetch failed:', e);
         if (!navigator.onLine) {
             showOfflineUI(true);
         }
@@ -997,14 +1012,14 @@ function ensureTimetableControls() {
     card.insertBefore(meta, list);
 }
 
-function renderTimetableRows(rows, targetDate) {
+function renderTimetableRows(rows, targetDate, titleText = '오늘 시간표') {
     if (rows === null) {
         return '<div class="timetable-empty">데이터를 불러오지 못했습니다.</div>';
     }
 
     const normalizedRows = applyFridayFreePeriods(rows, targetDate);
     if (normalizedRows.length === 0) {
-        return '<div class="timetable-empty">시간표 정보가 없습니다.</div>';
+        return `<div class="timetable-empty">${escapeHTML(titleText)} 정보가 없습니다.</div>`;
     }
 
     return normalizedRows.map(row => `
@@ -1125,7 +1140,7 @@ async function updateTimetable() {
     const rows = await fetchTimetable(grade, classNum, targetDate);
 
     updateTimetableHeader(titleText, targetDate, buttonText);
-    container.innerHTML = renderTimetableRows(rows, targetDate);
+    container.innerHTML = renderTimetableRows(rows, targetDate, titleText);
     return;
 }
 

@@ -1,9 +1,6 @@
 plugins {
     id "com.android.application"
-}
-
-if (file("google-services.json").exists()) {
-    apply plugin: "com.google.gms.google-services"
+    id "com.google.gms.google-services"
 }
 
 def localProperties = new Properties()

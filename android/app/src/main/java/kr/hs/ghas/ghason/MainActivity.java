@@ -1,6 +1,7 @@
 package kr.hs.ghas.ghason;
 
 import android.Manifest;
+import android.content.ActivityNotFoundException;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.content.Intent;
@@ -27,6 +28,8 @@ public class MainActivity extends AppCompatActivity {
     static final String NOTIFICATION_CHANNEL_ID = "meal_notifications";
     private static final String PREFS_NAME = "ghas_lunch_preferences";
     private static final String KEY_THEME = "theme";
+    private static final String SCHEME_HTTPS = "https";
+    private static final String SCHEME_MAILTO = "mailto";
 
     private WebView webView;
     private SharedPreferences preferences;
@@ -75,26 +78,53 @@ public class MainActivity extends AppCompatActivity {
         webView.addJavascriptInterface(bridge, "GHASAndroidApp");
         webView.addJavascriptInterface(bridge, "GHASAndroidNotifications");
         webView.loadUrl("https://ghaslunch1.web.app/");
-    }
-
-    @Override
-    public void onBackPressed() {
-        if (webView != null && webView.canGoBack()) {
-            webView.goBack();
-            return;
-        }
-        super.onBackPressed();
+        getOnBackPressedDispatcher().addCallback(this, new androidx.activity.OnBackPressedCallback(true) {
+            @Override
+            public void handleOnBackPressed() {
+                if (webView != null && webView.canGoBack()) {
+                    webView.goBack();
+                    return;
+                }
+                setEnabled(false);
+                getOnBackPressedDispatcher().onBackPressed();
+            }
+        });
     }
 
     private boolean handleUrl(Uri uri) {
+        if (uri == null) {
+            return true;
+        }
+
+        String scheme = uri.getScheme();
         String host = uri.getHost();
-        if (host == null || "ghaslunch1.web.app".equals(host) || "ghaslunch1.firebaseapp.com".equals(host)) {
+
+        // The page uses addJavascriptInterface for the native bridge, so only the
+        // trusted HTTPS app hosts may run inside this WebView. Hostless or local
+        // schemes such as javascript:, data:, file:, and about: are blocked.
+        if (SCHEME_HTTPS.equalsIgnoreCase(scheme) && isTrustedAppHost(host)) {
             return false;
         }
 
-        Intent intent = new Intent(Intent.ACTION_VIEW, uri);
-        startActivity(intent);
+        if (SCHEME_HTTPS.equalsIgnoreCase(scheme) || SCHEME_MAILTO.equalsIgnoreCase(scheme)) {
+            openExternally(uri);
+        }
+
         return true;
+    }
+
+    private boolean isTrustedAppHost(String host) {
+        return "ghaslunch1.web.app".equalsIgnoreCase(host)
+                || "ghaslunch1.firebaseapp.com".equalsIgnoreCase(host);
+    }
+
+    private void openExternally(Uri uri) {
+        try {
+            Intent intent = new Intent(Intent.ACTION_VIEW, uri);
+            startActivity(intent);
+        } catch (ActivityNotFoundException error) {
+            Toast.makeText(this, "외부 링크를 열 수 없습니다.", Toast.LENGTH_SHORT).show();
+        }
     }
 
     void requestMealNotifications() {
