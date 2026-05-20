@@ -1,6 +1,22 @@
 # GHAS Lunch Android
 
-This Android app wraps `https://ghaslunch1.web.app/` in a WebView and handles notifications with native Firebase Cloud Messaging.
+This Android app wraps `https://ghaslunch1.web.app/` in a Kotlin WebView Activity and handles notifications with native Firebase Cloud Messaging.
+
+## Build from a terminal
+
+The Android project is designed to build without Android Studio. Use VS Code, PowerShell, the checked-in Gradle Wrapper, and a valid Android SDK path in `local.properties`.
+
+```powershell
+cd D:\Projects\ghaslunch\android
+.\gradlew.bat clean
+.\gradlew.bat assembleDebug
+```
+
+The debug APK is written to:
+
+```text
+android/app/build/outputs/apk/debug/app-debug.apk
+```
 
 ## Firebase setup
 
@@ -8,7 +24,7 @@ This Android app wraps `https://ghaslunch1.web.app/` in a WebView and handles no
 2. Add an Android app with package name `kr.hs.ghas.ghason`.
 3. Download `google-services.json`.
 4. Place it at `android/app/google-services.json`.
-5. Open the `android` folder in Android Studio and sync Gradle.
+5. Keep this file out of public Git history unless the repository policy explicitly allows publishing Firebase client config.
 
 ## Notification behavior
 

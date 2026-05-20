@@ -1,5 +1,5 @@
 <resources>
-    <style name="Theme.GHASLunch" parent="Theme.AppCompat.Light.NoActionBar">
+    <style name="Theme.GHASLunch" parent="@android:style/Theme.Material.Light.NoActionBar">
         <item name="android:windowLightStatusBar">true</item>
         <item name="android:statusBarColor">#F7B731</item>
         <item name="android:navigationBarColor">#FFFFFF</item>

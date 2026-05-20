@@ -3,4 +3,10 @@
     <string name="default_notification_channel_id">meal_notifications</string>
     <string name="meal_notification_channel_name">급식 알림</string>
     <string name="meal_notification_channel_description">급식과 학교 생활 정보를 알려드립니다.</string>
+    <string name="notification_permission_denied">알림 권한이 없어 알림을 받을 수 없습니다.</string>
+    <string name="notification_enabled">알림 설정이 완료되었습니다.</string>
+    <string name="notification_enable_failed">알림 설정에 실패했습니다.</string>
+    <string name="notification_disabled">알림을 취소했습니다.</string>
+    <string name="notification_disable_failed">알림 취소에 실패했습니다.</string>
+    <string name="external_link_error">이 링크를 열 수 없습니다.</string>
 </resources>
