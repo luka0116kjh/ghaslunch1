@@ -28,7 +28,7 @@ struct ContentView: View {
 }
 
 struct GHASLunchWebView: UIViewRepresentable {
-    private let appURL = URL(string: "https://ghaslunch1.web.app/")!
+    private let appURL = URL(string: "https://ghaslunch1.web.app/?v=20260520-fallback-ios-refresh")!
     private let allowedHosts = Set(["ghaslunch1.web.app", "ghaslunch1.firebaseapp.com"])
     private let themeKey = "theme"
     private let notificationKey = "noti-enabled"
@@ -78,13 +78,7 @@ struct GHASLunchWebView: UIViewRepresentable {
         webView.allowsBackForwardNavigationGestures = true
         webView.scrollView.contentInsetAdjustmentBehavior = .never
         context.coordinator.webView = webView
-        webView.load(
-            URLRequest(
-                url: appURL,
-                cachePolicy: .reloadIgnoringLocalCacheData,
-                timeoutInterval: 30
-            )
-        )
+        loadFreshAppURL(in: webView)
         return webView
     }
 
@@ -96,6 +90,22 @@ struct GHASLunchWebView: UIViewRepresentable {
         )
         webView.navigationDelegate = nil
         webView.uiDelegate = nil
+    }
+
+    private func loadFreshAppURL(in webView: WKWebView) {
+        let dataTypes = WKWebsiteDataStore.allWebsiteDataTypes()
+        WKWebsiteDataStore.default().removeData(
+            ofTypes: dataTypes,
+            modifiedSince: .distantPast
+        ) {
+            webView.load(
+                URLRequest(
+                    url: appURL,
+                    cachePolicy: .reloadIgnoringLocalAndRemoteCacheData,
+                    timeoutInterval: 30
+                )
+            )
+        }
     }
 
     private func bridgeScript(savedTheme: String) -> String {

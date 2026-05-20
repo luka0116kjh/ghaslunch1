@@ -30,6 +30,7 @@ public class MainActivity extends AppCompatActivity {
     private static final String KEY_THEME = "theme";
     private static final String SCHEME_HTTPS = "https";
     private static final String SCHEME_MAILTO = "mailto";
+    private static final String APP_URL = "https://ghaslunch1.web.app/?v=20260520-fallback";
 
     private WebView webView;
     private SharedPreferences preferences;
@@ -57,6 +58,7 @@ public class MainActivity extends AppCompatActivity {
         settings.setJavaScriptEnabled(true);
         settings.setDomStorageEnabled(true);
         settings.setDatabaseEnabled(true);
+        settings.setCacheMode(WebSettings.LOAD_NO_CACHE);
 
         webView.setWebViewClient(new WebViewClient() {
             @Override
@@ -77,7 +79,8 @@ public class MainActivity extends AppCompatActivity {
         NativeNotificationBridge bridge = new NativeNotificationBridge(this);
         webView.addJavascriptInterface(bridge, "GHASAndroidApp");
         webView.addJavascriptInterface(bridge, "GHASAndroidNotifications");
-        webView.loadUrl("https://ghaslunch1.web.app/");
+        webView.clearCache(true);
+        webView.loadUrl(APP_URL);
         getOnBackPressedDispatcher().addCallback(this, new androidx.activity.OnBackPressedCallback(true) {
             @Override
             public void handleOnBackPressed() {

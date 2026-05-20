@@ -45,8 +45,14 @@ const STUDENT_CODE_IMAGE_KEY = 'ghas-student-code-image';
 const SCHEDULE_YEAR = window.GHAS_SCHEDULE_YEAR || 2026;
 const SCHEDULE_SOURCE = window.GHAS_SCHEDULE_SOURCE || '';
 const SCHEDULE_EVENTS = parseScheduleSource(SCHEDULE_SOURCE);
+const CLASS_TIMETABLE_VERSION = '20260520';
+const CLASS_TIMETABLE_RUNTIME_PATH = './src/data/classTimetable2026.js';
+const TIMETABLE_DAYS = ['일', '월', '화', '수', '목', '금', '토'];
+const TIMETABLE_PERIODS = [1, 2, 3, 4, 5, 6, 7];
 let mealViewMode = 'today';
 let scheduleViewMode = 'current';
+let classTimetable2026Promise = null;
+let classTimetable2026ImportStatus = 'not-started';
 
 function buildNeisUrl(endpoint, params) {
     const url = new URL(endpoint, NEIS_BASE_URL);
@@ -824,36 +830,76 @@ function showMeals(type) {
     }
 }
 
-// 과목명 매핑 딕셔너리 
+// 과목명 매핑 딕셔너리
 const SUBJECT_ALIASES = {
     "공통국어1": "국어",
     "공통국어2": "국어",
     "문학": "국어",
     "화법과 언어": "국어",
+    "국1": "국어",
+    "국2": "국어",
+    "문1": "국어",
+
     "공통수학1": "수학",
     "공통수학2": "수학",
     "대수": "수학",
     "미적분Ⅰ": "수학",
+
     "공통영어1": "영어",
     "공통영어2": "영어",
     "영어Ⅰ": "영어",
     "영어Ⅱ": "영어",
     "직무 영어": "영어",
+
     "한국사1": "한국사",
     "한국사2": "한국사",
+    "국사": "한국사",
+
     "통합사회1": "사회",
     "통합사회2": "사회",
+
     "통합과학1": "과학",
     "통합과학2": "과학",
+    "과1": "과학",
+
     "체육1": "체육",
     "체육2": "체육",
+    "운동": "체육",
+
     "진로활동": "진로",
     "동아리활동": "동아리",
     "창의적 체험활동": "창체",
+    "자율": "자율",
+
     "정보 처리와 관리": "정보 처리",
     "SSQL": "SQL",
+
     "베이스·클리어 도장 작업": "자동차도장",
-    "자동차 등화장치 정비": "자동차정비"
+    "자동차 등화장치 정비": "자동차정비",
+    "기관": "자동차 기관",
+    "전정": "자동차 전기전자 정비",
+    "섀정": "자동차 섀시 정비",
+    "회로": "전기회로",
+    "도장": "자동차도장",
+
+    // 추가 매핑
+    "프1": "프로그래밍",
+    "디일": "디자인 일반",
+    "응개": "응용프로그래밍 개발",
+    "응1" : "응용프로그래밍",
+    "엔정": "엔진 정비",
+    "전차": "전기전자 장비정비",
+    "전기": "전기회로",
+    "차정": "차체 정비",
+    "주행": "자율주행",
+    "섀시": "자동차 섀시",
+    "화1": "화면구현",
+    "튜1": "튜닝",
+    "컴그": "컴퓨터 그래픽스",
+    //모름 예상
+    "엔진": "엔진 정비",
+    "전장": "전기전자 장비정비",
+    "엔정": "엔진 정비",
 };
 
 function cleanTimetableSubject(rawName) {
@@ -867,6 +913,29 @@ function decodeSubject(rawName) {
     return SUBJECT_ALIASES[trimmed] || trimmed;
 }
 
+function loadClassTimetable2026() {
+    if (!classTimetable2026Promise) {
+        classTimetable2026ImportStatus = 'loading';
+        classTimetable2026Promise = import(`${CLASS_TIMETABLE_RUNTIME_PATH}?v=${CLASS_TIMETABLE_VERSION}`)
+            .then((module) => {
+                classTimetable2026ImportStatus = 'success';
+                console.debug('Class timetable fallback import success', {
+                    path: CLASS_TIMETABLE_RUNTIME_PATH,
+                    version: CLASS_TIMETABLE_VERSION
+                });
+                return module.classTimetable2026 || {};
+            })
+            .catch((error) => {
+                classTimetable2026ImportStatus = 'fail';
+                console.error('Class timetable fallback import failed:', error);
+                console.warn('Class timetable fallback load failed:', error);
+                return {};
+            });
+    }
+
+    return classTimetable2026Promise;
+}
+
 async function fetchTimetable(grade, classNum, targetDate) {
     const ymd = formatDate(targetDate);
     const url = buildNeisUrl('hisTimetable', {
@@ -877,17 +946,40 @@ async function fetchTimetable(grade, classNum, targetDate) {
     });
 
     try {
+        console.debug('Timetable API request', {
+            url,
+            grade,
+            classNum,
+            date: ymd,
+            schoolCode: NEIS_SCHOOL_CODE,
+            officeCode: NEIS_OFFICE_CODE
+        });
+
         const response = await fetch(url);
         if (!response.ok) throw new Error('Timetable API 응답 오류');
         
         const data = await response.json();
+        console.debug('Timetable API raw response JSON', data);
 
         const rows = extractTimetableRows(data);
+        console.debug('Timetable API extracted rows before merge', {
+            count: rows.length,
+            rows
+        });
+
         const uniqueRows = [];
         const seenPeriods = new Set();
+        const skippedRows = [];
 
         rows.forEach(row => {
-            if (!row?.PERIO || seenPeriods.has(row.PERIO)) return;
+            if (!row?.PERIO) {
+                skippedRows.push({ reason: 'missing-period', row });
+                return;
+            }
+            if (seenPeriods.has(row.PERIO)) {
+                skippedRows.push({ reason: 'duplicate-period', row });
+                return;
+            }
 
             seenPeriods.add(row.PERIO);
             uniqueRows.push({
@@ -897,7 +989,19 @@ async function fetchTimetable(grade, classNum, targetDate) {
             });
         });
 
-        return uniqueRows.sort((a, b) => Number(a.period) - Number(b.period));
+        const parsedRows = uniqueRows.sort((a, b) => Number(a.period) - Number(b.period));
+        console.debug('Timetable API parsed rows before merge', {
+            count: parsedRows.length,
+            rows: parsedRows,
+            skippedRows,
+            emptyReason: rows.length === 0
+                ? 'api-response-empty-or-no-row-section'
+                : parsedRows.length === 0
+                    ? 'parsing-or-filtering-removed-all-rows'
+                    : null
+        });
+
+        return parsedRows;
     } catch (e) {
         console.warn('Timetable fetch failed:', e);
         if (!navigator.onLine) {
@@ -938,8 +1042,7 @@ function isNextCalendarDay(baseDate, targetDate) {
 }
 
 function formatTimetableDateLabel(targetDate) {
-    const weekdays = ['\uC77C', '\uC6D4', '\uD654', '\uC218', '\uBAA9', '\uAE08', '\uD1A0'];
-    return `${targetDate.getMonth() + 1}/${targetDate.getDate()} (${weekdays[targetDate.getDay()]})`;
+    return `${targetDate.getMonth() + 1}/${targetDate.getDate()} (${TIMETABLE_DAYS[targetDate.getDay()]})`;
 }
 
 function renderTimetableSection(title, targetDate, rows) {
@@ -1017,15 +1120,16 @@ function renderTimetableRows(rows, targetDate, titleText = '오늘 시간표') {
         return '<div class="timetable-empty">데이터를 불러오지 못했습니다.</div>';
     }
 
-    const normalizedRows = applyFridayFreePeriods(rows, targetDate);
+    const normalizedRows = rows;
     if (normalizedRows.length === 0) {
         return `<div class="timetable-empty">${escapeHTML(titleText)} 정보가 없습니다.</div>`;
     }
 
     return normalizedRows.map(row => `
-        <div class="timetable-row">
+        <div class="timetable-row ${row.source === 'fallback' ? 'is-fallback' : ''}">
             <span class="period">${row.period}교시</span>
             <span class="subject">${escapeHTML(row.subject)}</span>
+            ${row.source === 'fallback' ? '<span class="timetable-source-badge">보정 시간표</span>' : ''}
         </div>
     `).join('');
 }
@@ -1112,6 +1216,65 @@ function toggleTimetableView() {
     updateTimetable();
 }
 
+function getFallbackTimetableRows(classTimetable2026, grade, classNum, targetDate) {
+    const selectedClassKey = `${grade}-${classNum}`;
+    const dayName = TIMETABLE_DAYS[targetDate.getDay()];
+    const subjects = classTimetable2026?.[selectedClassKey]?.[dayName];
+
+    if (!Array.isArray(subjects)) {
+        return [];
+    }
+
+    return TIMETABLE_PERIODS.map((period, index) => ({
+        period,
+        originalSubject: subjects[index] || '',
+        subject: decodeSubject(subjects[index] || '공강'),
+        source: 'fallback'
+    }));
+}
+
+function mergeTimetableWithFallback(neisRows, fallbackRows) {
+    const neisMap = new Map(
+        (Array.isArray(neisRows) ? neisRows : [])
+            .filter(row => row?.period && row?.subject && row.subject !== '공강')
+            .map(row => [Number(row.period), { ...row, source: 'neis' }])
+    );
+    const fallbackMap = new Map(fallbackRows.map(row => [Number(row.period), row]));
+
+    return TIMETABLE_PERIODS.map((period) => {
+        return neisMap.get(period) || fallbackMap.get(period) || {
+            period,
+            originalSubject: '',
+            subject: '공강',
+            source: 'empty'
+        };
+    });
+}
+
+function logTimetableMergeSummary(neisRows, fallbackRows, displayRows) {
+    const neisPeriodsCount = (Array.isArray(neisRows) ? neisRows : [])
+        .filter(row => row?.period && row?.subject && row.subject !== '공강')
+        .length;
+    const fallbackPeriodsCount = (Array.isArray(fallbackRows) ? fallbackRows : [])
+        .filter(row => row?.period && row?.subject && row.subject !== '공강')
+        .length;
+    const finalMergedTimetableCount = (Array.isArray(displayRows) ? displayRows : [])
+        .filter(row => row?.period && row?.subject && row.subject !== '공강')
+        .length;
+    const fallbackPeriods = (Array.isArray(displayRows) ? displayRows : [])
+        .filter(row => row?.source === 'fallback')
+        .map(row => Number(row.period))
+        .sort((a, b) => a - b);
+
+    console.debug('Timetable merge summary', {
+        neisPeriodsCount,
+        fallbackPeriodsCount,
+        finalMergedTimetableCount,
+        fallbackPeriods,
+        fallbackImportStatus: classTimetable2026ImportStatus
+    });
+}
+
 async function updateTimetable() {
     const grade = document.getElementById('grade-select').value;
     const classNum = document.getElementById('class-select').value;
@@ -1137,10 +1300,32 @@ async function updateTimetable() {
     const titleText = showNext ? nextTitle : currentTitle;
     const buttonText = showNext ? currentTitle : nextTitle;
 
-    const rows = await fetchTimetable(grade, classNum, targetDate);
+    const [rows, classTimetable2026] = await Promise.all([
+        fetchTimetable(grade, classNum, targetDate),
+        loadClassTimetable2026()
+    ]);
+    const fallbackRows = getFallbackTimetableRows(classTimetable2026, grade, classNum, targetDate);
+    const displayRows = fallbackRows.length > 0
+        ? mergeTimetableWithFallback(rows, fallbackRows)
+        : rows;
+    console.debug('Timetable render rows', {
+        grade,
+        classNum,
+        date: formatDate(targetDate),
+        schoolCode: NEIS_SCHOOL_CODE,
+        officeCode: NEIS_OFFICE_CODE,
+        fallbackImportStatus: classTimetable2026ImportStatus,
+        rawNeisRows: rows,
+        rawFallbackRows: fallbackRows,
+        finalDisplayRows: displayRows,
+        apiRowsVisibleCount: (Array.isArray(displayRows) ? displayRows : [])
+            .filter(row => row?.source === 'neis')
+            .length
+    });
+    logTimetableMergeSummary(rows, fallbackRows, displayRows);
 
     updateTimetableHeader(titleText, targetDate, buttonText);
-    container.innerHTML = renderTimetableRows(rows, targetDate, titleText);
+    container.innerHTML = renderTimetableRows(displayRows, targetDate, titleText);
     return;
 }
 
