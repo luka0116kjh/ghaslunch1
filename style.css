@@ -298,6 +298,7 @@ body {
 .timetable-row {
     display: flex;
     align-items: center;
+    gap: 10px;
     padding: 14px 0;
     border-bottom: 1px solid var(--border-color);
 }
@@ -315,13 +316,28 @@ body {
     padding: 4px 8px;
     border-radius: 8px;
     text-align: center;
-    margin-right: 16px;
+    flex: 0 0 auto;
 }
 
 .subject {
+    flex: 1 1 auto;
+    min-width: 0;
     font-size: 16px;
     font-weight: 600;
     color: var(--text-main);
+    overflow-wrap: anywhere;
+}
+
+.timetable-source-badge {
+    flex: 0 0 auto;
+    border-radius: 999px;
+    background-color: var(--pill-inactive);
+    color: var(--text-sub);
+    padding: 3px 7px;
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 1.2;
+    white-space: nowrap;
 }
 
 .timetable-section+.timetable-section {

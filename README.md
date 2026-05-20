@@ -1,46 +1,121 @@
-# GHAS 오늘의 급식 (PWA)
+# GHAS 오늘의 급식
 
-경기자동차과학고등학교 학생을 위해 만든 비공식 급식·시간표 안내 웹 앱입니다. Firebase Hosting 기반 PWA로 동작하며, 필요하면 WebView 래퍼를 통해 모바일 앱 형태로도 배포할 수 있습니다.
+경기자동차과학고등학교 학생을 위한 비공식 급식, 시간표, 학사 일정 안내 앱입니다. 기본 서비스는 Firebase Hosting에 배포되는 PWA이며, Android와 iOS는 같은 웹 앱을 WebView로 감싸 모바일 앱 형태로 제공합니다.
 
-> 이 프로젝트는 학교 공식 앱이 아니라 학생이 제작한 정보 제공용 앱입니다.
+> 이 프로젝트는 학교 또는 교육청의 공식 앱이 아닙니다.
 
 ## 주요 기능
 
-- **오늘, 내일, 이번 주 급식 확인**: NEIS 오픈 API에서 급식 정보를 불러와 한눈에 보기 쉽게 정리합니다.
-- **시간표 확인**: NEIS 시간표 데이터를 학생이 이해하기 쉬운 과목명으로 보여줍니다.
-- **PWA 설치 지원**: `manifest.json`과 `sw.js`를 통해 홈 화면 설치와 기본 오프라인 앱 셸을 제공합니다.
-- **다크/라이트 모드**: 시스템 설정을 따르거나 직접 테마를 전환할 수 있습니다.
-- **알림 기능**: 사용자가 알림 권한을 허용하면 브라우저 로컬 알림과 Firebase Cloud Messaging 기반 알림을 사용할 수 있습니다.
-- **방문자 카운터**: Firebase Realtime Database에 익명 누적 방문 수를 기록합니다.
+- 오늘, 내일, 이번 주 급식 조회
+- 학년/반 기반 시간표 조회
+- 2026학년도 주요 학사 일정 표시
+- 학생 코드 이미지 로컬 저장
+- 다크/라이트 테마 저장 및 동기화
+- PWA 설치와 기본 오프라인 앱 셸
+- Firebase Realtime Database 기반 익명 방문자 카운터
+- Android 네이티브 FCM 알림 브리지
+- iOS WebView 래퍼와 테마 브리지
 
-## 구성 요소
+## 프로젝트 구조
 
-- 정적 파일: `index.html`, `script.js`, `sw.js`, `firebase-messaging-sw.js`, `manifest.json`, `icon1.png`
-- NEIS 오픈 API: 급식 및 시간표 데이터 조회
-- Firebase Realtime Database: 방문자 카운터와 알림 토큰 식별자 저장
-- 개인정보처리방침: `/privacy.html`
+```text
+.
+├── index.html                  # 메인 PWA 화면
+├── script.js                   # 급식, 시간표, 일정, 테마, 방문자 카운터 로직
+├── schedule.js                 # 2026학년도 학사 일정 원본
+├── style.css                   # 앱 UI 스타일
+├── notification.js             # 웹/Android 알림 브리지 로직
+├── sw.js                       # PWA 서비스 워커
+├── firebase-messaging-sw.js    # Firebase Messaging 서비스 워커
+├── privacy.html                # 개인정보처리방침
+├── public/                     # Firebase Hosting 배포 산출물
+├── functions/                  # NEIS 프록시용 Firebase Functions
+├── android/                    # Android WebView 앱
+├── ghaslunch/                  # iOS SwiftUI/WKWebView 앱
+├── ios/                        # iOS 운영 체크리스트와 이전 지시 문서
+└── docs/                       # 아키텍처, 배포, 운영 문서
+```
 
-## 보안 메모
+## 기술 스택
 
-- `config.js`는 로컬 개발용 파일이며, Git과 Firebase Hosting 배포 대상에서 제외됩니다.
-- Firebase client config와 FCM VAPID public key는 클라이언트에서 사용하는 공개 식별자입니다. 보안은 키를 숨기는 방식이 아니라 Firebase Rules, Functions secret, 도메인 제한, Play Console 데이터 고지 등으로 관리해야 합니다.
-- 현재 정적 배포 환경에서는 NEIS API를 공개 조회 방식으로 호출합니다. 운영 환경에서 별도 API 키가 필요해지면 Firebase Functions 또는 별도 서버 프록시에서 secret으로 관리하는 방식이 적절합니다.
-- Realtime Database Rules는 전체 공개 쓰기를 허용하지 않으며, 방문자 카운트는 증가 트랜잭션만 허용합니다.
+| 영역 | 사용 기술 |
+| --- | --- |
+| Web/PWA | HTML, CSS, JavaScript, Service Worker |
+| 데이터 | NEIS Open API, Firebase Realtime Database |
+| 배포 | Firebase Hosting |
+| 서버리스 | Firebase Functions v2, Node.js 20 |
+| Android | Gradle, Java, Android WebView, Firebase Messaging |
+| iOS | SwiftUI, WKWebView, FirebaseCore |
 
-## 배포 전 확인
+## 로컬 개발
 
-```powershell
-node --check script.js
-node --check sw.js
-node --check firebase-messaging-sw.js
+필요 도구:
+
+- Node.js
+- npm
+- Firebase CLI 또는 `npx firebase-tools`
+- Android Studio
+- Xcode 16 이상 권장
+
+웹 배포 파일 생성:
+
+```sh
 npm run build
+```
+
+Firebase 배포:
+
+```sh
+npm run deploy:hosting
+npm run deploy:functions
+```
+
+Hosting, Database Rules를 함께 배포할 때:
+
+```sh
 firebase deploy --only "hosting,database"
 ```
 
-## Google Play 업로드 전 확인
+## 검증 명령
 
-- Play Console의 앱 콘텐츠 항목에 개인정보처리방침 URL을 등록합니다.
-- 데이터 보안 섹션에는 알림 토큰 식별자, 방문자 카운트, 앱 설정 저장 여부를 실제 동작 기준으로 정확하게 입력합니다.
-- WebView 래퍼에서는 카메라, 마이크, 위치 등 불필요한 권한을 선언하지 않습니다.
-- 외부 링크는 기본 브라우저 또는 Custom Tabs로 열고, WebView 뒤로가기와 네트워크 오류 화면을 함께 구현합니다.
-- 앱 설명에는 학교 공식 앱이 아닌 비공식 정보 제공 앱이라는 문구를 포함합니다.
+```sh
+node --check script.js
+node --check schedule.js
+node --check notification.js
+node --check sw.js
+node --check firebase-messaging-sw.js
+npm run build
+```
+
+Android는 `android/` 폴더를 Android Studio로 열어 Gradle Sync 후 빌드합니다.
+
+iOS는 `ghaslunch/ghaslunch.xcodeproj`를 Xcode로 열고 `ghaslunch` scheme을 빌드합니다.
+
+## 환경과 설정
+
+- Firebase 프로젝트 ID: `ghaslunch1`
+- 현재 운영 URL: `https://ghaslunch1.web.app/`
+- 미검증 후보 URL: `https://ghaslunch.web.app/`
+- Firebase 보조 URL: `https://ghaslunch1.firebaseapp.com/`
+- NEIS 교육청 코드: `J10`
+- NEIS 학교 코드: `7530908`
+- Android applicationId: `kr.hs.ghas.ghason`
+- iOS bundle identifier: `kr.hs.ghas.lunch`
+
+Firebase client config와 FCM VAPID public key는 브라우저에서 쓰는 공개 식별자입니다. 비밀값은 Firebase Rules, Functions secret, 콘솔 설정, 도메인 제한으로 보호합니다.
+
+## 문서
+
+- [아키텍처](docs/ARCHITECTURE.md)
+- [배포와 운영](docs/DEPLOYMENT.md)
+- [Android 앱](android/README.md)
+- [iOS 앱](ghaslunch/README.md)
+- [iOS Firebase 체크리스트](ios/FIREBASE_IOS_TEST_CHECKLIST.md)
+
+## 보안 메모
+
+- `config.js`, keystore, signing property, `local.properties`는 커밋하지 않습니다.
+- Realtime Database는 전체 공개 쓰기를 막고, 방문자 수는 증가 트랜잭션만 허용합니다.
+- `tokens`와 `notificationTokens` 쓰기는 현재 차단되어 있습니다.
+- Hosting은 CSP, HSTS, Referrer-Policy, Permissions-Policy를 설정합니다.
+- iOS 알림 권한 요청은 현재 비활성화 상태입니다.

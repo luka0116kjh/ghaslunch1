@@ -8,6 +8,8 @@ iosver/GHASLunchConfig.swift
 firebase-debug.log*
 
 # Android local build/signing secrets
+android/.gradle/
+.gradle/
 android/local.properties
 android/**/google-services.json
 android/**/*.keystore
