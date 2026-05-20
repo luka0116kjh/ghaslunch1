@@ -4,7 +4,7 @@
   "description": "경기자동차과학고 급식 및 시간표 PWA",
   "scripts": {
     "build": "npm run build:hosting",
-    "build:hosting": "mkdir -p public/.well-known && cp index.html script.js style.css schedule.js privacy.html privacy-theme.js sw.js firebase-messaging-sw.js notification.js manifest.json logo.svg icon-192.png icon1.png public/ && cp .well-known/assetlinks.json public/.well-known/",
+    "build:hosting": "mkdir -p public/.well-known && cp index.html script.js style.css schedule.js privacy.html privacy-theme.js sw.js firebase-messaging-sw.js notification.js manifest.json logo.svg icon-192.png icon1.png favicon.png apple-touch-icon.png public/ && cp .well-known/assetlinks.json public/.well-known/",
     "deploy": "npx --yes firebase-tools@15.15.0 deploy",
     "deploy:hosting": "npx --yes firebase-tools@15.15.0 deploy --only hosting",
     "deploy:functions": "npx --yes firebase-tools@15.15.0 deploy --only functions"

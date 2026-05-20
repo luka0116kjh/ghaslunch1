@@ -17,7 +17,7 @@ struct PrivacyPolicyView: View {
                 )
 
                 InfoCard {
-                    Text("GHAS 오늘의 급식은 경기자동차과학고등학교 학생의 급식, 시간표 및 일정표 확인을 돕기 위해 제작된 비공식 정보 제공 앱입니다. 본 앱은 학교 또는 교육청의 공식 앱이 아닙니다.")
+                    Text("GHAS알리미는 경기자동차과학고등학교 학생의 급식, 시간표 및 일정표 확인을 돕기 위해 제작된 비공식 정보 제공 앱입니다. 본 앱은 학교 또는 교육청의 공식 앱이 아닙니다.")
                         .font(.system(size: 15, weight: .regular))
                         .lineSpacing(5)
                         .foregroundStyle(AppTheme.text(scheme).opacity(0.9))
@@ -115,8 +115,14 @@ struct PrivacyPolicyView: View {
                 .foregroundStyle(AppTheme.subText(scheme).opacity(0.75))
                 .multilineTextAlignment(.center)
 
+            Text("© 2026 Kim Jin-hyeong. All rights reserved.")
+                .font(.system(size: 10))
+                .lineSpacing(3)
+                .foregroundStyle(AppTheme.subText(scheme).opacity(0.75))
+                .multilineTextAlignment(.center)
+
             HStack(spacing: 8) {
-                Text("GHAS 오늘의 급식")
+                Text("GHAS알리미")
                 Link("GITHUB: luka", destination: URL(string: "https://github.com/luka0116kjh")!)
             }
             .font(.system(size: 12, weight: .semibold))

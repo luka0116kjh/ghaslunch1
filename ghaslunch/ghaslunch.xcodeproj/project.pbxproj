@@ -6,6 +6,10 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		FBAA00000000000000000001 /* FirebaseCore in Frameworks */ = {isa = PBXBuildFile; productRef = FBAA00000000000000000004 /* FirebaseCore */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		A16CB9E72FB61C8300CA31F5 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -28,10 +32,6 @@
 		A16CB9E62FB61C8300CA31F5 /* ghaslunchTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ghaslunchTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		A16CB9F02FB61C8300CA31F5 /* ghaslunchUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ghaslunchUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
-
-/* Begin PBXBuildFile section */
-		FBAA00000000000000000001 /* FirebaseCore in Frameworks */ = {isa = PBXBuildFile; productRef = FBAA00000000000000000004 /* FirebaseCore */; };
-/* End PBXBuildFile section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		A16CB9DB2FB61C8100CA31F5 /* ghaslunch */ = {
@@ -277,25 +277,6 @@
 		};
 /* End PBXTargetDependency section */
 
-/* Begin XCSwiftPackageProductDependency section */
-		FBAA00000000000000000004 /* FirebaseCore */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = FBAA00000000000000000003 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
-			productName = FirebaseCore;
-		};
-/* End XCSwiftPackageProductDependency section */
-
-/* Begin XCRemoteSwiftPackageReference section */
-		FBAA00000000000000000003 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/firebase/firebase-ios-sdk.git";
-			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 12.13.0;
-			};
-		};
-/* End XCRemoteSwiftPackageReference section */
-
 /* Begin XCBuildConfiguration section */
 		A16CB9F82FB61C8300CA31F5 /* Debug */ = {
 			isa = XCBuildConfiguration;
@@ -423,9 +404,10 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 7QW78Y4R8H;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_CFBundleDisplayName = "GHAS 오늘의 급식";
+				INFOPLIST_KEY_CFBundleDisplayName = "GHAS알리미";
 				INFOPLIST_KEY_NSCameraUsageDescription = "학생 고유코드 QR/바코드 사진을 촬영해 바코드를 만들기 위해 카메라 접근이 필요합니다.";
 				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "학생 고유코드 QR/바코드 사진을 선택해 바코드를 만들기 위해 사진 보관함 접근이 필요합니다.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -457,9 +439,10 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 7QW78Y4R8H;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_CFBundleDisplayName = "GHAS 오늘의 급식";
+				INFOPLIST_KEY_CFBundleDisplayName = "GHAS알리미";
 				INFOPLIST_KEY_NSCameraUsageDescription = "학생 고유코드 QR/바코드 사진을 촬영해 바코드를 만들기 위해 카메라 접근이 필요합니다.";
 				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "학생 고유코드 QR/바코드 사진을 선택해 바코드를 만들기 위해 사진 보관함 접근이 필요합니다.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -604,6 +587,25 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		FBAA00000000000000000003 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/firebase/firebase-ios-sdk.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 12.13.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		FBAA00000000000000000004 /* FirebaseCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = FBAA00000000000000000003 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseCore;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = A16CB9D12FB61C8100CA31F5 /* Project object */;
 }
