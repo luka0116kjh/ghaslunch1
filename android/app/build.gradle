@@ -14,7 +14,27 @@ def signingProperty = { name ->
     if (project.hasProperty(name)) {
         return project.property(name)
     }
-    return localProperties.getProperty(name)
+    def localValue = localProperties.getProperty(name)
+    if (localValue) {
+        return localValue
+    }
+    return System.getenv(name)
+}
+
+def releaseStoreFile = signingProperty("GHAS_RELEASE_STORE_FILE")
+def releaseStorePassword = signingProperty("GHAS_RELEASE_STORE_PASSWORD")
+def releaseKeyAlias = signingProperty("GHAS_RELEASE_KEY_ALIAS")
+def releaseKeyPassword = signingProperty("GHAS_RELEASE_KEY_PASSWORD")
+
+def requireReleaseSigning = {
+    if (!releaseStoreFile || !releaseStorePassword || !releaseKeyAlias || !releaseKeyPassword) {
+        throw new GradleException("Release signing is not configured. Set GHAS_RELEASE_STORE_FILE, GHAS_RELEASE_STORE_PASSWORD, GHAS_RELEASE_KEY_ALIAS, and GHAS_RELEASE_KEY_PASSWORD in android/local.properties, Gradle properties, or environment variables.")
+    }
+
+    def resolvedStoreFile = rootProject.file(releaseStoreFile)
+    if (!resolvedStoreFile.isFile()) {
+        throw new GradleException("Release signing store file does not exist: ${resolvedStoreFile}")
+    }
 }
 
 android {
@@ -31,11 +51,6 @@ android {
 
     signingConfigs {
         release {
-            def releaseStoreFile = signingProperty("GHAS_RELEASE_STORE_FILE")
-            def releaseStorePassword = signingProperty("GHAS_RELEASE_STORE_PASSWORD")
-            def releaseKeyAlias = signingProperty("GHAS_RELEASE_KEY_ALIAS")
-            def releaseKeyPassword = signingProperty("GHAS_RELEASE_KEY_PASSWORD")
-
             if (releaseStoreFile && releaseStorePassword && releaseKeyAlias && releaseKeyPassword) {
                 storeFile rootProject.file(releaseStoreFile)
                 storePassword releaseStorePassword
@@ -62,6 +77,13 @@ android {
 }
 
 dependencies {
+    implementation "androidx.activity:activity:1.12.1"
     implementation platform("com.google.firebase:firebase-bom:34.7.0")
     implementation "com.google.firebase:firebase-messaging"
+}
+
+tasks.matching { it.name in ["preReleaseBuild", "assembleRelease", "bundleRelease", "packageReleaseBundle", "validateSigningRelease"] }.configureEach {
+    doFirst {
+        requireReleaseSigning()
+    }
 }

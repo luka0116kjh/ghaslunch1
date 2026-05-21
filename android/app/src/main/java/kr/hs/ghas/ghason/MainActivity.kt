@@ -17,20 +17,30 @@ import android.view.ViewGroup
 import android.webkit.WebResourceError
 import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
+import android.webkit.ValueCallback
+import android.webkit.WebChromeClient
 import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.Toast
+import androidx.activity.ComponentActivity
+import androidx.activity.OnBackPressedCallback
+import androidx.activity.result.ActivityResultLauncher
+import androidx.activity.result.contract.ActivityResultContracts
 import com.google.firebase.messaging.FirebaseMessaging
 
-class MainActivity : Activity() {
+class MainActivity : ComponentActivity() {
     private lateinit var webView: WebView
     private lateinit var preferences: SharedPreferences
+    private lateinit var fileChooserLauncher: ActivityResultLauncher<Intent>
+    private lateinit var notificationPermissionLauncher: ActivityResultLauncher<String>
     private val nativeBridge by lazy { NativeNotificationBridge(this) }
+    private var fileChooserCallback: ValueCallback<Array<Uri>>? = null
     private var bridgeAttached = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        registerActivityResultLaunchers()
         createNotificationChannel()
 
         preferences = getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
@@ -41,11 +51,54 @@ class MainActivity : Activity() {
             )
             configureSettings(settings)
             webViewClient = createWebViewClient()
+            webChromeClient = createWebChromeClient()
         }
 
         setContentView(webView)
+        registerBackHandler()
         updateNativeBridge(APP_URL)
         webView.loadUrl(APP_URL)
+    }
+
+    private fun registerBackHandler() {
+        onBackPressedDispatcher.addCallback(
+            this,
+            object : OnBackPressedCallback(true) {
+                override fun handleOnBackPressed() {
+                    if (::webView.isInitialized && webView.canGoBack()) {
+                        webView.goBack()
+                    } else {
+                        finish()
+                    }
+                }
+            }
+        )
+    }
+
+    private fun registerActivityResultLaunchers() {
+        fileChooserLauncher = registerForActivityResult(
+            ActivityResultContracts.StartActivityForResult()
+        ) { result ->
+            val results = if (result.resultCode == Activity.RESULT_OK) {
+                result.data?.let { collectFileChooserResults(it) } ?: emptyArray()
+            } else {
+                null
+            }
+            fileChooserCallback?.onReceiveValue(results)
+            fileChooserCallback = null
+        }
+
+        notificationPermissionLauncher = registerForActivityResult(
+            ActivityResultContracts.RequestPermission()
+        ) { granted ->
+            if (granted) {
+                subscribeToMealNotifications()
+            } else {
+                updateWebNotificationState(false)
+                Toast.makeText(this, R.string.notification_permission_denied, Toast.LENGTH_SHORT)
+                    .show()
+            }
+        }
     }
 
     private fun configureSettings(settings: WebSettings) {
@@ -91,6 +144,49 @@ class MainActivity : Activity() {
             ) {
                 if (request.isForMainFrame) {
                     Log.e(TAG, "HTTP ${errorResponse.statusCode} while loading ${request.url}")
+                }
+            }
+        }
+    }
+
+    private fun createWebChromeClient(): WebChromeClient {
+        return object : WebChromeClient() {
+            override fun onShowFileChooser(
+                webView: WebView,
+                filePathCallback: ValueCallback<Array<Uri>>,
+                fileChooserParams: FileChooserParams
+            ): Boolean {
+                this@MainActivity.fileChooserCallback?.onReceiveValue(null)
+                this@MainActivity.fileChooserCallback = filePathCallback
+
+                val acceptTypes = fileChooserParams.acceptTypes
+                    ?.filter { it.isNotBlank() }
+                    ?.toTypedArray()
+                    ?: emptyArray()
+                val mimeType = acceptTypes.firstOrNull()
+                    ?.takeIf { it != "*/*" }
+                    ?: "image/*"
+
+                val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
+                    addCategory(Intent.CATEGORY_OPENABLE)
+                    type = mimeType
+                    putExtra(Intent.EXTRA_MIME_TYPES, acceptTypes.ifEmpty { arrayOf("image/*") })
+                    putExtra(
+                        Intent.EXTRA_ALLOW_MULTIPLE,
+                        fileChooserParams.mode == FileChooserParams.MODE_OPEN_MULTIPLE
+                    )
+                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                    addFlags(Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION)
+                }
+
+                return try {
+                    fileChooserLauncher.launch(intent)
+                    true
+                } catch (error: ActivityNotFoundException) {
+                    Log.e(TAG, "No activity can choose an image", error)
+                    this@MainActivity.fileChooserCallback = null
+                    filePathCallback.onReceiveValue(null)
+                    false
                 }
             }
         }
@@ -154,10 +250,7 @@ class MainActivity : Activity() {
             checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) !=
             PackageManager.PERMISSION_GRANTED
         ) {
-            requestPermissions(
-                arrayOf(Manifest.permission.POST_NOTIFICATIONS),
-                NOTIFICATION_PERMISSION_REQUEST_CODE
-            )
+            notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
             return
         }
 
@@ -247,36 +340,41 @@ class MainActivity : Activity() {
         getSystemService(NotificationManager::class.java)?.createNotificationChannel(channel)
     }
 
-    override fun onRequestPermissionsResult(
-        requestCode: Int,
-        permissions: Array<out String>,
-        grantResults: IntArray
-    ) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-        if (requestCode != NOTIFICATION_PERMISSION_REQUEST_CODE) {
-            return
+    private fun collectFileChooserResults(data: Intent): Array<Uri> {
+        val result = mutableListOf<Uri>()
+        data.clipData?.let { clipData ->
+            for (index in 0 until clipData.itemCount) {
+                clipData.getItemAt(index)?.uri?.let { uri ->
+                    persistReadPermission(uri)
+                    result += uri
+                }
+            }
         }
 
-        if (grantResults.firstOrNull() == PackageManager.PERMISSION_GRANTED) {
-            subscribeToMealNotifications()
-        } else {
-            updateWebNotificationState(false)
-            Toast.makeText(this, R.string.notification_permission_denied, Toast.LENGTH_SHORT)
-                .show()
+        data.data?.let { uri ->
+            persistReadPermission(uri)
+            result += uri
         }
+
+        return result.distinct().toTypedArray()
     }
 
-    @Suppress("DEPRECATION", "OVERRIDE_DEPRECATION")
-    override fun onBackPressed() {
-        if (::webView.isInitialized && webView.canGoBack()) {
-            webView.goBack()
-            return
+    private fun persistReadPermission(uri: Uri) {
+        try {
+            contentResolver.takePersistableUriPermission(
+                uri,
+                Intent.FLAG_GRANT_READ_URI_PERMISSION
+            )
+        } catch (error: SecurityException) {
+            Log.d(TAG, "Read permission is transient for $uri")
+        } catch (error: IllegalArgumentException) {
+            Log.d(TAG, "URI does not support persistable permission: $uri")
         }
-
-        super.onBackPressed()
     }
 
     override fun onDestroy() {
+        fileChooserCallback?.onReceiveValue(null)
+        fileChooserCallback = null
         if (::webView.isInitialized) {
             webView.destroy()
         }
@@ -289,7 +387,6 @@ class MainActivity : Activity() {
 
         private const val APP_URL = "https://ghaslunch1.web.app/"
         private const val KEY_THEME = "theme"
-        private const val NOTIFICATION_PERMISSION_REQUEST_CODE = 1001
         private const val PREFS_NAME = "ghas_lunch_preferences"
         private const val TAG = "GHASLunch"
     }

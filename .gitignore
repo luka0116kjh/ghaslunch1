@@ -6,6 +6,8 @@ iosver/GHASLunchConfig.swift
 # Firebase
 .firebase/
 firebase-debug.log*
+**/google-services.json
+**/GoogleService-Info.plist
 
 # Android local build/signing secrets
 android/.gradle/
@@ -19,8 +21,18 @@ android/local.properties
 android/**/google-services.json
 android/**/*.keystore
 android/**/*.jks
+*.jks
+*.keystore
+*.p12
+*.p8
+*.pem
+*.key
+upload-key.zip
 android/**/*keystore*.properties
 android/**/*signing*.properties
+*password*
+*private*
+*secret*
 *.apk
 *.aab
 
