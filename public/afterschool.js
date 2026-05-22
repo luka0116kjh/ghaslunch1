@@ -1,26 +1,36 @@
 (function () {
-    const TEACHER_FALLBACK_TEXT = "담당 교사 정보 준비중";
     const SECTION_ID = "after-school-section";
+    const UPDATE_NOTICE_TEXT = "방과후 수업 정보는 업데이트 중입니다.";
+    const DAY_LABELS = ["월", "화", "수", "목", "금"];
+    const DATA_VERSION = "2026-05-22-file-ready";
     let selectedProgramName = "";
 
-    const afterSchoolPrograms = [
-        { name: "공학리더반", teacher: null },
-        { name: "오토테크니션기초A반", teacher: null },
-        { name: "오토테크니션기초B반", teacher: null },
-        { name: "오토테크니션기초C반", teacher: null },
-        { name: "오토테크니션심화A반", teacher: null },
-        { name: "오토테크니션심화B반", teacher: null },
-        { name: "오토테크니션심화C반", teacher: null },
-        { name: "바디페인팅심화반", teacher: null },
-        { name: "바디리페어심화반", teacher: null },
-        { name: "컴퓨터활용기초반", teacher: null },
-        { name: "웹프로그래밍기초반", teacher: null },
-        { name: "웹프로그래밍심화반", teacher: null },
-        { name: "그래픽디자인반", teacher: null },
-        { name: "전기기능심화반", teacher: null },
-        { name: "컴퓨터활용기초(1-8)", teacher: null }
-    ];
+    const afterSchoolData = {
+        version: DATA_VERSION,
+        status: "updating",
+        programs: [
+            { name: "공학리더반", classroom: null, days: [] },
+            { name: "오토테크니션기초A반", classroom: null, days: [] },
+            { name: "오토테크니션기초B반", classroom: null, days: [] },
+            { name: "오토테크니션기초C반", classroom: null, days: [] },
+            { name: "오토테크니션심화A반", classroom: null, days: [] },
+            { name: "오토테크니션심화B반", classroom: null, days: [] },
+            { name: "오토테크니션심화C반", classroom: null, days: [] },
+            { name: "바디페인팅심화반", classroom: null, days: [] },
+            { name: "바디리페어심화반", classroom: null, days: [] },
+            { name: "컴퓨터활용기초반", classroom: null, days: [] },
+            { name: "웹프로그래밍기초반", classroom: null, days: [] },
+            { name: "웹프로그래밍심화반", classroom: null, days: [] },
+            { name: "그래픽디자인반", classroom: null, days: [] },
+            { name: "전기기능심화반", classroom: null, days: [] },
+            { name: "컴퓨터활용기초(1-8)", classroom: null, days: [] }
+        ]
+    };
 
+    const afterSchoolPrograms = afterSchoolData.programs
+        .filter((program) => !String(program.name || "").includes("성합"));
+
+    window.afterSchoolData = afterSchoolData;
     window.afterSchoolPrograms = afterSchoolPrograms;
 
     function removeExistingSection() {
@@ -54,10 +64,35 @@
         select.value = selectedProgramName;
         select.addEventListener("change", () => {
             selectedProgramName = select.value;
-            updateSelectedProgramTeacher();
+            updateSelectedProgramDetails();
         });
 
         return select;
+    }
+
+    function createUpdateNotice() {
+        const notice = document.createElement("p");
+        notice.className = "after-school-notice";
+        notice.textContent = UPDATE_NOTICE_TEXT;
+        return notice;
+    }
+
+    function createDayChips(program) {
+        const days = new Set((program?.days || []).map((day) => String(day).trim()));
+        const wrap = document.createElement("div");
+        wrap.id = "after-school-day-chips";
+        wrap.className = "after-school-day-chips";
+        wrap.setAttribute("aria-label", "방과후 수업 요일");
+
+        DAY_LABELS.forEach((day) => {
+            const chip = document.createElement("span");
+            const active = days.has(day);
+            chip.className = `after-school-day-chip${active ? " active" : ""}`;
+            chip.textContent = day;
+            wrap.append(chip);
+        });
+
+        return wrap;
     }
 
     function createSelectedProgramRow(program) {
@@ -68,21 +103,28 @@
         name.className = "subject";
         name.textContent = program?.name || "방과후 수업을 선택해 주세요";
 
-        const teacher = document.createElement("span");
-        teacher.className = "timetable-source-badge";
-        teacher.textContent = program ? program.teacher || TEACHER_FALLBACK_TEXT : "선택 필요";
+        const status = document.createElement("span");
+        status.className = "timetable-source-badge after-school-status-badge";
+        status.textContent = program ? "방과후 있음" : "선택 필요";
 
-        row.append(name, teacher);
+        const classroom = document.createElement("span");
+        classroom.className = "timetable-source-badge";
+        classroom.textContent = program ? program.classroom || "교실 위치 업데이트 중" : "교실 위치";
+
+        row.append(name, status, classroom);
         return row;
     }
 
-    function updateSelectedProgramTeacher() {
+    function updateSelectedProgramDetails() {
         const result = document.getElementById("after-school-selected-result");
-        if (!result) {
-            return;
+        if (result) {
+            result.replaceChildren(createSelectedProgramRow(getSelectedProgram()));
         }
 
-        result.replaceChildren(createSelectedProgramRow(getSelectedProgram()));
+        const dayChips = document.getElementById("after-school-day-chips");
+        if (dayChips) {
+            dayChips.replaceWith(createDayChips(getSelectedProgram()));
+        }
     }
 
     function renderAfterSchoolSection() {
@@ -111,7 +153,7 @@
         result.className = "meal-list after-school-list";
         result.append(createSelectedProgramRow(getSelectedProgram()));
 
-        section.append(title, selectorWrap, result);
+        section.append(title, selectorWrap, createDayChips(getSelectedProgram()), createUpdateNotice(), result);
         timetableContainer.append(section);
     }
 

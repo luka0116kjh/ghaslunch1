@@ -28,7 +28,7 @@ struct ContentView: View {
 }
 
 struct GHASLunchWebView: UIViewRepresentable {
-    private let appURL = URL(string: "https://ghaslunch1.web.app/?v=20260520-afterschool-select")!
+    private let appURL = URL(string: "https://ghaslunch1.web.app/?v=20260522-holiday-timetable-fix")!
     private let allowedHosts = Set(["ghaslunch1.web.app", "ghaslunch1.firebaseapp.com"])
     private let themeKey = "theme"
     private let notificationKey = "noti-enabled"

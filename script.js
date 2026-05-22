@@ -113,20 +113,32 @@ function parseScheduleSource(source) {
                 id: `${SCHEDULE_YEAR}-${index}`,
                 startDate: createScheduleDate(startMonth, startDay),
                 endDate: createScheduleDate(endMonth, endDay),
-                title: title.trim()
+                title: normalizeScheduleTitle(title)
             };
         })
         .filter(Boolean)
         .sort((a, b) => a.startDate - b.startDate || a.endDate - b.endDate || a.title.localeCompare(b.title, 'ko'));
 }
 
+function normalizeScheduleTitle(title) {
+    return String(title || '')
+        .trim()
+        .replace(/\s+/g, ' ')
+        .replace(/대체\s*공휴일/g, '대체공휴일')
+        .replace(/대체\s*공유일/g, '대체공유일');
+}
+
+function isHolidayScheduleTitle(title) {
+    return /공휴일|대체공유일|노동절|현충일|추석|개천절|재량휴업일|지방선거|선거/.test(normalizeScheduleTitle(title));
+}
+
 function getScheduleEventName(event) {
-    return event.title || '행사 일정';
+    return normalizeScheduleTitle(event.title) || '행사 일정';
 }
 
 function getScheduleCategory(event) {
     const title = getScheduleEventName(event);
-    if (/공휴일|노동절|현충일|추석|개천절|재량휴업일/.test(title)) return '휴일';
+    if (isHolidayScheduleTitle(title)) return '휴일';
     if (/시험|정기시험|평가|검정|합격|접수/.test(title)) return '시험/검정';
     if (/신입학|입학식|예비소집|원서접수|면접/.test(title)) return '입학/전형';
     return '행사';
@@ -202,6 +214,16 @@ function renderScheduleRow(event) {
             </div>
         </div>
     `;
+}
+
+function getHolidayEventForDate(targetDate) {
+    const day = startOfDay(targetDate);
+
+    return SCHEDULE_EVENTS.find((event) => {
+        const start = startOfDay(event.startDate);
+        const end = startOfDay(event.endDate);
+        return day >= start && day <= end && isHolidayScheduleTitle(event.title);
+    }) || null;
 }
 
 function renderScheduleList() {
@@ -903,7 +925,7 @@ const SUBJECT_ALIASES = {
 };
 
 function cleanTimetableSubject(rawName) {
-    return String(rawName || '').replace(/\*/g, '').trim();
+    return normalizeScheduleTitle(String(rawName || '').replace(/\*/g, '').trim());
 }
 
 function decodeSubject(rawName) {
@@ -1125,13 +1147,19 @@ function renderTimetableRows(rows, targetDate, titleText = '오늘 시간표') {
         return `<div class="timetable-empty">${escapeHTML(titleText)} 정보가 없습니다.</div>`;
     }
 
-    return normalizedRows.map(row => `
-        <div class="timetable-row ${row.source === 'fallback' ? 'is-fallback' : ''}">
-            <span class="period">${row.period}교시</span>
-            <span class="subject">${escapeHTML(row.subject)}</span>
-            ${row.source === 'fallback' ? '<span class="timetable-source-badge">보정 시간표</span>' : ''}
-        </div>
-    `).join('');
+    return normalizedRows.map(row => {
+        if (row.source === 'holiday') {
+            return `<div class="timetable-empty timetable-holiday">${escapeHTML(row.subject)}입니다.</div>`;
+        }
+
+        return `
+            <div class="timetable-row ${row.source === 'fallback' ? 'is-fallback' : ''}">
+                <span class="period">${row.period}교시</span>
+                <span class="subject">${escapeHTML(row.subject)}</span>
+                ${row.source === 'fallback' ? '<span class="timetable-source-badge">보정 시간표</span>' : ''}
+            </div>
+        `;
+    }).join('');
 }
 
 function updateTimetableHeader(titleText, targetDate, nextButtonText) {
@@ -1251,6 +1279,17 @@ function mergeTimetableWithFallback(neisRows, fallbackRows) {
     });
 }
 
+function getTimetableHolidayTitle(targetDate, neisRows) {
+    const apiHolidayRow = (Array.isArray(neisRows) ? neisRows : [])
+        .find(row => isHolidayScheduleTitle(row?.subject || row?.originalSubject));
+    if (apiHolidayRow) {
+        return normalizeScheduleTitle(apiHolidayRow.subject || apiHolidayRow.originalSubject);
+    }
+
+    const scheduleHolidayEvent = getHolidayEventForDate(targetDate);
+    return scheduleHolidayEvent ? getScheduleEventName(scheduleHolidayEvent) : '';
+}
+
 function logTimetableMergeSummary(neisRows, fallbackRows, displayRows) {
     const neisPeriodsCount = (Array.isArray(neisRows) ? neisRows : [])
         .filter(row => row?.period && row?.subject && row.subject !== '공강')
@@ -1304,8 +1343,13 @@ async function updateTimetable() {
         fetchTimetable(grade, classNum, targetDate),
         loadClassTimetable2026()
     ]);
-    const fallbackRows = getFallbackTimetableRows(classTimetable2026, grade, classNum, targetDate);
-    const displayRows = fallbackRows.length > 0
+    const holidayTitle = getTimetableHolidayTitle(targetDate, rows);
+    const fallbackRows = holidayTitle
+        ? []
+        : getFallbackTimetableRows(classTimetable2026, grade, classNum, targetDate);
+    const displayRows = holidayTitle
+        ? [{ subject: holidayTitle, source: 'holiday' }]
+        : fallbackRows.length > 0
         ? mergeTimetableWithFallback(rows, fallbackRows)
         : rows;
     console.debug('Timetable render rows', {
@@ -1317,6 +1361,7 @@ async function updateTimetable() {
         fallbackImportStatus: classTimetable2026ImportStatus,
         rawNeisRows: rows,
         rawFallbackRows: fallbackRows,
+        holidayTitle,
         finalDisplayRows: displayRows,
         apiRowsVisibleCount: (Array.isArray(displayRows) ? displayRows : [])
             .filter(row => row?.source === 'neis')
@@ -1437,12 +1482,22 @@ function applyThemePreference(theme) {
     }
 }
 
+function animateThemeButton() {
+    const themeBtn = document.getElementById('btn-theme');
+    if (!themeBtn) return;
+
+    themeBtn.classList.remove('theme-toggle-animate');
+    void themeBtn.offsetWidth;
+    themeBtn.classList.add('theme-toggle-animate');
+}
+
 function toggleTheme() {
     const body = document.body;
     const isDark = body.classList.contains('dark-theme') ||
         (!body.classList.contains('light-theme') && window.matchMedia('(prefers-color-scheme: dark)').matches);
     const nextTheme = isDark ? 'light' : 'dark';
 
+    animateThemeButton();
     applyThemePreference(nextTheme);
     saveThemePreference(nextTheme);
 }

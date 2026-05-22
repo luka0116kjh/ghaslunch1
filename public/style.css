@@ -200,6 +200,14 @@ body {
     padding: 10px 12px;
 }
 
+.btn-group #btn-theme {
+    transform-origin: center;
+}
+
+.btn-group #btn-theme.theme-toggle-animate {
+    animation: themeToggleBounce 0.32s ease;
+}
+
 .btn-group #btn-noti.active {
     color: var(--primary-text);
     background-color: var(--primary-color);
@@ -369,6 +377,11 @@ body {
     color: var(--text-sub);
 }
 
+.timetable-holiday {
+    color: var(--text-main);
+    font-weight: 700;
+}
+
 #timetable-container .meal-card>.meal-type {
     display: none;
 }
@@ -407,6 +420,55 @@ body {
     font-size: 13px;
     font-weight: 600;
     color: var(--text-sub);
+}
+
+.after-school-selector {
+    margin-bottom: 8px;
+}
+
+.after-school-day-chips {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin: 0 0 6px;
+}
+
+.after-school-day-chip {
+    min-width: 28px;
+    border-radius: 999px;
+    background-color: var(--pill-inactive);
+    color: var(--pill-text-inactive);
+    padding: 4px 8px;
+    text-align: center;
+    font-size: 11px;
+    font-weight: 800;
+    line-height: 1.2;
+    opacity: 0.46;
+}
+
+.after-school-day-chip.active {
+    background-color: var(--primary-color);
+    color: var(--primary-text);
+    opacity: 1;
+}
+
+.after-school-notice {
+    margin: 0 0 8px;
+    color: var(--text-sub);
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 1.45;
+}
+
+.after-school-list .after-school-row {
+    align-items: flex-start;
+    flex-wrap: wrap;
+    padding-bottom: 0;
+}
+
+.after-school-status-badge {
+    color: var(--primary-text);
+    background-color: var(--primary-color);
 }
 
 /* Schedule UI */
@@ -581,6 +643,20 @@ body {
     }
 }
 
+@keyframes themeToggleBounce {
+    0% {
+        transform: scale(1) rotate(0deg);
+    }
+
+    45% {
+        transform: scale(1.16) rotate(14deg);
+    }
+
+    100% {
+        transform: scale(1) rotate(0deg);
+    }
+}
+
 .meal-card {
     animation: fadeIn 0.4s ease forwards;
 }
@@ -658,7 +734,7 @@ body {
     background-color: var(--card-bg);
     border-radius: 24px;
     box-shadow: var(--shadow);
-    padding: 24px;
+    padding: 20px;
     animation: fadeIn 0.25s ease forwards;
 }
 
@@ -667,7 +743,7 @@ body {
     align-items: center;
     justify-content: space-between;
     gap: 12px;
-    margin-bottom: 18px;
+    margin-bottom: 12px;
 }
 
 .modal-title {
@@ -689,8 +765,8 @@ body {
 .field-group {
     display: flex;
     flex-direction: column;
-    gap: 8px;
-    margin-bottom: 14px;
+    gap: 6px;
+    margin-bottom: 8px;
 }
 
 .file-input {
@@ -703,19 +779,29 @@ body {
     border-radius: 18px;
     background-color: var(--primary-color);
     color: var(--primary-text);
-    padding: 18px 16px;
-    font-size: 17px;
+    padding: 14px 16px;
+    font-size: 16px;
     font-weight: 800;
     text-align: center;
     cursor: pointer;
 }
 
+.upload-help {
+    margin: 0;
+    color: var(--text-sub);
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 1.45;
+    text-align: center;
+}
+
 .upload-status {
     min-height: 18px;
-    margin: -6px 0 0;
+    margin: 0;
     font-size: 12px;
     line-height: 1.5;
     color: var(--text-sub);
+    text-align: center;
 }
 
 .student-card {
@@ -727,11 +813,11 @@ body {
 }
 
 .student-card-placeholder {
-    min-height: 180px;
+    min-height: 132px;
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 28px 18px;
+    padding: 18px 14px;
     text-align: center;
     color: #777777;
     font-size: 14px;
@@ -740,17 +826,17 @@ body {
 }
 
 .student-card-image {
-    min-height: 180px;
-    padding: 12px;
+    min-height: 0;
+    padding: 0;
     overflow: hidden;
 }
 
 .student-card-image img {
     display: block;
     width: 100%;
-    max-height: 360px;
+    max-height: min(60vh, 360px);
     object-fit: contain;
-    border-radius: 12px;
+    border-radius: 0;
 }
 
 @media (min-width: 768px) {

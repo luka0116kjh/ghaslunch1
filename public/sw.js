@@ -2,12 +2,14 @@
 // is being moved to native FirebaseMessagingService-based FCM.
 // Keep this service worker focused on app shell caching only.
 
-const CACHE_NAME = 'ghas-lunch-v37';
+const CACHE_NAME = 'ghas-lunch-v39';
 const ASSETS = [
     './',
     './index.html',
     './schedule.js',
     './script.js',
+    './afterschool.js',
+    './style.css',
     './src/data/classTimetable2026.js',
     './icon-192.png',
     './icon1.png',
@@ -55,7 +57,7 @@ self.addEventListener('fetch', (event) => {
     // 같은 출처의 기본 에셋 요청에 대해서만 캐시 업데이트 (Stale-While-Revalidate)
     if (
         event.request.mode === 'navigate' ||
-        ['/index.html', '/schedule.js', '/script.js', '/privacy-theme.js', '/manifest.json', '/src/data/classTimetable2026.js'].includes(requestUrl.pathname)
+        ['/index.html', '/schedule.js', '/script.js', '/afterschool.js', '/style.css', '/privacy-theme.js', '/manifest.json', '/src/data/classTimetable2026.js'].includes(requestUrl.pathname)
     ) {
         event.respondWith(
             fetch(event.request).then((networkResponse) => {
