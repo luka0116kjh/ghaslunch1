@@ -412,8 +412,8 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = "GHAS 알리미";
-				INFOPLIST_KEY_NSCameraUsageDescription = "학생 고유코드 QR/바코드 사진을 촬영해 바코드를 만들기 위해 카메라 접근이 필요합니다.";
-				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "학생 고유코드 QR/바코드 사진을 선택해 바코드를 만들기 위해 사진 보관함 접근이 필요합니다.";
+				INFOPLIST_KEY_NSCameraUsageDescription = "학생 고유코드 QR/바코드 사진을 촬영하기 위해 카메라 접근이 필요합니다.";
+				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "학생 고유코드 QR/바코드 사진을 선택하기 위해 사진 보관함 접근이 필요합니다.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -447,8 +447,8 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = "GHAS 알리미";
-				INFOPLIST_KEY_NSCameraUsageDescription = "학생 고유코드 QR/바코드 사진을 촬영해 바코드를 만들기 위해 카메라 접근이 필요합니다.";
-				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "학생 고유코드 QR/바코드 사진을 선택해 바코드를 만들기 위해 사진 보관함 접근이 필요합니다.";
+				INFOPLIST_KEY_NSCameraUsageDescription = "학생 고유코드 QR/바코드 사진을 촬영하기 위해 카메라 접근이 필요합니다.";
+				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "학생 고유코드 QR/바코드 사진을 선택하기 위해 사진 보관함 접근이 필요합니다.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;

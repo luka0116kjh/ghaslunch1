@@ -41,14 +41,14 @@ extension Color {
 
 struct GHASLunchWebView: UIViewRepresentable {
     private let appURL = URL(string: "https://ghaslunch1.web.app/?v=20260522-holiday-timetable-fix")!
-    private let allowedHosts = Set(["ghaslunch1.web.app", "ghaslunch1.firebaseapp.com"])
+    private let allowedHost = "ghaslunch1.web.app"
     private let themeKey = "theme"
     private let notificationKey = "noti-enabled"
     private let usesPadLayout = UIDevice.current.userInterfaceIdiom == .pad
 
     func makeCoordinator() -> Coordinator {
         Coordinator(
-            allowedHosts: allowedHosts,
+            allowedHost: allowedHost,
             themeKey: themeKey,
             notificationKey: notificationKey,
             usesPadLayout: usesPadLayout
@@ -193,15 +193,14 @@ struct GHASLunchWebView: UIViewRepresentable {
     final class Coordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WKScriptMessageHandler {
         static let messageHandlerName = "ghasNative"
 
-        private let allowedHosts: Set<String>
-        private let allowedExternalSchemes = Set(["https", "mailto"])
+        private let allowedHost: String
         private let themeKey: String
         private let notificationKey: String
         private let usesPadLayout: Bool
         weak var webView: WKWebView?
 
-        init(allowedHosts: Set<String>, themeKey: String, notificationKey: String, usesPadLayout: Bool) {
-            self.allowedHosts = allowedHosts
+        init(allowedHost: String, themeKey: String, notificationKey: String, usesPadLayout: Bool) {
+            self.allowedHost = allowedHost
             self.themeKey = themeKey
             self.notificationKey = notificationKey
             self.usesPadLayout = usesPadLayout
@@ -213,7 +212,8 @@ struct GHASLunchWebView: UIViewRepresentable {
             didReceive message: WKScriptMessage
         ) {
             guard
-                message.frameInfo.securityOrigin.host == "ghaslunch1.web.app",
+                message.frameInfo.securityOrigin.protocol == "https",
+                message.frameInfo.securityOrigin.host == allowedHost,
                 let body = message.body as? [String: Any],
                 let action = body["action"] as? String
             else {
@@ -238,25 +238,21 @@ struct GHASLunchWebView: UIViewRepresentable {
             decisionHandler: @escaping (WKNavigationActionPolicy) -> Void
         ) {
             guard let url = navigationAction.request.url else {
-                decisionHandler(.allow)
+                decisionHandler(.cancel)
                 return
             }
 
             let scheme = url.scheme ?? ""
             let host = url.host ?? ""
 
-            if scheme == "https", allowedHosts.contains(host) {
+            if scheme == "https", host == allowedHost {
                 decisionHandler(.allow)
                 return
             }
 
-            if url.scheme == "about" {
+            if scheme == "about", url.absoluteString == "about:blank" {
                 decisionHandler(.allow)
                 return
-            }
-
-            if allowedExternalSchemes.contains(scheme) {
-                UIApplication.shared.open(url)
             }
 
             decisionHandler(.cancel)
@@ -280,10 +276,8 @@ struct GHASLunchWebView: UIViewRepresentable {
                 let scheme = url.scheme ?? ""
                 let host = url.host ?? ""
 
-                if scheme == "https", allowedHosts.contains(host) {
+                if scheme == "https", host == allowedHost {
                     webView.load(URLRequest(url: url))
-                } else if allowedExternalSchemes.contains(scheme) {
-                    UIApplication.shared.open(url)
                 }
             }
             return nil

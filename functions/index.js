@@ -9,8 +9,6 @@ const SCHOOL_CODE = "7530908";
 const ALLOWED_ORIGINS = new Set([
   "https://ghaslunch1.web.app",
   "https://ghaslunch1.firebaseapp.com",
-  "http://localhost:5000",
-  "http://127.0.0.1:5000",
 ]);
 
 function setCorsHeaders(request, response) {
