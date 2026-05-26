@@ -24,4 +24,9 @@ class NativeNotificationBridge(private val activity: MainActivity) {
 
     @JavascriptInterface
     fun getTheme(): String = activity.getSavedTheme()
+
+    @JavascriptInterface
+    fun cacheNotificationContent(category: String?, date: String?, body: String?) {
+        activity.cacheNotificationContent(category, date, body)
+    }
 }
