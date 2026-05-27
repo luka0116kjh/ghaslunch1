@@ -1,59 +1,31 @@
 package kr.hs.ghas.ghason
 
-import android.app.Notification
-import android.app.NotificationManager
-import android.app.PendingIntent
-import android.content.Intent
-import android.os.Build
+import android.util.Log
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
 
 class GhasFirebaseMessagingService : FirebaseMessagingService() {
     override fun onMessageReceived(message: RemoteMessage) {
-        val title = message.data["title"]
-            ?: message.notification?.title
-            ?: getString(R.string.app_name)
-        val body = message.data["body"]
-            ?: message.notification?.body
-            ?: ""
+        val title = message.data["title"].nonBlankOrNull()
+            ?: message.notification?.title.nonBlankOrNull()
+            ?: getString(R.string.meal_notification_title)
+        val body = message.data["body"].nonBlankOrNull()
+            ?: message.notification?.body.nonBlankOrNull()
+            ?: getString(R.string.meal_notification_body_fallback)
 
-        showNotification(title, body)
+        NativeNotificationScheduler(applicationContext)
+            .displayLegacyMealNotification(title, body)
     }
 
-    private fun showNotification(title: String, body: String) {
-        val intent = Intent(this, MainActivity::class.java).apply {
-            addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
-        }
+    override fun onNewToken(token: String) {
+        super.onNewToken(token)
+        Log.d(TAG, "FCM token refreshed; TODO: sync the token when backend delivery is added.")
+    }
 
-        val flags = PendingIntent.FLAG_ONE_SHOT or
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                PendingIntent.FLAG_IMMUTABLE
-            } else {
-                0
-            }
+    private fun String?.nonBlankOrNull(): String? =
+        this?.trim()?.takeIf { it.isNotEmpty() }
 
-        val pendingIntent = PendingIntent.getActivity(this, 0, intent, flags)
-        val builder = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            Notification.Builder(this, MainActivity.NOTIFICATION_CHANNEL_ID)
-        } else {
-            @Suppress("DEPRECATION")
-            Notification.Builder(this)
-        }
-
-        builder
-            .setSmallIcon(R.drawable.ic_stat_lunch)
-            .setContentTitle(title)
-            .setContentText(body)
-            .setStyle(Notification.BigTextStyle().bigText(body))
-            .setAutoCancel(true)
-            .setContentIntent(pendingIntent)
-
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
-            @Suppress("DEPRECATION")
-            builder.setPriority(Notification.PRIORITY_DEFAULT)
-        }
-
-        val notificationManager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
-        notificationManager.notify(System.currentTimeMillis().toInt(), builder.build())
+    companion object {
+        private const val TAG = "GHASMessaging"
     }
 }

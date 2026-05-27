@@ -2,8 +2,8 @@ package kr.hs.ghas.ghason
 
 import android.Manifest
 import android.app.Activity
-import android.app.NotificationChannel
-import android.app.NotificationManager
+import android.app.AlertDialog
+import android.app.TimePickerDialog
 import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.content.SharedPreferences
@@ -13,7 +13,13 @@ import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.util.Log
+import android.view.Gravity
 import android.view.ViewGroup
+import android.widget.Button
+import android.widget.FrameLayout
+import android.widget.LinearLayout
+import android.widget.ScrollView
+import android.widget.Switch
 import android.webkit.WebResourceError
 import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
@@ -28,6 +34,7 @@ import androidx.activity.OnBackPressedCallback
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
 import com.google.firebase.messaging.FirebaseMessaging
+import java.util.Locale
 
 class MainActivity : ComponentActivity() {
     private lateinit var webView: WebView
@@ -35,13 +42,14 @@ class MainActivity : ComponentActivity() {
     private lateinit var fileChooserLauncher: ActivityResultLauncher<Intent>
     private lateinit var notificationPermissionLauncher: ActivityResultLauncher<String>
     private val nativeBridge by lazy { NativeNotificationBridge(this) }
+    private val notificationScheduler by lazy { NativeNotificationScheduler(applicationContext) }
     private var fileChooserCallback: ValueCallback<Array<Uri>>? = null
     private var bridgeAttached = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         registerActivityResultLaunchers()
-        createNotificationChannel()
+        notificationScheduler.createNotificationChannels()
 
         preferences = getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
         webView = WebView(this).apply {
@@ -54,7 +62,11 @@ class MainActivity : ComponentActivity() {
             webChromeClient = createWebChromeClient()
         }
 
-        setContentView(webView)
+        val contentView = FrameLayout(this).apply {
+            addView(webView)
+            addView(createNotificationSettingsButton())
+        }
+        setContentView(contentView)
         registerBackHandler()
         updateNativeBridge(APP_URL)
         webView.loadUrl(APP_URL)
@@ -92,10 +104,18 @@ class MainActivity : ComponentActivity() {
             ActivityResultContracts.RequestPermission()
         ) { granted ->
             if (granted) {
-                subscribeToMealNotifications()
+                notificationScheduler.scheduleSelectedNotifications()
+                updateWebNotificationState(true)
+                Toast.makeText(this, R.string.notification_enabled, Toast.LENGTH_SHORT).show()
             } else {
+                notificationScheduler.setMasterEnabled(false)
+                notificationScheduler.cancelAllLocalNotifications()
                 updateWebNotificationState(false)
-                Toast.makeText(this, R.string.notification_permission_denied, Toast.LENGTH_SHORT)
+                Toast.makeText(
+                    this,
+                    R.string.notification_permission_denied,
+                    Toast.LENGTH_SHORT
+                )
                     .show()
             }
         }
@@ -244,7 +264,244 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    fun requestMealNotifications() {
+    private fun createNotificationSettingsButton(): Button =
+        Button(this).apply {
+            text = getString(R.string.notification_settings_button)
+            contentDescription = getString(R.string.notification_settings_title)
+            isAllCaps = false
+            elevation = dp(4).toFloat()
+            setOnClickListener { showNotificationSettingsDialog() }
+            layoutParams = FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                Gravity.END or Gravity.BOTTOM
+            ).apply {
+                val margin = dp(16)
+                setMargins(margin, margin, margin, margin)
+            }
+        }
+
+    private fun showNotificationSettingsDialog() {
+        val current = notificationScheduler.settings()
+        var mealTime = current.mealTime
+        var timetableTime = current.timetableTime
+        var schoolNoticeTime = current.schoolNoticeTime
+
+        val content = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(20), dp(8), dp(20), dp(8))
+        }
+        val masterSwitch = createNotificationSwitch(
+            R.string.notification_master_enabled,
+            current.enabled
+        )
+        val mealSwitch = createNotificationSwitch(
+            R.string.notification_meal_enabled,
+            current.mealEnabled
+        )
+        val mealTimeButton = createNotificationTimeButton(
+            R.string.notification_meal_time,
+            mealTime
+        )
+        val timetableSwitch = createNotificationSwitch(
+            R.string.notification_timetable_enabled,
+            current.timetableEnabled
+        )
+        val timetableTimeButton = createNotificationTimeButton(
+            R.string.notification_timetable_time,
+            timetableTime
+        )
+        val schoolNoticeSwitch = createNotificationSwitch(
+            R.string.notification_school_notice_enabled,
+            current.schoolNoticeEnabled
+        )
+        val schoolNoticeTimeButton = createNotificationTimeButton(
+            R.string.notification_school_notice_time,
+            schoolNoticeTime
+        )
+
+        content.addView(masterSwitch)
+        content.addView(mealSwitch)
+        content.addView(mealTimeButton)
+        content.addView(timetableSwitch)
+        content.addView(timetableTimeButton)
+        content.addView(schoolNoticeSwitch)
+        content.addView(schoolNoticeTimeButton)
+
+        fun updateAvailability() {
+            val masterEnabled = masterSwitch.isChecked
+            mealSwitch.isEnabled = masterEnabled
+            timetableSwitch.isEnabled = masterEnabled
+            schoolNoticeSwitch.isEnabled = masterEnabled
+            mealTimeButton.isEnabled = masterEnabled && mealSwitch.isChecked
+            timetableTimeButton.isEnabled = masterEnabled && timetableSwitch.isChecked
+            schoolNoticeTimeButton.isEnabled =
+                masterEnabled && schoolNoticeSwitch.isChecked
+        }
+
+        masterSwitch.setOnCheckedChangeListener { _, _ -> updateAvailability() }
+        mealSwitch.setOnCheckedChangeListener { _, _ -> updateAvailability() }
+        timetableSwitch.setOnCheckedChangeListener { _, _ -> updateAvailability() }
+        schoolNoticeSwitch.setOnCheckedChangeListener { _, _ -> updateAvailability() }
+        mealTimeButton.setOnClickListener {
+            showTimePicker(mealTime) { selectedTime ->
+                mealTime = selectedTime
+                updateNotificationTimeButton(
+                    mealTimeButton,
+                    R.string.notification_meal_time,
+                    selectedTime
+                )
+            }
+        }
+        timetableTimeButton.setOnClickListener {
+            showTimePicker(timetableTime) { selectedTime ->
+                timetableTime = selectedTime
+                updateNotificationTimeButton(
+                    timetableTimeButton,
+                    R.string.notification_timetable_time,
+                    selectedTime
+                )
+            }
+        }
+        schoolNoticeTimeButton.setOnClickListener {
+            showTimePicker(schoolNoticeTime) { selectedTime ->
+                schoolNoticeTime = selectedTime
+                updateNotificationTimeButton(
+                    schoolNoticeTimeButton,
+                    R.string.notification_school_notice_time,
+                    selectedTime
+                )
+            }
+        }
+        updateAvailability()
+
+        AlertDialog.Builder(this)
+            .setTitle(R.string.notification_settings_title)
+            .setView(ScrollView(this).apply { addView(content) })
+            .setNegativeButton(R.string.notification_settings_cancel, null)
+            .setPositiveButton(R.string.notification_settings_save) { _, _ ->
+                updateNativeNotificationSettings(
+                    masterSwitch.isChecked,
+                    mealSwitch.isChecked,
+                    timetableSwitch.isChecked,
+                    schoolNoticeSwitch.isChecked,
+                    mealTime,
+                    timetableTime,
+                    schoolNoticeTime
+                )
+            }
+            .show()
+    }
+
+    private fun createNotificationSwitch(labelResId: Int, checked: Boolean): Switch =
+        Switch(this).apply {
+            text = getString(labelResId)
+            isChecked = checked
+            setPadding(0, dp(8), 0, dp(8))
+        }
+
+    private fun createNotificationTimeButton(labelResId: Int, time: String): Button =
+        Button(this).apply {
+            isAllCaps = false
+            updateNotificationTimeButton(this, labelResId, time)
+        }
+
+    private fun updateNotificationTimeButton(button: Button, labelResId: Int, time: String) {
+        button.text = getString(R.string.notification_time_format, getString(labelResId), time)
+    }
+
+    private fun showTimePicker(time: String, onSelected: (String) -> Unit) {
+        val timeParts = time.split(":")
+        TimePickerDialog(
+            this,
+            { _, hour, minute ->
+                onSelected(String.format(Locale.US, "%02d:%02d", hour, minute))
+            },
+            timeParts[0].toInt(),
+            timeParts[1].toInt(),
+            true
+        ).show()
+    }
+
+    private fun dp(value: Int): Int =
+        (value * resources.displayMetrics.density).toInt()
+
+    fun setNativeNotificationsEnabled(enabled: Boolean) {
+        notificationScheduler.setMasterEnabled(enabled)
+        if (!enabled) {
+            notificationScheduler.cancelAllLocalNotifications()
+            unsubscribeFromLegacyMealTopic()
+            updateWebNotificationState(false)
+            Toast.makeText(this, R.string.notification_disabled, Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        requestNotificationPermissionAndSchedule(showConfirmation = true)
+    }
+
+    fun updateNativeNotificationSettings(
+        enabled: Boolean,
+        mealEnabled: Boolean,
+        timetableEnabled: Boolean,
+        schoolNoticeEnabled: Boolean,
+        mealTime: String?,
+        timetableTime: String?,
+        schoolNoticeTime: String?
+    ) {
+        notificationScheduler.updateSettings(
+            enabled,
+            mealEnabled,
+            timetableEnabled,
+            schoolNoticeEnabled,
+            mealTime,
+            timetableTime,
+            schoolNoticeTime
+        )
+        if (!enabled) {
+            setNativeNotificationsEnabled(false)
+            return
+        }
+
+        requestNotificationPermissionAndSchedule(showConfirmation = false)
+    }
+
+    fun setNativeNotificationCategoryEnabled(categoryKey: String, enabled: Boolean) {
+        val category = NativeNotificationCategory.fromKey(categoryKey) ?: return
+        notificationScheduler.setCategoryEnabled(category, enabled)
+        if (!enabled) {
+            notificationScheduler.cancelCategory(category, cancelVisible = true)
+            return
+        }
+
+        if (notificationScheduler.settings().enabled) {
+            requestNotificationPermissionAndSchedule(showConfirmation = false)
+        }
+    }
+
+    fun setNativeNotificationCategoryTime(categoryKey: String, time: String?): Boolean {
+        val category = NativeNotificationCategory.fromKey(categoryKey) ?: return false
+        val saved = notificationScheduler.setCategoryTime(category, time)
+        if (
+            saved &&
+            notificationScheduler.settings().enabled &&
+            notificationScheduler.canPostNotifications()
+        ) {
+            notificationScheduler.scheduleSelectedNotifications()
+        }
+        return saved
+    }
+
+    fun getNativeNotificationSettings(): String = notificationScheduler.settingsJson()
+
+    fun cacheTodayMealNotificationContent(renderedTitle: String?, body: String?) {
+        notificationScheduler.cacheTodayMealContent(renderedTitle, body)
+    }
+
+    fun cacheTodayTimetableNotificationContent(renderedTitle: String?, body: String?) {
+        notificationScheduler.cacheTodayTimetableContent(renderedTitle, body)
+    }
+
+    private fun requestNotificationPermissionAndSchedule(showConfirmation: Boolean) {
         if (
             Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
             checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) !=
@@ -254,32 +511,19 @@ class MainActivity : ComponentActivity() {
             return
         }
 
-        subscribeToMealNotifications()
+        notificationScheduler.scheduleSelectedNotifications()
+        updateWebNotificationState(true)
+        if (showConfirmation) {
+            Toast.makeText(this, R.string.notification_enabled, Toast.LENGTH_SHORT).show()
+        }
     }
 
-    fun cancelMealNotifications() {
+    private fun unsubscribeFromLegacyMealTopic() {
         FirebaseMessaging.getInstance().unsubscribeFromTopic(NOTIFICATION_TOPIC)
             .addOnCompleteListener { task ->
-                updateWebNotificationState(!task.isSuccessful)
-                val message = if (task.isSuccessful) {
-                    R.string.notification_disabled
-                } else {
-                    R.string.notification_disable_failed
+                if (!task.isSuccessful) {
+                    Log.w(TAG, "Failed to unsubscribe from legacy meal FCM topic", task.exception)
                 }
-                Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
-            }
-    }
-
-    private fun subscribeToMealNotifications() {
-        FirebaseMessaging.getInstance().subscribeToTopic(NOTIFICATION_TOPIC)
-            .addOnCompleteListener { task ->
-                updateWebNotificationState(task.isSuccessful)
-                val message = if (task.isSuccessful) {
-                    R.string.notification_enabled
-                } else {
-                    R.string.notification_enable_failed
-                }
-                Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
             }
     }
 
@@ -324,22 +568,6 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    private fun createNotificationChannel() {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
-            return
-        }
-
-        val channel = NotificationChannel(
-            NOTIFICATION_CHANNEL_ID,
-            getString(R.string.meal_notification_channel_name),
-            NotificationManager.IMPORTANCE_DEFAULT
-        ).apply {
-            description = getString(R.string.meal_notification_channel_description)
-        }
-
-        getSystemService(NotificationManager::class.java)?.createNotificationChannel(channel)
-    }
-
     private fun collectFileChooserResults(data: Intent): Array<Uri> {
         val result = mutableListOf<Uri>()
         data.clipData?.let { clipData ->
@@ -382,7 +610,6 @@ class MainActivity : ComponentActivity() {
     }
 
     companion object {
-        const val NOTIFICATION_CHANNEL_ID = "meal_notifications"
         const val NOTIFICATION_TOPIC = "meal"
 
         private const val APP_URL = "https://ghaslunch1.web.app/"
