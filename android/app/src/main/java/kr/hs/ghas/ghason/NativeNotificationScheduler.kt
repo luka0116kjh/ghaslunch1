@@ -13,6 +13,7 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.util.Log
+import androidx.core.content.edit
 import org.json.JSONObject
 import java.text.SimpleDateFormat
 import java.util.Calendar
@@ -276,8 +277,9 @@ internal class NativeNotificationScheduler(private val context: Context) {
     }
 
     fun displayLegacyMealNotification(title: String?, body: String?) {
-        if (!settings().enabled || !canPostNotifications()) {
-            Log.d(TAG, "Ignored legacy meal FCM notification while notifications are disabled")
+        val current = settings()
+        if (!current.enabled || !current.mealEnabled || !canPostNotifications()) {
+            Log.d(TAG, "Ignored legacy meal FCM notification while meal notifications are disabled")
             return
         }
 
@@ -439,23 +441,23 @@ internal class NativeNotificationScheduler(private val context: Context) {
         value?.trim()?.takeIf { TIME_PATTERN.matches(it) } ?: fallback
 
     private fun persistSettings(settings: NativeNotificationSettings) {
-        preferences.edit()
-            .putBoolean(KEY_MASTER_ENABLED, settings.enabled)
-            .putBoolean(KEY_MEAL_ENABLED, settings.mealEnabled)
-            .putBoolean(KEY_TIMETABLE_ENABLED, settings.timetableEnabled)
-            .putBoolean(KEY_SCHOOL_NOTICE_ENABLED, settings.schoolNoticeEnabled)
-            .putString(KEY_MEAL_TIME, settings.mealTime)
-            .putString(KEY_TIMETABLE_TIME, settings.timetableTime)
-            .putString(KEY_SCHOOL_NOTICE_TIME, settings.schoolNoticeTime)
-            .apply()
+        preferences.edit {
+            putBoolean(KEY_MASTER_ENABLED, settings.enabled)
+            putBoolean(KEY_MEAL_ENABLED, settings.mealEnabled)
+            putBoolean(KEY_TIMETABLE_ENABLED, settings.timetableEnabled)
+            putBoolean(KEY_SCHOOL_NOTICE_ENABLED, settings.schoolNoticeEnabled)
+            putString(KEY_MEAL_TIME, settings.mealTime)
+            putString(KEY_TIMETABLE_TIME, settings.timetableTime)
+            putString(KEY_SCHOOL_NOTICE_TIME, settings.schoolNoticeTime)
+        }
     }
 
     private fun saveTodayCache(dateKey: String, bodyKey: String, body: String?) {
         val normalized = body.normalizedOrNull() ?: return
-        preferences.edit()
-            .putString(dateKey, todayKey())
-            .putString(bodyKey, normalized.take(MAX_CACHED_BODY_LENGTH))
-            .apply()
+        preferences.edit {
+            putString(dateKey, todayKey())
+            putString(bodyKey, normalized.take(MAX_CACHED_BODY_LENGTH))
+        }
     }
 
     private fun readTodayCache(dateKey: String, bodyKey: String): String? {

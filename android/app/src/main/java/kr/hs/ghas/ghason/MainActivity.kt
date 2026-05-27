@@ -1,9 +1,9 @@
 package kr.hs.ghas.ghason
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.app.Activity
 import android.app.AlertDialog
-import android.app.TimePickerDialog
 import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.content.SharedPreferences
@@ -16,10 +16,13 @@ import android.graphics.drawable.GradientDrawable
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.text.InputFilter
+import android.text.InputType
 import android.util.Log
 import android.view.Gravity
 import android.view.ViewGroup
 import android.widget.Button
+import android.widget.EditText
 import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
@@ -39,6 +42,9 @@ import androidx.activity.ComponentActivity
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.edit
+import androidx.core.graphics.toColorInt
+import androidx.core.net.toUri
 import com.google.firebase.messaging.FirebaseMessaging
 import java.util.Locale
 
@@ -59,6 +65,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         registerActivityResultLaunchers()
         notificationScheduler.createNotificationChannels()
+        syncLegacyMealTopicSubscription()
 
         preferences = getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
         webView = WebView(this).apply {
@@ -110,11 +117,13 @@ class MainActivity : ComponentActivity() {
         ) { granted ->
             if (granted) {
                 notificationScheduler.scheduleSelectedNotifications()
+                syncLegacyMealTopicSubscription()
                 updateWebNotificationState(true)
                 Toast.makeText(this, R.string.notification_enabled, Toast.LENGTH_SHORT).show()
             } else {
                 notificationScheduler.setMasterEnabled(false)
                 notificationScheduler.cancelAllLocalNotifications()
+                unsubscribeFromLegacyMealTopic()
                 updateWebNotificationState(false)
                 Toast.makeText(
                     this,
@@ -127,6 +136,7 @@ class MainActivity : ComponentActivity() {
 
     }
 
+    @SuppressLint("SetJavaScriptEnabled")
     private fun configureSettings(settings: WebSettings) {
         settings.javaScriptEnabled = true
         settings.domStorageEnabled = true
@@ -141,7 +151,7 @@ class MainActivity : ComponentActivity() {
 
             @Deprecated("Deprecated by Android WebView, still called on older devices.")
             override fun shouldOverrideUrlLoading(view: WebView, url: String): Boolean {
-                return handleUrl(Uri.parse(url))
+                return handleUrl(url.toUri())
             }
 
             override fun onPageStarted(view: WebView, url: String?, favicon: Bitmap?) {
@@ -241,7 +251,7 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun updateNativeBridge(url: String?) {
-        val trusted = url?.let { isTrustedAppUri(Uri.parse(it)) } ?: false
+        val trusted = url?.let { isTrustedAppUri(it.toUri()) } ?: false
         if (trusted && !bridgeAttached) {
             webView.addJavascriptInterface(nativeBridge, "GHASAndroidApp")
             webView.addJavascriptInterface(nativeBridge, "GHASAndroidNotifications")
@@ -314,7 +324,8 @@ class MainActivity : ComponentActivity() {
 
         val content = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(dp(22), dp(10), dp(22), dp(10))
+            setPadding(dp(22), dp(18), dp(22), dp(10))
+            addView(createDialogTitle(R.string.notification_settings_title, palette))
         }
         val masterSwitch = createNotificationSwitch(
             R.string.notification_master_enabled,
@@ -376,7 +387,7 @@ class MainActivity : ComponentActivity() {
         timetableSwitch.setOnCheckedChangeListener { _, _ -> updateAvailability() }
         schoolNoticeSwitch.setOnCheckedChangeListener { _, _ -> updateAvailability() }
         mealTimeButton.setOnClickListener {
-            showTimePicker(mealTime) { selectedTime ->
+            showTimeInputDialog(mealTime) { selectedTime ->
                 mealTime = selectedTime
                 updateNotificationTimeButton(
                     mealTimeButton,
@@ -386,7 +397,7 @@ class MainActivity : ComponentActivity() {
             }
         }
         timetableTimeButton.setOnClickListener {
-            showTimePicker(timetableTime) { selectedTime ->
+            showTimeInputDialog(timetableTime) { selectedTime ->
                 timetableTime = selectedTime
                 updateNotificationTimeButton(
                     timetableTimeButton,
@@ -396,7 +407,7 @@ class MainActivity : ComponentActivity() {
             }
         }
         schoolNoticeTimeButton.setOnClickListener {
-            showTimePicker(schoolNoticeTime) { selectedTime ->
+            showTimeInputDialog(schoolNoticeTime) { selectedTime ->
                 schoolNoticeTime = selectedTime
                 updateNotificationTimeButton(
                     schoolNoticeTimeButton,
@@ -408,7 +419,6 @@ class MainActivity : ComponentActivity() {
         updateAvailability()
 
         val dialog = AlertDialog.Builder(this)
-            .setTitle(R.string.notification_settings_title)
             .setView(ScrollView(this).apply { addView(content) })
             .setNegativeButton(R.string.notification_settings_cancel, null)
             .setPositiveButton(R.string.notification_settings_save) { _, _ ->
@@ -427,9 +437,6 @@ class MainActivity : ComponentActivity() {
             dialog.window?.setBackgroundDrawable(
                 roundedBackground(palette.surface, palette.border, 24)
             )
-            dialog.findViewById<TextView>(
-                resources.getIdentifier("alertTitle", "id", "android")
-            )?.setTextColor(palette.text)
             dialog.getButton(AlertDialog.BUTTON_POSITIVE)?.setTextColor(palette.accent)
             dialog.getButton(AlertDialog.BUTTON_NEGATIVE)?.setTextColor(palette.accent)
         }
@@ -491,18 +498,141 @@ class MainActivity : ComponentActivity() {
         button.text = getString(R.string.notification_time_format, getString(labelResId), time)
     }
 
-    private fun showTimePicker(time: String, onSelected: (String) -> Unit) {
+    private fun showTimeInputDialog(time: String, onSelected: (String) -> Unit) {
+        val palette = nativePalette()
         val timeParts = time.split(":")
-        TimePickerDialog(
-            this,
-            { _, hour, minute ->
-                onSelected(String.format(Locale.US, "%02d:%02d", hour, minute))
-            },
-            timeParts[0].toInt(),
-            timeParts[1].toInt(),
-            true
-        ).show()
+        val hourInput = createTimeInput(timeParts[0], R.string.notification_time_hour_hint, palette)
+        val minuteInput =
+            createTimeInput(timeParts[1], R.string.notification_time_minute_hint, palette)
+
+        val content = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(22), dp(18), dp(22), dp(12))
+            addView(createDialogTitle(R.string.notification_time_editor_title, palette))
+            addView(
+                LinearLayout(this@MainActivity).apply {
+                    orientation = LinearLayout.HORIZONTAL
+                    gravity = Gravity.CENTER_VERTICAL
+                    addView(
+                        createLabeledTimeInput(
+                            R.string.notification_time_hour,
+                            hourInput,
+                            palette
+                        ),
+                        LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
+                    )
+                    addView(
+                        TextView(this@MainActivity).apply {
+                            text = ":"
+                            textSize = 26f
+                            gravity = Gravity.CENTER
+                            setTextColor(palette.text)
+                        },
+                        LinearLayout.LayoutParams(dp(34), ViewGroup.LayoutParams.MATCH_PARENT)
+                    )
+                    addView(
+                        createLabeledTimeInput(
+                            R.string.notification_time_minute,
+                            minuteInput,
+                            palette
+                        ),
+                        LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
+                    )
+                }
+            )
+        }
+
+        val dialog = AlertDialog.Builder(this)
+            .setView(content)
+            .setNegativeButton(R.string.notification_settings_cancel, null)
+            .setPositiveButton(R.string.notification_time_confirm, null)
+            .create()
+        dialog.setOnShowListener {
+            dialog.window?.setBackgroundDrawable(
+                roundedBackground(palette.surface, palette.border, 24)
+            )
+            dialog.getButton(AlertDialog.BUTTON_NEGATIVE)?.setTextColor(palette.accent)
+            dialog.getButton(AlertDialog.BUTTON_POSITIVE)?.apply {
+                setTextColor(palette.accent)
+                setOnClickListener {
+                    val hourText = hourInput.text.toString().trim()
+                    val minuteText = minuteInput.text.toString().trim()
+                    if (hourText.isEmpty() || minuteText.isEmpty()) {
+                        Toast.makeText(
+                            this@MainActivity,
+                            R.string.notification_time_required,
+                            Toast.LENGTH_SHORT
+                        ).show()
+                        return@setOnClickListener
+                    }
+
+                    val hour = hourText.toIntOrNull()
+                    val minute = minuteText.toIntOrNull()
+                    if (hour == null || hour !in 0..23 || minute == null || minute !in 0..59) {
+                        Toast.makeText(
+                            this@MainActivity,
+                            R.string.notification_time_invalid,
+                            Toast.LENGTH_SHORT
+                        ).show()
+                        return@setOnClickListener
+                    }
+
+                    onSelected(String.format(Locale.US, "%02d:%02d", hour, minute))
+                    dialog.dismiss()
+                }
+            }
+        }
+        dialog.show()
     }
+
+    private fun createDialogTitle(titleResId: Int, palette: NativePalette): TextView =
+        TextView(this).apply {
+            text = getString(titleResId)
+            textSize = 20f
+            setTextColor(palette.text)
+            setPadding(0, 0, 0, dp(16))
+        }
+
+    private fun createLabeledTimeInput(
+        labelResId: Int,
+        input: EditText,
+        palette: NativePalette
+    ): LinearLayout =
+        LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            addView(
+                TextView(this@MainActivity).apply {
+                    text = getString(labelResId)
+                    textSize = 13f
+                    setTextColor(palette.muted)
+                    setPadding(dp(2), 0, 0, dp(7))
+                }
+            )
+            addView(input)
+        }
+
+    private fun createTimeInput(
+        value: String,
+        hintResId: Int,
+        palette: NativePalette
+    ): EditText =
+        EditText(this).apply {
+            setText(value)
+            hint = getString(hintResId)
+            textSize = 22f
+            gravity = Gravity.CENTER
+            inputType = InputType.TYPE_CLASS_NUMBER
+            filters = arrayOf(InputFilter.LengthFilter(2))
+            setSelectAllOnFocus(true)
+            setTextColor(palette.text)
+            setHintTextColor(palette.muted)
+            background = roundedBackground(palette.control, palette.border, 14)
+            setPadding(dp(10), 0, dp(10), 0)
+            layoutParams = LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                dp(56)
+            )
+        }
 
     private fun dp(value: Int): Int =
         (value * resources.displayMetrics.density).toInt()
@@ -527,21 +657,21 @@ class MainActivity : ComponentActivity() {
         }
         return if (dark) {
             NativePalette(
-                surface = Color.parseColor("#242424"),
-                control = Color.parseColor("#303030"),
-                text = Color.parseColor("#F5F7FA"),
-                border = Color.parseColor("#383838"),
-                muted = Color.parseColor("#70757D"),
-                accent = Color.parseColor("#0B73FF")
+                surface = "#242424".toColorInt(),
+                control = "#303030".toColorInt(),
+                text = "#F5F7FA".toColorInt(),
+                border = "#383838".toColorInt(),
+                muted = "#70757D".toColorInt(),
+                accent = "#0B73FF".toColorInt()
             )
         } else {
             NativePalette(
                 surface = Color.WHITE,
-                control = Color.parseColor("#F5F7FB"),
-                text = Color.parseColor("#20242A"),
-                border = Color.parseColor("#E4E8EF"),
-                muted = Color.parseColor("#B8C0CC"),
-                accent = Color.parseColor("#0B73FF")
+                control = "#F5F7FB".toColorInt(),
+                text = "#20242A".toColorInt(),
+                border = "#E4E8EF".toColorInt(),
+                muted = "#B8C0CC".toColorInt(),
+                accent = "#0B73FF".toColorInt()
             )
         }
     }
@@ -607,6 +737,9 @@ class MainActivity : ComponentActivity() {
         notificationScheduler.setCategoryEnabled(category, enabled)
         if (!enabled) {
             notificationScheduler.cancelCategory(category, cancelVisible = true)
+            if (category == NativeNotificationCategory.MEAL) {
+                unsubscribeFromLegacyMealTopic()
+            }
             return
         }
 
@@ -649,9 +782,24 @@ class MainActivity : ComponentActivity() {
         }
 
         notificationScheduler.scheduleSelectedNotifications()
+        syncLegacyMealTopicSubscription()
         updateWebNotificationState(true)
         if (showConfirmation) {
             Toast.makeText(this, R.string.notification_enabled, Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun syncLegacyMealTopicSubscription() {
+        val settings = notificationScheduler.settings()
+        if (settings.enabled && settings.mealEnabled && notificationScheduler.canPostNotifications()) {
+            FirebaseMessaging.getInstance().subscribeToTopic(NOTIFICATION_TOPIC)
+                .addOnCompleteListener { task ->
+                    if (!task.isSuccessful) {
+                        Log.w(TAG, "Failed to subscribe to legacy meal FCM topic", task.exception)
+                    }
+                }
+        } else {
+            unsubscribeFromLegacyMealTopic()
         }
     }
 
@@ -675,7 +823,7 @@ class MainActivity : ComponentActivity() {
 
     fun saveTheme(theme: String?) {
         if (theme == "dark" || theme == "light") {
-            preferences.edit().putString(KEY_THEME, theme).apply()
+            preferences.edit { putString(KEY_THEME, theme) }
             runOnUiThread { applyNativeThemeToCard() }
         }
     }
