@@ -20,12 +20,15 @@ import android.text.InputFilter
 import android.text.InputType
 import android.util.Log
 import android.view.Gravity
+import android.view.View
 import android.view.ViewGroup
 import android.widget.Button
 import android.widget.EditText
 import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
+import android.widget.RadioButton
+import android.widget.RadioGroup
 import android.widget.ScrollView
 import android.widget.Switch
 import android.widget.TextView
@@ -495,15 +498,36 @@ class MainActivity : ComponentActivity() {
         }
 
     private fun updateNotificationTimeButton(button: Button, labelResId: Int, time: String) {
-        button.text = getString(R.string.notification_time_format, getString(labelResId), time)
+        button.text = getString(
+            R.string.notification_time_format,
+            getString(labelResId),
+            displayTime(time)
+        )
     }
 
     private fun showTimeInputDialog(time: String, onSelected: (String) -> Unit) {
         val palette = nativePalette()
         val timeParts = time.split(":")
-        val hourInput = createTimeInput(timeParts[0], R.string.notification_time_hour_hint, palette)
+        val currentHour = timeParts.getOrNull(0)?.toIntOrNull() ?: 0
+        val hour12 = if (currentHour % 12 == 0) 12 else currentHour % 12
+        val hourInput = createTimeInput(hour12.toString(), R.string.notification_time_hour_hint, palette)
         val minuteInput =
-            createTimeInput(timeParts[1], R.string.notification_time_minute_hint, palette)
+            createTimeInput(timeParts.getOrNull(1) ?: "00", R.string.notification_time_minute_hint, palette)
+        val morningButton = createPeriodButton(R.string.notification_time_am, palette)
+        val afternoonButton = createPeriodButton(R.string.notification_time_pm, palette)
+        val periodGroup = RadioGroup(this).apply {
+            orientation = RadioGroup.HORIZONTAL
+            setPadding(0, dp(16), 0, 0)
+            addView(
+                morningButton,
+                RadioGroup.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
+            )
+            addView(
+                afternoonButton,
+                RadioGroup.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
+            )
+            check(if (currentHour < 12) morningButton.id else afternoonButton.id)
+        }
 
         val content = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
@@ -540,6 +564,7 @@ class MainActivity : ComponentActivity() {
                     )
                 }
             )
+            addView(periodGroup)
         }
 
         val dialog = AlertDialog.Builder(this)
@@ -568,7 +593,7 @@ class MainActivity : ComponentActivity() {
 
                     val hour = hourText.toIntOrNull()
                     val minute = minuteText.toIntOrNull()
-                    if (hour == null || hour !in 0..23 || minute == null || minute !in 0..59) {
+                    if (hour == null || hour !in 1..12 || minute == null || minute !in 0..59) {
                         Toast.makeText(
                             this@MainActivity,
                             R.string.notification_time_invalid,
@@ -577,13 +602,47 @@ class MainActivity : ComponentActivity() {
                         return@setOnClickListener
                     }
 
-                    onSelected(String.format(Locale.US, "%02d:%02d", hour, minute))
+                    val hour24 = if (periodGroup.checkedRadioButtonId == morningButton.id) {
+                        hour % 12
+                    } else {
+                        (hour % 12) + 12
+                    }
+                    onSelected(String.format(Locale.US, "%02d:%02d", hour24, minute))
                     dialog.dismiss()
                 }
             }
         }
         dialog.show()
     }
+
+    private fun displayTime(time: String): String {
+        val parts = time.split(":")
+        val hour = parts.getOrNull(0)?.toIntOrNull() ?: 0
+        val minute = parts.getOrNull(1)?.toIntOrNull() ?: 0
+        val period = if (hour < 12) {
+            getString(R.string.notification_time_am)
+        } else {
+            getString(R.string.notification_time_pm)
+        }
+        val hour12 = if (hour % 12 == 0) 12 else hour % 12
+        return String.format(Locale.US, "%s %d:%02d", period, hour12, minute)
+    }
+
+    private fun createPeriodButton(labelResId: Int, palette: NativePalette): RadioButton =
+        RadioButton(this).apply {
+            id = View.generateViewId()
+            text = getString(labelResId)
+            textSize = 15f
+            setTextColor(palette.text)
+            buttonTintList = ColorStateList(
+                arrayOf(
+                    intArrayOf(android.R.attr.state_checked),
+                    intArrayOf()
+                ),
+                intArrayOf(palette.accent, palette.muted)
+            )
+            setPadding(dp(8), dp(8), dp(8), dp(8))
+        }
 
     private fun createDialogTitle(titleResId: Int, palette: NativePalette): TextView =
         TextView(this).apply {

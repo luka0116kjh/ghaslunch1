@@ -73,6 +73,20 @@ struct NativeNotificationSettings {
         static let mealTime = "native_notifications_meal_time"
         static let timetableTime = "native_notifications_timetable_time"
         static let schoolNoticeTime = "native_notifications_school_notice_time"
+        static let legacyMigrationCompleted = "native_notifications_legacy_migration_completed_v1"
+    }
+
+    private enum LegacyKey {
+        static let enabled = "nativeNotificationsEnabled"
+        static let mealEnabled = "nativeNotificationsMeal"
+        static let timetableEnabled = "nativeNotificationsTimetable"
+        static let schoolNoticeEnabled = "nativeNotificationsSchoolNotice"
+        static let mealHour = "nativeNotificationsMealHour"
+        static let mealMinute = "nativeNotificationsMealMinute"
+        static let timetableHour = "nativeNotificationsTimetableHour"
+        static let timetableMinute = "nativeNotificationsTimetableMinute"
+        static let schoolNoticeHour = "nativeNotificationsSchoolNoticeHour"
+        static let schoolNoticeMinute = "nativeNotificationsSchoolNoticeMinute"
     }
 
     var enabled: Bool
@@ -105,6 +119,64 @@ struct NativeNotificationSettings {
         defaults.set(schoolNoticeTime, forKey: Key.schoolNoticeTime)
     }
 
+    @discardableResult
+    static func prepareLegacyMigrationIfNeeded(defaults: UserDefaults = .standard) -> Bool {
+        guard !defaults.bool(forKey: Key.legacyMigrationCompleted) else {
+            return false
+        }
+
+        let legacyKeys = [
+            LegacyKey.enabled,
+            LegacyKey.mealEnabled,
+            LegacyKey.timetableEnabled,
+            LegacyKey.schoolNoticeEnabled,
+            LegacyKey.mealHour,
+            LegacyKey.mealMinute,
+            LegacyKey.timetableHour,
+            LegacyKey.timetableMinute,
+            LegacyKey.schoolNoticeHour,
+            LegacyKey.schoolNoticeMinute
+        ]
+        guard legacyKeys.contains(where: { defaults.object(forKey: $0) != nil }) else {
+            defaults.set(true, forKey: Key.legacyMigrationCompleted)
+            return false
+        }
+
+        copyLegacyBoolean(from: LegacyKey.enabled, to: Key.enabled, defaults: defaults)
+        copyLegacyBoolean(from: LegacyKey.mealEnabled, to: Key.mealEnabled, defaults: defaults)
+        copyLegacyBoolean(from: LegacyKey.timetableEnabled, to: Key.timetableEnabled, defaults: defaults)
+        copyLegacyBoolean(from: LegacyKey.schoolNoticeEnabled, to: Key.schoolNoticeEnabled, defaults: defaults)
+        copyLegacyTime(
+            hourKey: LegacyKey.mealHour,
+            minuteKey: LegacyKey.mealMinute,
+            targetKey: Key.mealTime,
+            defaultHour: 11,
+            defaultMinute: 0,
+            defaults: defaults
+        )
+        copyLegacyTime(
+            hourKey: LegacyKey.timetableHour,
+            minuteKey: LegacyKey.timetableMinute,
+            targetKey: Key.timetableTime,
+            defaultHour: 7,
+            defaultMinute: 30,
+            defaults: defaults
+        )
+        copyLegacyTime(
+            hourKey: LegacyKey.schoolNoticeHour,
+            minuteKey: LegacyKey.schoolNoticeMinute,
+            targetKey: Key.schoolNoticeTime,
+            defaultHour: 18,
+            defaultMinute: 0,
+            defaults: defaults
+        )
+        return true
+    }
+
+    static func markLegacyMigrationCompleted(defaults: UserDefaults = .standard) {
+        defaults.set(true, forKey: Key.legacyMigrationCompleted)
+    }
+
     private static func savedTime(
         forKey key: String,
         defaultHour: Int,
@@ -120,6 +192,36 @@ struct NativeNotificationSettings {
             second: 0,
             of: Date()
         ) ?? Date()
+    }
+
+    private static func copyLegacyBoolean(from sourceKey: String, to targetKey: String, defaults: UserDefaults) {
+        guard defaults.object(forKey: targetKey) == nil,
+              defaults.object(forKey: sourceKey) != nil else {
+            return
+        }
+        defaults.set(defaults.bool(forKey: sourceKey), forKey: targetKey)
+    }
+
+    private static func copyLegacyTime(
+        hourKey: String,
+        minuteKey: String,
+        targetKey: String,
+        defaultHour: Int,
+        defaultMinute: Int,
+        defaults: UserDefaults
+    ) {
+        guard defaults.object(forKey: targetKey) == nil,
+              defaults.object(forKey: hourKey) != nil || defaults.object(forKey: minuteKey) != nil else {
+            return
+        }
+
+        let storedHour = defaults.object(forKey: hourKey) == nil ? defaultHour : defaults.integer(forKey: hourKey)
+        let storedMinute = defaults.object(forKey: minuteKey) == nil ? defaultMinute : defaults.integer(forKey: minuteKey)
+        let hour = (0...23).contains(storedHour) ? storedHour : defaultHour
+        let minute = (0...59).contains(storedMinute) ? storedMinute : defaultMinute
+        if let time = Calendar.current.date(bySettingHour: hour, minute: minute, second: 0, of: Date()) {
+            defaults.set(time, forKey: targetKey)
+        }
     }
 }
 
@@ -170,9 +272,8 @@ enum NativeNotificationService {
         }
     }
 
-    static func apply(_ settings: NativeNotificationSettings) async -> Bool {
-        settings.save()
-        guard settings.enabled else {
+    static func applySavedSettings() async -> Bool {
+        guard NativeNotificationSettings.load().enabled else {
             cancelAll()
             return true
         }
@@ -180,6 +281,13 @@ enum NativeNotificationService {
         guard await requestAuthorization() else {
             cancelAll()
             return false
+        }
+
+        // Permission requests can outlive UI changes; always schedule from the latest stored state.
+        let settings = NativeNotificationSettings.load()
+        guard settings.enabled else {
+            cancelAll()
+            return true
         }
 
         for category in Category.allCases {
@@ -190,6 +298,37 @@ enum NativeNotificationService {
             }
         }
         return true
+    }
+
+    static func reconcileLegacyMigrationIfNeeded() async {
+        guard NativeNotificationSettings.prepareLegacyMigrationIfNeeded() else {
+            return
+        }
+
+        let settings = NativeNotificationSettings.load()
+        guard settings.enabled else {
+            cancelAll()
+            NativeNotificationSettings.markLegacyMigrationCompleted()
+            return
+        }
+
+        let authorizationStatus = await UNUserNotificationCenter.current().notificationSettings().authorizationStatus
+        guard authorizationStatus == .authorized ||
+                authorizationStatus == .provisional ||
+                authorizationStatus == .ephemeral else {
+            cancelAll()
+            NativeNotificationSettings.markLegacyMigrationCompleted()
+            return
+        }
+
+        for category in Category.allCases {
+            if category.isEnabled(in: settings) {
+                schedule(category, at: category.time(in: settings))
+            } else {
+                cancel(category)
+            }
+        }
+        NativeNotificationSettings.markLegacyMigrationCompleted()
     }
 
     static func requestAuthorization() async -> Bool {
@@ -237,8 +376,7 @@ enum NativeNotificationService {
     }
 
     private static func cancelAll() {
-        let identifiers = Category.allCases.map(\.identifier)
         UNUserNotificationCenter.current()
-            .removePendingNotificationRequests(withIdentifiers: identifiers)
+            .removeAllPendingNotificationRequests()
     }
 }

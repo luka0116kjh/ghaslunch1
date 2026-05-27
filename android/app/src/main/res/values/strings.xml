@@ -29,11 +29,13 @@
     <string name="notification_time_editor_title">알림 시간 설정</string>
     <string name="notification_time_hour">시간</string>
     <string name="notification_time_minute">분</string>
-    <string name="notification_time_hour_hint">07</string>
+    <string name="notification_time_am">오전</string>
+    <string name="notification_time_pm">오후</string>
+    <string name="notification_time_hour_hint">7</string>
     <string name="notification_time_minute_hint">30</string>
     <string name="notification_time_confirm">확인</string>
     <string name="notification_time_required">시간과 분을 입력해 주세요.</string>
-    <string name="notification_time_invalid">시간은 0~23, 분은 0~59 사이여야 합니다.</string>
+    <string name="notification_time_invalid">시간은 1~12, 분은 0~59 사이여야 합니다.</string>
     <string name="notification_settings_save">저장</string>
     <string name="notification_settings_cancel">취소</string>
     <string name="external_link_error">이 링크를 열 수 없습니다.</string>

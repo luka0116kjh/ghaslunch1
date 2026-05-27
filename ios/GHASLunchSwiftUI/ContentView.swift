@@ -2,6 +2,10 @@ import SwiftUI
 import UIKit
 import WebKit
 
+extension Notification.Name {
+    static let nativeNotificationSettingsDidChange = Notification.Name("nativeNotificationSettingsDidChange")
+}
+
 struct ContentView: View {
     @AppStorage("theme") private var savedTheme = ""
     @Environment(\.colorScheme) private var colorScheme
@@ -209,6 +213,16 @@ struct GHASLunchWebView: UIViewRepresentable {
             self.notificationKey = notificationKey
             self.usesPadLayout = usesPadLayout
             super.init()
+            NotificationCenter.default.addObserver(
+                self,
+                selector: #selector(nativeNotificationSettingsDidChange(_:)),
+                name: .nativeNotificationSettingsDidChange,
+                object: nil
+            )
+        }
+
+        deinit {
+            NotificationCenter.default.removeObserver(self)
         }
 
         func userContentController(
@@ -302,7 +316,7 @@ struct GHASLunchWebView: UIViewRepresentable {
                 var settings = NativeNotificationSettings.load()
                 settings.enabled = true
                 settings.save()
-                let allowed = await NativeNotificationService.apply(settings)
+                let allowed = await NativeNotificationService.applySavedSettings()
                 if !allowed {
                     settings.enabled = false
                     settings.save()
@@ -322,6 +336,14 @@ struct GHASLunchWebView: UIViewRepresentable {
                     updateWebNotificationState(false)
                 }
             }
+        }
+
+        @objc private func nativeNotificationSettingsDidChange(_ notification: Notification) {
+            guard let enabled = notification.userInfo?["enabled"] as? Bool else {
+                return
+            }
+            UserDefaults.standard.set(enabled, forKey: notificationKey)
+            updateWebNotificationState(enabled)
         }
 
         private func saveTheme(_ theme: String?) {

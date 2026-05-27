@@ -7,8 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		FBAA00000000000000000001 /* FirebaseCore in Frameworks */ = {isa = PBXBuildFile; productRef = FBAA00000000000000000004 /* FirebaseCore */; };
 		FBAA00000000000000000010 /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = FBAA00000000000000000011 /* GoogleService-Info.plist */; };
+		FBAA00000000000000000012 /* AppIcon Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = FBAA00000000000000000013 /* AppIcon Assets.xcassets */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -33,12 +33,13 @@
 		A16CB9E62FB61C8300CA31F5 /* ghaslunchTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ghaslunchTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		A16CB9F02FB61C8300CA31F5 /* ghaslunchUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ghaslunchUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		FBAA00000000000000000011 /* GoogleService-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; name = "GoogleService-Info.plist"; path = "../ios/GoogleService-Info.plist"; sourceTree = "<group>"; };
+		FBAA00000000000000000013 /* AppIcon Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = "AppIcon Assets.xcassets"; path = "ghaslunch/Assets.xcassets"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		A16CB9DB2FB61C8100CA31F5 /* ghaslunch */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			path = ghaslunch;
+			path = "../ios/GHASLunchSwiftUI";
 			sourceTree = "<group>";
 		};
 		A16CB9E92FB61C8300CA31F5 /* ghaslunchTests */ = {
@@ -58,7 +59,6 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				FBAA00000000000000000001 /* FirebaseCore in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -84,6 +84,7 @@
 			children = (
 				A16CB9DB2FB61C8100CA31F5 /* ghaslunch */,
 				FBAA00000000000000000011 /* GoogleService-Info.plist */,
+				FBAA00000000000000000013 /* AppIcon Assets.xcassets */,
 				A16CB9E92FB61C8300CA31F5 /* ghaslunchTests */,
 				A16CB9F32FB61C8300CA31F5 /* ghaslunchUITests */,
 				A16CB9DA2FB61C8100CA31F5 /* Products */,
@@ -120,7 +121,6 @@
 			);
 			name = ghaslunch;
 			packageProductDependencies = (
-				FBAA00000000000000000004 /* FirebaseCore */,
 			);
 			productName = ghaslunch;
 			productReference = A16CB9D92FB61C8100CA31F5 /* ghaslunch.app */;
@@ -205,7 +205,6 @@
 			mainGroup = A16CB9D02FB61C8100CA31F5;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
-				FBAA00000000000000000003 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = A16CB9DA2FB61C8100CA31F5 /* Products */;
@@ -225,6 +224,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				FBAA00000000000000000010 /* GoogleService-Info.plist in Resources */,
+				FBAA00000000000000000012 /* AppIcon Assets.xcassets in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -592,24 +592,6 @@
 		};
 /* End XCConfigurationList section */
 
-/* Begin XCRemoteSwiftPackageReference section */
-		FBAA00000000000000000003 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/firebase/firebase-ios-sdk.git";
-			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 12.13.0;
-			};
-		};
-/* End XCRemoteSwiftPackageReference section */
-
-/* Begin XCSwiftPackageProductDependency section */
-		FBAA00000000000000000004 /* FirebaseCore */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = FBAA00000000000000000003 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
-			productName = FirebaseCore;
-		};
-/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = A16CB9D12FB61C8100CA31F5 /* Project object */;
 }

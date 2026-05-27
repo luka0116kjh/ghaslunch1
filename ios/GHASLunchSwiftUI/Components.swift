@@ -232,6 +232,11 @@ struct NotificationSettingsSheet: View {
 
     @State private var settings = NativeNotificationSettings.load()
     @State private var permissionDenied = false
+    @State private var timeEditor: TimeEditor?
+    @State private var editorHour = ""
+    @State private var editorMinute = ""
+    @State private var editorPeriod: DayPeriod = .morning
+    @State private var timeValidationMessage: String?
 
     var body: some View {
         NavigationStack {
@@ -239,25 +244,26 @@ struct NotificationSettingsSheet: View {
                 VStack(spacing: 14) {
                     settingCard {
                         themedToggle("전체 알림", isOn: binding(\.enabled))
-                    }
-
-                    settingCard {
                         categoryRow(
                             title: "급식 알림",
                             enabled: binding(\.mealEnabled),
-                            time: timeBinding(\.mealTime)
+                            timeTitle: "급식 알림 시간",
+                            time: settings.mealTime,
+                            keyPath: \.mealTime
                         )
-                        Divider().overlay(AppTheme.border(scheme))
                         categoryRow(
                             title: "시간표 알림",
                             enabled: binding(\.timetableEnabled),
-                            time: timeBinding(\.timetableTime)
+                            timeTitle: "시간표 알림 시간",
+                            time: settings.timetableTime,
+                            keyPath: \.timetableTime
                         )
-                        Divider().overlay(AppTheme.border(scheme))
                         categoryRow(
                             title: "학교 공지 알림",
                             enabled: binding(\.schoolNoticeEnabled),
-                            time: timeBinding(\.schoolNoticeTime)
+                            timeTitle: "학교 공지 알림 시간",
+                            time: settings.schoolNoticeTime,
+                            keyPath: \.schoolNoticeTime
                         )
                     }
                 }
@@ -273,12 +279,16 @@ struct NotificationSettingsSheet: View {
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("저장") {
-                        persistAndSchedule()
-                        dismiss()
+                        saveAndClose()
                     }
                     .foregroundStyle(AppTheme.primary)
                     .fontWeight(.semibold)
                 }
+            }
+        }
+        .overlay {
+            if let timeEditor {
+                timeInputDialog(timeEditor)
             }
         }
         .alert("알림 권한이 필요합니다", isPresented: $permissionDenied) {
@@ -306,18 +316,29 @@ struct NotificationSettingsSheet: View {
     private func categoryRow(
         title: String,
         enabled: Binding<Bool>,
-        time: Binding<Date>
+        timeTitle: String,
+        time: Date,
+        keyPath: WritableKeyPath<NativeNotificationSettings, Date>
     ) -> some View {
         VStack(spacing: 8) {
             themedToggle(title, isOn: enabled)
-            DatePicker(
-                "\(title) 시간",
-                selection: time,
-                displayedComponents: .hourAndMinute
-            )
-            .datePickerStyle(.compact)
-            .tint(AppTheme.primary)
-            .foregroundStyle(AppTheme.subText(scheme))
+            Button {
+                beginEditingTime(keyPath: keyPath)
+            } label: {
+                Text("\(timeTitle): \(formattedTime(time))")
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundStyle(AppTheme.text(scheme))
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 10)
+                    .background(AppTheme.pill(scheme))
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 16, style: .continuous)
+                            .stroke(AppTheme.border(scheme), lineWidth: 1)
+                    }
+                    .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+            }
+            .buttonStyle(.plain)
             .disabled(!settings.enabled || !enabled.wrappedValue)
             .opacity(settings.enabled && enabled.wrappedValue ? 1 : 0.45)
         }
@@ -338,32 +359,181 @@ struct NotificationSettingsSheet: View {
             get: { settings[keyPath: keyPath] },
             set: { value in
                 settings[keyPath: keyPath] = value
-                persistAndSchedule()
             }
         )
     }
 
-    private func timeBinding(_ keyPath: WritableKeyPath<NativeNotificationSettings, Date>) -> Binding<Date> {
-        Binding(
-            get: { settings[keyPath: keyPath] },
-            set: { value in
-                settings[keyPath: keyPath] = value
-                persistAndSchedule()
-            }
-        )
+    private func beginEditingTime(keyPath: WritableKeyPath<NativeNotificationSettings, Date>) {
+        let time = settings[keyPath: keyPath]
+        let components = Calendar.current.dateComponents([.hour, .minute], from: time)
+        let hour = components.hour ?? 0
+        editorHour = String(hour % 12 == 0 ? 12 : hour % 12)
+        editorMinute = String(format: "%02d", components.minute ?? 0)
+        editorPeriod = hour < 12 ? .morning : .afternoon
+        timeValidationMessage = nil
+        timeEditor = TimeEditor(keyPath: keyPath)
     }
 
-    private func persistAndSchedule() {
+    private func formattedTime(_ date: Date) -> String {
+        let components = Calendar.current.dateComponents([.hour, .minute], from: date)
+        let hour = components.hour ?? 0
+        let displayHour = hour % 12 == 0 ? 12 : hour % 12
+        let period = hour < 12 ? DayPeriod.morning.rawValue : DayPeriod.afternoon.rawValue
+        return String(format: "%@ %d:%02d", period, displayHour, components.minute ?? 0)
+    }
+
+    private func confirmTime(_ editor: TimeEditor) {
+        let hourText = editorHour.trimmingCharacters(in: .whitespacesAndNewlines)
+        let minuteText = editorMinute.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !hourText.isEmpty, !minuteText.isEmpty else {
+            timeValidationMessage = "시간과 분을 입력해 주세요."
+            return
+        }
+
+        guard
+            let hour = Int(hourText), (1...12).contains(hour),
+            let minute = Int(minuteText), (0...59).contains(minute)
+        else {
+            timeValidationMessage = "시간은 1~12, 분은 0~59 사이여야 합니다."
+            return
+        }
+
+        let hour24 = editorPeriod == .morning ? hour % 12 : (hour % 12) + 12
+        let oldValue = settings[keyPath: editor.keyPath]
+        settings[keyPath: editor.keyPath] = Calendar.current.date(
+            bySettingHour: hour24,
+            minute: minute,
+            second: 0,
+            of: oldValue
+        ) ?? oldValue
+        timeEditor = nil
+        timeValidationMessage = nil
+    }
+
+    private func limitedNumericBinding(_ value: Binding<String>) -> Binding<String> {
+        Binding {
+            value.wrappedValue
+        } set: { updatedValue in
+            value.wrappedValue = String(updatedValue.filter(\.isNumber).prefix(2))
+        }
+    }
+
+    private func timeInputDialog(_ editor: TimeEditor) -> some View {
+        ZStack {
+            Color.black.opacity(0.32)
+                .ignoresSafeArea()
+
+            VStack(alignment: .leading, spacing: 18) {
+                Text("알림 시간 설정")
+                    .font(.system(size: 20, weight: .bold))
+                    .foregroundStyle(AppTheme.text(scheme))
+
+                HStack(spacing: 12) {
+                    timeInput(title: "시간", text: $editorHour)
+
+                    Text(":")
+                        .font(.system(size: 26, weight: .medium))
+                        .foregroundStyle(AppTheme.text(scheme))
+                        .padding(.top, 22)
+
+                    timeInput(title: "분", text: $editorMinute)
+                }
+
+                Picker("오전 오후", selection: $editorPeriod) {
+                    ForEach(DayPeriod.allCases, id: \.self) { period in
+                        Text(period.rawValue).tag(period)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .tint(AppTheme.primary)
+
+                if let timeValidationMessage {
+                    Text(timeValidationMessage)
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundStyle(.red)
+                }
+
+                HStack {
+                    Spacer()
+                    Button("취소") {
+                        timeEditor = nil
+                        timeValidationMessage = nil
+                    }
+                    .foregroundStyle(AppTheme.primary)
+
+                    Button("확인") {
+                        confirmTime(editor)
+                    }
+                    .foregroundStyle(AppTheme.primary)
+                    .fontWeight(.semibold)
+                    .padding(.leading, 14)
+                }
+            }
+            .padding(22)
+            .background(AppTheme.card(scheme))
+            .overlay {
+                RoundedRectangle(cornerRadius: 24, style: .continuous)
+                    .stroke(AppTheme.border(scheme), lineWidth: 1)
+            }
+            .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+            .shadow(color: Color.black.opacity(scheme == .dark ? 0.3 : 0.15), radius: 18, y: 8)
+            .padding(.horizontal, 28)
+        }
+    }
+
+    private func timeInput(title: String, text: Binding<String>) -> some View {
+        VStack(alignment: .leading, spacing: 7) {
+            Text(title)
+                .font(.system(size: 13, weight: .medium))
+                .foregroundStyle(AppTheme.subText(scheme))
+
+            TextField(title == "시간" ? "07" : "30", text: limitedNumericBinding(text))
+                .keyboardType(.numberPad)
+                .multilineTextAlignment(.center)
+                .font(.system(size: 20, weight: .semibold, design: .monospaced))
+                .foregroundStyle(AppTheme.text(scheme))
+                .padding(.vertical, 10)
+                .background(AppTheme.pill(scheme))
+                .overlay {
+                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                        .stroke(AppTheme.border(scheme), lineWidth: 1)
+                }
+                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        }
+    }
+
+    private func saveAndClose() {
         settings.save()
         Task {
-            let allowed = await NativeNotificationService.apply(settings)
-            if !allowed && settings.enabled {
-                await MainActor.run {
+            let allowed = await NativeNotificationService.applySavedSettings()
+            await MainActor.run {
+                if !allowed && settings.enabled {
                     settings.enabled = false
                     settings.save()
+                    postNotificationState(false)
                     permissionDenied = true
+                } else {
+                    postNotificationState(settings.enabled)
+                    dismiss()
                 }
             }
         }
+    }
+
+    private func postNotificationState(_ enabled: Bool) {
+        NotificationCenter.default.post(
+            name: .nativeNotificationSettingsDidChange,
+            object: nil,
+            userInfo: ["enabled": enabled]
+        )
+    }
+
+    private enum DayPeriod: String, CaseIterable {
+        case morning = "오전"
+        case afternoon = "오후"
+    }
+
+    private struct TimeEditor {
+        let keyPath: WritableKeyPath<NativeNotificationSettings, Date>
     }
 }
