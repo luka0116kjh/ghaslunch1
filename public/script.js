@@ -11,6 +11,14 @@ function setText(id, value) {
     el.textContent = value;
 }
 
+function getStoredStudentName() {
+    return localStorage.getItem(STUDENT_NAME_KEY) || '';
+}
+
+function getStoredStudentId() {
+    return localStorage.getItem(STUDENT_ID_KEY) || '';
+}
+
 function getStoredStudentCodeImage() {
     return localStorage.getItem(STUDENT_CODE_IMAGE_KEY) || '';
 }
@@ -31,10 +39,12 @@ const FIREBASE_VAPID_KEY = "BBgDLFBJt3E1eA5UtvC1IOusTUzUinGk6zLqe1PLELuusOqZo0lo
 window.FIREBASE_CONFIG = FIREBASE_CONFIG;
 window.FIREBASE_VAPID_KEY = FIREBASE_VAPID_KEY;
 const VISIT_COUNT_URL = `${FIREBASE_CONFIG.databaseURL}/stats/visitCount.json`;
+const STUDENT_NAME_KEY = 'ghas-student-name';
+const STUDENT_ID_KEY = 'ghas-student-id';
 const STUDENT_CODE_IMAGE_KEY = 'ghas-student-code-image';
 const SCHEDULE_YEAR = window.GHAS_SCHEDULE_YEAR || 2026;
 const SCHEDULE_SOURCE = window.GHAS_SCHEDULE_SOURCE || '';
-const SCHEDULE_EVENTS = parseScheduleSource(SCHEDULE_SOURCE);
+let SCHEDULE_EVENTS;
 const CLASS_TIMETABLE_VERSION = '20260520';
 const CLASS_TIMETABLE_RUNTIME_PATH = './src/data/classTimetable2026.js';
 const TIMETABLE_DAYS = ['일', '월', '화', '수', '목', '금', '토'];
@@ -111,11 +121,13 @@ function parseScheduleSource(source) {
 }
 
 function normalizeScheduleTitle(title) {
-    return String(title || '')
+    const normalizedTitle = String(title || '')
         .trim()
         .replace(/\s+/g, ' ')
         .replace(/대체\s*공휴일/g, '대체공휴일')
         .replace(/대체\s*공유일/g, '대체공유일');
+
+    return SUBJECT_ALIASES[normalizedTitle] || normalizedTitle;
 }
 
 function isHolidayScheduleTitle(title) {
@@ -568,8 +580,9 @@ function isValidStudentId(studentId) {
 }
 
 function renderStudentCodeCard() {
+    const studentId = getStoredStudentId();
     const storedImage = getStoredStudentCodeImage();
-    const shouldShowImage = Boolean(storedImage);
+    const shouldShowImage = Boolean(studentId && storedImage);
     const placeholder = document.getElementById('student-card-placeholder');
     const imageEl = document.getElementById('student-code-image');
     const imageWrap = document.getElementById('student-card-image');
@@ -761,6 +774,8 @@ async function handleStudentCodeImageUpload(event) {
         }
 
         await saveStudentCodeImage(file);
+        localStorage.removeItem(STUDENT_NAME_KEY);
+        localStorage.setItem(STUDENT_ID_KEY, studentId);
         if (statusEl) statusEl.textContent = '학생 코드 사진을 저장했습니다.';
         renderStudentCodeCard();
     } catch (error) {
@@ -843,11 +858,10 @@ function showMeals(type) {
 const SUBJECT_ALIASES = {
     "공통국어1": "국어",
     "공통국어2": "국어",
-    "문학": "국어",
     "화법과 언어": "국어",
     "국1": "국어",
     "국2": "국어",
-    "문1": "국어",
+    "문1": "문학",
 
     "공통수학1": "수학",
     "공통수학2": "수학",
@@ -908,8 +922,9 @@ const SUBJECT_ALIASES = {
     //모름 예상
     "엔진": "엔진 정비",
     "전장": "전기전자 장비정비",
-    "엔정": "엔진 정비",
 };
+
+SCHEDULE_EVENTS = parseScheduleSource(SCHEDULE_SOURCE);
 
 function cleanTimetableSubject(rawName) {
     return normalizeScheduleTitle(String(rawName || '').replace(/\*/g, '').trim());
@@ -918,8 +933,7 @@ function cleanTimetableSubject(rawName) {
 function decodeSubject(rawName) {
     const trimmed = cleanTimetableSubject(rawName);
     if (!trimmed) return "공강";
-    // 딕셔너리에 매핑된 값이 있으면 그 값을, 없으면 원본을 그대로 반환
-    return SUBJECT_ALIASES[trimmed] || trimmed;
+    return trimmed;
 }
 
 function loadClassTimetable2026() {
@@ -928,6 +942,10 @@ function loadClassTimetable2026() {
         classTimetable2026Promise = import(`${CLASS_TIMETABLE_RUNTIME_PATH}?v=${CLASS_TIMETABLE_VERSION}`)
             .then((module) => {
                 classTimetable2026ImportStatus = 'success';
+                console.debug('Class timetable fallback import success', {
+                    path: CLASS_TIMETABLE_RUNTIME_PATH,
+                    version: CLASS_TIMETABLE_VERSION
+                });
                 return module.classTimetable2026 || {};
             })
             .catch((error) => {
@@ -951,12 +969,26 @@ async function fetchTimetable(grade, classNum, targetDate) {
     });
 
     try {
+        console.debug('Timetable API request', {
+            url,
+            grade,
+            classNum,
+            date: ymd,
+            schoolCode: NEIS_SCHOOL_CODE,
+            officeCode: NEIS_OFFICE_CODE
+        });
+
         const response = await fetch(url);
         if (!response.ok) throw new Error('Timetable API 응답 오류');
         
         const data = await response.json();
+        console.debug('Timetable API raw response JSON', data);
 
         const rows = extractTimetableRows(data);
+        console.debug('Timetable API extracted rows before merge', {
+            count: rows.length,
+            rows
+        });
 
         const uniqueRows = [];
         const seenPeriods = new Set();
@@ -981,6 +1013,17 @@ async function fetchTimetable(grade, classNum, targetDate) {
         });
 
         const parsedRows = uniqueRows.sort((a, b) => Number(a.period) - Number(b.period));
+        console.debug('Timetable API parsed rows before merge', {
+            count: parsedRows.length,
+            rows: parsedRows,
+            skippedRows,
+            emptyReason: rows.length === 0
+                ? 'api-response-empty-or-no-row-section'
+                : parsedRows.length === 0
+                    ? 'parsing-or-filtering-removed-all-rows'
+                    : null
+        });
+
         return parsedRows;
     } catch (e) {
         console.warn('Timetable fetch failed:', e);
@@ -1248,6 +1291,30 @@ function getTimetableHolidayTitle(targetDate, neisRows) {
     return scheduleHolidayEvent ? getScheduleEventName(scheduleHolidayEvent) : '';
 }
 
+function logTimetableMergeSummary(neisRows, fallbackRows, displayRows) {
+    const neisPeriodsCount = (Array.isArray(neisRows) ? neisRows : [])
+        .filter(row => row?.period && row?.subject && row.subject !== '공강')
+        .length;
+    const fallbackPeriodsCount = (Array.isArray(fallbackRows) ? fallbackRows : [])
+        .filter(row => row?.period && row?.subject && row.subject !== '공강')
+        .length;
+    const finalMergedTimetableCount = (Array.isArray(displayRows) ? displayRows : [])
+        .filter(row => row?.period && row?.subject && row.subject !== '공강')
+        .length;
+    const fallbackPeriods = (Array.isArray(displayRows) ? displayRows : [])
+        .filter(row => row?.source === 'fallback')
+        .map(row => Number(row.period))
+        .sort((a, b) => a - b);
+
+    console.debug('Timetable merge summary', {
+        neisPeriodsCount,
+        fallbackPeriodsCount,
+        finalMergedTimetableCount,
+        fallbackPeriods,
+        fallbackImportStatus: classTimetable2026ImportStatus
+    });
+}
+
 async function updateTimetable() {
     const grade = document.getElementById('grade-select').value;
     const classNum = document.getElementById('class-select').value;
@@ -1286,6 +1353,23 @@ async function updateTimetable() {
         : fallbackRows.length > 0
         ? mergeTimetableWithFallback(rows, fallbackRows)
         : rows;
+    console.debug('Timetable render rows', {
+        grade,
+        classNum,
+        date: formatDate(targetDate),
+        schoolCode: NEIS_SCHOOL_CODE,
+        officeCode: NEIS_OFFICE_CODE,
+        fallbackImportStatus: classTimetable2026ImportStatus,
+        rawNeisRows: rows,
+        rawFallbackRows: fallbackRows,
+        holidayTitle,
+        finalDisplayRows: displayRows,
+        apiRowsVisibleCount: (Array.isArray(displayRows) ? displayRows : [])
+            .filter(row => row?.source === 'neis')
+            .length
+    });
+    logTimetableMergeSummary(rows, fallbackRows, displayRows);
+
     updateTimetableHeader(titleText, targetDate, buttonText);
     container.innerHTML = renderTimetableRows(displayRows, targetDate, titleText);
     return;
@@ -1437,6 +1521,7 @@ function initTheme() {
 function initVisitorCounter() {
     const counterEl = document.getElementById('visitor-counter');
     let hasRenderedCount = false;
+    const MAX_REST_INCREMENT_ATTEMPTS = 3;
 
     const renderCount = (count) => {
         const countEl = document.getElementById('visit-count');
@@ -1467,7 +1552,51 @@ function initVisitorCounter() {
         }
     };
 
+    const incrementVisitorCount = async () => {
+        for (let attempt = 0; attempt < MAX_REST_INCREMENT_ATTEMPTS; attempt += 1) {
+            const readResponse = await fetch(VISIT_COUNT_URL, {
+                cache: 'no-store',
+                headers: { 'X-Firebase-ETag': 'true' }
+            });
+
+            if (!readResponse.ok) {
+                throw new Error(`Visit count read failed: HTTP ${readResponse.status}`);
+            }
+
+            const etag = readResponse.headers.get('ETag');
+            const currentValue = await readResponse.json();
+            const nextValue = Number(currentValue || 0) + 1;
+
+            const writeResponse = await fetch(VISIT_COUNT_URL, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...(etag ? { 'if-match': etag } : {})
+                },
+                body: JSON.stringify(nextValue)
+            });
+
+            if (writeResponse.status === 412) {
+                continue;
+            }
+
+            if (!writeResponse.ok) {
+                throw new Error(`Visit count update failed: HTTP ${writeResponse.status}`);
+            }
+
+            renderCount(await writeResponse.json());
+            return;
+        }
+
+        throw new Error('Visit count update conflicted too many times');
+    };
+
     loadVisitorCountFallback();
+
+    incrementVisitorCount().catch((error) => {
+        console.warn('Visit count REST increment failed:', error);
+        loadVisitorCountFallback();
+    });
 
     if (typeof firebase === 'undefined') {
         return;

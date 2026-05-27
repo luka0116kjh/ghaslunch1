@@ -44,7 +44,7 @@ const STUDENT_ID_KEY = 'ghas-student-id';
 const STUDENT_CODE_IMAGE_KEY = 'ghas-student-code-image';
 const SCHEDULE_YEAR = window.GHAS_SCHEDULE_YEAR || 2026;
 const SCHEDULE_SOURCE = window.GHAS_SCHEDULE_SOURCE || '';
-const SCHEDULE_EVENTS = parseScheduleSource(SCHEDULE_SOURCE);
+let SCHEDULE_EVENTS;
 const CLASS_TIMETABLE_VERSION = '20260520';
 const CLASS_TIMETABLE_RUNTIME_PATH = './src/data/classTimetable2026.js';
 const TIMETABLE_DAYS = ['일', '월', '화', '수', '목', '금', '토'];
@@ -121,11 +121,13 @@ function parseScheduleSource(source) {
 }
 
 function normalizeScheduleTitle(title) {
-    return String(title || '')
+    const normalizedTitle = String(title || '')
         .trim()
         .replace(/\s+/g, ' ')
         .replace(/대체\s*공휴일/g, '대체공휴일')
         .replace(/대체\s*공유일/g, '대체공유일');
+
+    return SUBJECT_ALIASES[normalizedTitle] || normalizedTitle;
 }
 
 function isHolidayScheduleTitle(title) {
@@ -920,8 +922,9 @@ const SUBJECT_ALIASES = {
     //모름 예상
     "엔진": "엔진 정비",
     "전장": "전기전자 장비정비",
-    "엔정": "엔진 정비",
 };
+
+SCHEDULE_EVENTS = parseScheduleSource(SCHEDULE_SOURCE);
 
 function cleanTimetableSubject(rawName) {
     return normalizeScheduleTitle(String(rawName || '').replace(/\*/g, '').trim());
@@ -930,8 +933,7 @@ function cleanTimetableSubject(rawName) {
 function decodeSubject(rawName) {
     const trimmed = cleanTimetableSubject(rawName);
     if (!trimmed) return "공강";
-    // 딕셔너리에 매핑된 값이 있으면 그 값을, 없으면 원본을 그대로 반환
-    return SUBJECT_ALIASES[trimmed] || trimmed;
+    return trimmed;
 }
 
 function loadClassTimetable2026() {
