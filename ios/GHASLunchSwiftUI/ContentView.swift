@@ -5,6 +5,7 @@ import WebKit
 struct ContentView: View {
     @AppStorage("theme") private var savedTheme = ""
     @Environment(\.colorScheme) private var colorScheme
+    @State private var presentsNotificationSettings = false
 
     var body: some View {
         ZStack {
@@ -12,6 +13,23 @@ struct ContentView: View {
                 .ignoresSafeArea()
             GHASLunchWebView()
                 .ignoresSafeArea(.container, edges: .bottom)
+
+            VStack {
+                Spacer()
+                HStack {
+                    Spacer()
+                    NotificationSettingsCardButton {
+                        presentsNotificationSettings = true
+                    }
+                }
+                .padding(.trailing, 14)
+                .padding(.bottom, 14)
+            }
+        }
+        .sheet(isPresented: $presentsNotificationSettings) {
+            NotificationSettingsSheet()
+                .presentationDetents([.medium, .large])
+                .presentationDragIndicator(.visible)
         }
     }
 
@@ -128,8 +146,6 @@ struct GHASLunchWebView: UIViewRepresentable {
             };
             var bridge = {
                 __iosBridge: true,
-                // Notifications are temporarily disabled in the web/iOS bridge.
-                // They will be reconnected later through native FCM.
                 requestNotifications: function() {
                     post('requestNotifications', null);
                 },
@@ -249,8 +265,9 @@ struct GHASLunchWebView: UIViewRepresentable {
         func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
             applySavedTheme()
             applyPadLayoutIfNeeded()
-            UserDefaults.standard.set(false, forKey: notificationKey)
-            updateWebNotificationState(false)
+            let enabled = NativeNotificationSettings.load().enabled
+            UserDefaults.standard.set(enabled, forKey: notificationKey)
+            updateWebNotificationState(enabled)
         }
 
         func webView(
@@ -281,15 +298,30 @@ struct GHASLunchWebView: UIViewRepresentable {
         }
 
         private func requestNotifications() {
-            // Temporarily disabled: iOS notification permission requests are paused
-            // until FirebaseMessagingService/native FCM migration is implemented.
-            UserDefaults.standard.set(false, forKey: notificationKey)
-            updateWebNotificationState(false)
+            Task {
+                var settings = NativeNotificationSettings.load()
+                settings.enabled = true
+                settings.save()
+                let allowed = await NativeNotificationService.apply(settings)
+                if !allowed {
+                    settings.enabled = false
+                    settings.save()
+                }
+                await MainActor.run {
+                    UserDefaults.standard.set(allowed, forKey: notificationKey)
+                    updateWebNotificationState(allowed)
+                }
+            }
         }
 
         private func cancelNotifications() {
-            UserDefaults.standard.set(false, forKey: notificationKey)
-            updateWebNotificationState(false)
+            Task {
+                await NativeNotificationService.disableNotifications()
+                await MainActor.run {
+                    UserDefaults.standard.set(false, forKey: notificationKey)
+                    updateWebNotificationState(false)
+                }
+            }
         }
 
         private func saveTheme(_ theme: String?) {

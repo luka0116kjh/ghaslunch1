@@ -8,6 +8,8 @@ import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.content.SharedPreferences
 import android.content.pm.PackageManager
+import android.content.res.ColorStateList
+import android.content.res.Configuration
 import android.graphics.Bitmap
 import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
@@ -15,17 +17,15 @@ import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.util.Log
-<<<<<<< HEAD
-=======
-import android.util.TypedValue
->>>>>>> 5ea2f2af732af2e5459223a63d5b151b06745e14
 import android.view.Gravity
 import android.view.ViewGroup
 import android.widget.Button
 import android.widget.FrameLayout
+import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.Switch
+import android.widget.TextView
 import android.webkit.WebResourceError
 import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
@@ -34,11 +34,6 @@ import android.webkit.WebChromeClient
 import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
-import android.widget.FrameLayout
-import android.widget.ImageButton
-import android.widget.LinearLayout
-import android.widget.Switch
-import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.OnBackPressedCallback
@@ -52,7 +47,9 @@ class MainActivity : ComponentActivity() {
     private lateinit var preferences: SharedPreferences
     private lateinit var fileChooserLauncher: ActivityResultLauncher<Intent>
     private lateinit var notificationPermissionLauncher: ActivityResultLauncher<String>
-    private lateinit var localNotificationPermissionLauncher: ActivityResultLauncher<String>
+    private lateinit var notificationSettingsCard: LinearLayout
+    private lateinit var notificationSettingsIcon: ImageView
+    private lateinit var notificationSettingsLabel: TextView
     private val nativeBridge by lazy { NativeNotificationBridge(this) }
     private val notificationScheduler by lazy { NativeNotificationScheduler(applicationContext) }
     private var fileChooserCallback: ValueCallback<Array<Uri>>? = null
@@ -61,255 +58,24 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         registerActivityResultLaunchers()
-<<<<<<< HEAD
         notificationScheduler.createNotificationChannels()
-=======
-        NativeNotificationScheduler.createChannels(this)
->>>>>>> 5ea2f2af732af2e5459223a63d5b151b06745e14
 
-        preferences = getSharedPreferences(NativeNotificationScheduler.PREFS_NAME, MODE_PRIVATE)
+        preferences = getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
         webView = WebView(this).apply {
             configureSettings(settings)
             webViewClient = createWebViewClient()
             webChromeClient = createWebChromeClient()
         }
 
-<<<<<<< HEAD
         val contentView = FrameLayout(this).apply {
             addView(webView)
             addView(createNotificationSettingsButton())
         }
         setContentView(contentView)
-=======
-        setContentView(createNativeShell())
->>>>>>> 5ea2f2af732af2e5459223a63d5b151b06745e14
         registerBackHandler()
         updateNativeBridge(APP_URL)
         webView.loadUrl(APP_URL)
     }
-
-    private fun createNativeShell(): LinearLayout {
-        val shell = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setBackgroundColor(Color.WHITE)
-        }
-        shell.addView(
-            webView,
-            LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                0,
-                1f
-            )
-        )
-        shell.addView(createNotificationToolbar())
-        return shell
-    }
-
-    private fun createNotificationToolbar(): FrameLayout {
-        val toolbar = FrameLayout(this).apply {
-            setBackgroundColor(Color.WHITE)
-            elevation = dp(2).toFloat()
-        }
-        val button = ImageButton(this).apply {
-            setImageResource(R.drawable.ic_notifications)
-            contentDescription = getString(R.string.notification_settings_open)
-            setColorFilter(Color.rgb(45, 45, 45))
-            background = GradientDrawable().apply {
-                shape = GradientDrawable.OVAL
-                setColor(Color.rgb(245, 245, 245))
-            }
-            setPadding(dp(11), dp(11), dp(11), dp(11))
-            setOnClickListener { showNotificationSettingsDialog() }
-        }
-        toolbar.addView(
-            button,
-            FrameLayout.LayoutParams(dp(44), dp(44), Gravity.END or Gravity.CENTER_VERTICAL).apply {
-                marginEnd = dp(16)
-            }
-        )
-        return toolbar.apply {
-            layoutParams = LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                dp(56)
-            )
-        }
-    }
-
-    private fun showNotificationSettingsDialog() {
-        val form = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(dp(24), dp(8), dp(24), 0)
-        }
-        val enabled = notificationSwitch(
-            R.string.notification_settings_enable,
-            preferences.getBoolean(NativeNotificationScheduler.KEY_NOTIFICATIONS_ENABLED, false)
-        )
-        val meal = categorySettingsRow(
-            labelResId = R.string.notification_settings_meal,
-            enabled = preferences.getBoolean(NativeNotificationScheduler.KEY_MEAL_NOTIFICATIONS, false),
-            hour = preferences.getInt(NativeNotificationScheduler.KEY_MEAL_HOUR, 11),
-            minute = preferences.getInt(NativeNotificationScheduler.KEY_MEAL_MINUTE, 0)
-        )
-        val timetable = categorySettingsRow(
-            labelResId = R.string.notification_settings_timetable,
-            enabled = preferences.getBoolean(NativeNotificationScheduler.KEY_TIMETABLE_NOTIFICATIONS, false),
-            hour = preferences.getInt(NativeNotificationScheduler.KEY_TIMETABLE_HOUR, 7),
-            minute = preferences.getInt(NativeNotificationScheduler.KEY_TIMETABLE_MINUTE, 30)
-        )
-        val notice = categorySettingsRow(
-            labelResId = R.string.notification_settings_notice,
-            enabled = preferences.getBoolean(NativeNotificationScheduler.KEY_NOTICE_NOTIFICATIONS, false),
-            hour = preferences.getInt(NativeNotificationScheduler.KEY_NOTICE_HOUR, 18),
-            minute = preferences.getInt(NativeNotificationScheduler.KEY_NOTICE_MINUTE, 0)
-        )
-        val detailSwitches = listOf(meal, timetable, notice)
-        val setDetailState = { available: Boolean ->
-            detailSwitches.forEach { it.setAvailable(available) }
-        }
-
-        setDetailState(enabled.isChecked)
-        enabled.setOnCheckedChangeListener { _, checked -> setDetailState(checked) }
-        form.addView(enabled)
-        listOf(meal, timetable, notice).forEach { form.addView(it.view) }
-
-        AlertDialog.Builder(this)
-            .setTitle(R.string.notification_settings_title)
-            .setView(form)
-            .setNegativeButton(android.R.string.cancel, null)
-            .setPositiveButton(R.string.notification_settings_save) { _, _ ->
-                saveNotificationPreferences(
-                    enabled.isChecked,
-                    meal,
-                    timetable,
-                    notice
-                )
-            }
-            .show()
-    }
-
-    private fun notificationSwitch(labelResId: Int, checked: Boolean): Switch {
-        return Switch(this).apply {
-            text = getString(labelResId)
-            isChecked = checked
-            textSize = 16f
-            gravity = Gravity.CENTER_VERTICAL
-            setPadding(0, dp(8), 0, dp(8))
-            layoutParams = LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                dp(52)
-            )
-        }
-    }
-
-    private fun categorySettingsRow(
-        labelResId: Int,
-        enabled: Boolean,
-        hour: Int,
-        minute: Int
-    ): CategorySettingsRow {
-        val toggle = Switch(this).apply {
-            text = getString(labelResId)
-            isChecked = enabled
-            textSize = 16f
-            gravity = Gravity.CENTER_VERTICAL
-        }
-        val timeButton = TextView(this).apply {
-            gravity = Gravity.CENTER
-            textSize = 15f
-            setTextColor(Color.rgb(45, 45, 45))
-            background = GradientDrawable().apply {
-                cornerRadius = dp(16).toFloat()
-                setColor(Color.rgb(245, 245, 245))
-            }
-            setPadding(dp(13), 0, dp(13), 0)
-        }
-        val state = CategorySettingsRow(toggle, timeButton, hour, minute)
-        state.updateTimeLabel()
-        timeButton.setOnClickListener {
-            TimePickerDialog(this, { _, selectedHour, selectedMinute ->
-                state.hour = selectedHour
-                state.minute = selectedMinute
-                state.updateTimeLabel()
-            }, state.hour, state.minute, true).show()
-        }
-        val row = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-            setPadding(0, dp(5), 0, dp(5))
-            addView(
-                toggle,
-                LinearLayout.LayoutParams(0, dp(52), 1f)
-            )
-            addView(
-                timeButton,
-                LinearLayout.LayoutParams(dp(76), dp(38))
-            )
-        }
-        state.view = row
-        return state
-    }
-
-    private fun saveNotificationPreferences(
-        enabled: Boolean,
-        meal: CategorySettingsRow,
-        timetable: CategorySettingsRow,
-        notice: CategorySettingsRow
-    ) {
-        preferences.edit()
-            .putBoolean(NativeNotificationScheduler.KEY_NOTIFICATIONS_ENABLED, enabled)
-            .putBoolean(NativeNotificationScheduler.KEY_MEAL_NOTIFICATIONS, meal.toggle.isChecked)
-            .putBoolean(NativeNotificationScheduler.KEY_TIMETABLE_NOTIFICATIONS, timetable.toggle.isChecked)
-            .putBoolean(NativeNotificationScheduler.KEY_NOTICE_NOTIFICATIONS, notice.toggle.isChecked)
-            .putInt(NativeNotificationScheduler.KEY_MEAL_HOUR, meal.hour)
-            .putInt(NativeNotificationScheduler.KEY_MEAL_MINUTE, meal.minute)
-            .putInt(NativeNotificationScheduler.KEY_TIMETABLE_HOUR, timetable.hour)
-            .putInt(NativeNotificationScheduler.KEY_TIMETABLE_MINUTE, timetable.minute)
-            .putInt(NativeNotificationScheduler.KEY_NOTICE_HOUR, notice.hour)
-            .putInt(NativeNotificationScheduler.KEY_NOTICE_MINUTE, notice.minute)
-            .apply()
-
-        if (!enabled) {
-            NativeNotificationScheduler.cancelAll(this)
-        } else if (
-            Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
-            checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) !=
-            PackageManager.PERMISSION_GRANTED
-        ) {
-            NativeNotificationScheduler.cancelAll(this)
-            localNotificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
-        } else {
-            NativeNotificationScheduler.applySavedSettings(this)
-        }
-
-        // TODO(FCM): register the device token and remote category subscriptions only
-        // when server-driven push delivery is introduced.
-        Toast.makeText(this, R.string.notification_settings_saved, Toast.LENGTH_SHORT).show()
-    }
-
-    private class CategorySettingsRow(
-        val toggle: Switch,
-        private val timeLabel: TextView,
-        var hour: Int,
-        var minute: Int
-    ) {
-        lateinit var view: LinearLayout
-
-        fun updateTimeLabel() {
-            timeLabel.text = String.format("%02d:%02d", hour, minute)
-        }
-
-        fun setAvailable(available: Boolean) {
-            toggle.isEnabled = available
-            timeLabel.isEnabled = available
-            timeLabel.alpha = if (available) 1f else 0.45f
-        }
-    }
-
-    private fun dp(value: Int): Int = TypedValue.applyDimension(
-        TypedValue.COMPLEX_UNIT_DIP,
-        value.toFloat(),
-        resources.displayMetrics
-    ).toInt()
 
     private fun registerBackHandler() {
         onBackPressedDispatcher.addCallback(
@@ -359,17 +125,6 @@ class MainActivity : ComponentActivity() {
             }
         }
 
-        localNotificationPermissionLauncher = registerForActivityResult(
-            ActivityResultContracts.RequestPermission()
-        ) { granted ->
-            if (granted) {
-                NativeNotificationScheduler.applySavedSettings(this)
-            } else {
-                NativeNotificationScheduler.cancelAll(this)
-                Toast.makeText(this, R.string.notification_permission_denied, Toast.LENGTH_SHORT)
-                    .show()
-            }
-        }
     }
 
     private fun configureSettings(settings: WebSettings) {
@@ -396,7 +151,7 @@ class MainActivity : ComponentActivity() {
 
             override fun onPageFinished(view: WebView, url: String?) {
                 applySavedThemeToPage()
-                installNotificationContentCacheBridge()
+                syncNativeThemeFromPage()
             }
 
             override fun onReceivedError(
@@ -516,24 +271,42 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    private fun createNotificationSettingsButton(): Button =
-        Button(this).apply {
+    private fun createNotificationSettingsButton(): LinearLayout {
+        notificationSettingsIcon = ImageView(this).apply {
+            setImageResource(R.drawable.ic_notifications)
+            layoutParams = LinearLayout.LayoutParams(dp(20), dp(20))
+        }
+        notificationSettingsLabel = TextView(this).apply {
             text = getString(R.string.notification_settings_button)
+            textSize = 14f
+            setPadding(dp(8), 0, 0, 0)
+        }
+        return LinearLayout(this).apply {
+            notificationSettingsCard = this
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
             contentDescription = getString(R.string.notification_settings_title)
-            isAllCaps = false
-            elevation = dp(4).toFloat()
+            isClickable = true
+            isFocusable = true
+            elevation = dp(5).toFloat()
+            setPadding(dp(14), dp(11), dp(16), dp(11))
+            addView(notificationSettingsIcon)
+            addView(notificationSettingsLabel)
             setOnClickListener { showNotificationSettingsDialog() }
             layoutParams = FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.WRAP_CONTENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT,
                 Gravity.END or Gravity.BOTTOM
             ).apply {
-                val margin = dp(16)
+                val margin = dp(14)
                 setMargins(margin, margin, margin, margin)
             }
+            applyNativeThemeToCard()
         }
+    }
 
     private fun showNotificationSettingsDialog() {
+        val palette = nativePalette()
         val current = notificationScheduler.settings()
         var mealTime = current.mealTime
         var timetableTime = current.timetableTime
@@ -541,35 +314,42 @@ class MainActivity : ComponentActivity() {
 
         val content = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(dp(20), dp(8), dp(20), dp(8))
+            setPadding(dp(22), dp(10), dp(22), dp(10))
         }
         val masterSwitch = createNotificationSwitch(
             R.string.notification_master_enabled,
-            current.enabled
+            current.enabled,
+            palette
         )
         val mealSwitch = createNotificationSwitch(
             R.string.notification_meal_enabled,
-            current.mealEnabled
+            current.mealEnabled,
+            palette
         )
         val mealTimeButton = createNotificationTimeButton(
             R.string.notification_meal_time,
-            mealTime
+            mealTime,
+            palette
         )
         val timetableSwitch = createNotificationSwitch(
             R.string.notification_timetable_enabled,
-            current.timetableEnabled
+            current.timetableEnabled,
+            palette
         )
         val timetableTimeButton = createNotificationTimeButton(
             R.string.notification_timetable_time,
-            timetableTime
+            timetableTime,
+            palette
         )
         val schoolNoticeSwitch = createNotificationSwitch(
             R.string.notification_school_notice_enabled,
-            current.schoolNoticeEnabled
+            current.schoolNoticeEnabled,
+            palette
         )
         val schoolNoticeTimeButton = createNotificationTimeButton(
             R.string.notification_school_notice_time,
-            schoolNoticeTime
+            schoolNoticeTime,
+            palette
         )
 
         content.addView(masterSwitch)
@@ -627,7 +407,7 @@ class MainActivity : ComponentActivity() {
         }
         updateAvailability()
 
-        AlertDialog.Builder(this)
+        val dialog = AlertDialog.Builder(this)
             .setTitle(R.string.notification_settings_title)
             .setView(ScrollView(this).apply { addView(content) })
             .setNegativeButton(R.string.notification_settings_cancel, null)
@@ -642,19 +422,68 @@ class MainActivity : ComponentActivity() {
                     schoolNoticeTime
                 )
             }
-            .show()
+            .create()
+        dialog.setOnShowListener {
+            dialog.window?.setBackgroundDrawable(
+                roundedBackground(palette.surface, palette.border, 24)
+            )
+            dialog.findViewById<TextView>(
+                resources.getIdentifier("alertTitle", "id", "android")
+            )?.setTextColor(palette.text)
+            dialog.getButton(AlertDialog.BUTTON_POSITIVE)?.setTextColor(palette.accent)
+            dialog.getButton(AlertDialog.BUTTON_NEGATIVE)?.setTextColor(palette.accent)
+        }
+        dialog.show()
     }
 
-    private fun createNotificationSwitch(labelResId: Int, checked: Boolean): Switch =
+    private fun createNotificationSwitch(
+        labelResId: Int,
+        checked: Boolean,
+        palette: NativePalette
+    ): Switch =
         Switch(this).apply {
             text = getString(labelResId)
             isChecked = checked
-            setPadding(0, dp(8), 0, dp(8))
+            setTextColor(palette.text)
+            buttonTintList = ColorStateList(
+                arrayOf(
+                    intArrayOf(android.R.attr.state_checked),
+                    intArrayOf()
+                ),
+                intArrayOf(palette.accent, palette.muted)
+            )
+            thumbTintList = ColorStateList(
+                arrayOf(
+                    intArrayOf(android.R.attr.state_checked),
+                    intArrayOf()
+                ),
+                intArrayOf(palette.accent, palette.muted)
+            )
+            trackTintList = ColorStateList(
+                arrayOf(
+                    intArrayOf(android.R.attr.state_checked),
+                    intArrayOf()
+                ),
+                intArrayOf(
+                    Color.argb(110, Color.red(palette.accent), Color.green(palette.accent), Color.blue(palette.accent)),
+                    palette.border
+                )
+            )
+            setPadding(0, dp(10), 0, dp(10))
         }
 
-    private fun createNotificationTimeButton(labelResId: Int, time: String): Button =
+    private fun createNotificationTimeButton(
+        labelResId: Int,
+        time: String,
+        palette: NativePalette
+    ): Button =
         Button(this).apply {
             isAllCaps = false
+            minHeight = 0
+            minimumHeight = 0
+            setTextColor(palette.text)
+            background = roundedBackground(palette.control, palette.border, 16)
+            setPadding(dp(12), dp(7), dp(12), dp(7))
             updateNotificationTimeButton(this, labelResId, time)
         }
 
@@ -677,6 +506,62 @@ class MainActivity : ComponentActivity() {
 
     private fun dp(value: Int): Int =
         (value * resources.displayMetrics.density).toInt()
+
+    private fun applyNativeThemeToCard() {
+        if (!::notificationSettingsCard.isInitialized) {
+            return
+        }
+        val palette = nativePalette()
+        notificationSettingsCard.background =
+            roundedBackground(palette.surface, palette.border, 22)
+        notificationSettingsLabel.setTextColor(palette.text)
+        notificationSettingsIcon.setColorFilter(palette.accent)
+    }
+
+    private fun nativePalette(): NativePalette {
+        val dark = when (getSavedTheme()) {
+            "dark" -> true
+            "light" -> false
+            else -> (resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) ==
+                Configuration.UI_MODE_NIGHT_YES
+        }
+        return if (dark) {
+            NativePalette(
+                surface = Color.parseColor("#242424"),
+                control = Color.parseColor("#303030"),
+                text = Color.parseColor("#F5F7FA"),
+                border = Color.parseColor("#383838"),
+                muted = Color.parseColor("#70757D"),
+                accent = Color.parseColor("#0B73FF")
+            )
+        } else {
+            NativePalette(
+                surface = Color.WHITE,
+                control = Color.parseColor("#F5F7FB"),
+                text = Color.parseColor("#20242A"),
+                border = Color.parseColor("#E4E8EF"),
+                muted = Color.parseColor("#B8C0CC"),
+                accent = Color.parseColor("#0B73FF")
+            )
+        }
+    }
+
+    private fun roundedBackground(fillColor: Int, strokeColor: Int, radiusDp: Int) =
+        GradientDrawable().apply {
+            shape = GradientDrawable.RECTANGLE
+            cornerRadius = dp(radiusDp).toFloat()
+            setColor(fillColor)
+            setStroke(dp(1), strokeColor)
+        }
+
+    private data class NativePalette(
+        val surface: Int,
+        val control: Int,
+        val text: Int,
+        val border: Int,
+        val muted: Int,
+        val accent: Int
+    )
 
     fun setNativeNotificationsEnabled(enabled: Boolean) {
         notificationScheduler.setMasterEnabled(enabled)
@@ -791,14 +676,11 @@ class MainActivity : ComponentActivity() {
     fun saveTheme(theme: String?) {
         if (theme == "dark" || theme == "light") {
             preferences.edit().putString(KEY_THEME, theme).apply()
+            runOnUiThread { applyNativeThemeToCard() }
         }
     }
 
     fun getSavedTheme(): String = preferences.getString(KEY_THEME, "") ?: ""
-
-    fun cacheNotificationContent(category: String?, date: String?, body: String?) {
-        NativeNotificationScheduler.cacheContent(this, category, date, body)
-    }
 
     private fun applySavedThemeToPage() {
         val theme = getSavedTheme()
@@ -824,55 +706,19 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-<<<<<<< HEAD
-=======
-    private fun installNotificationContentCacheBridge() {
-        val script = """
-            (function () {
-              var nativeApp = window.GHASAndroidApp;
-              if (!nativeApp || typeof nativeApp.cacheNotificationContent !== 'function') return;
-              var todayKey = function () {
-                var d = new Date();
-                return String(d.getFullYear()) +
-                  String(d.getMonth() + 1).padStart(2, '0') +
-                  String(d.getDate()).padStart(2, '0');
-              };
-              var compact = function (value) {
-                return String(value || '').replace(/\s+/g, ' ').trim();
-              };
-              var invalid = function (value) {
-                return !value || /불러오는 중|정보가 없습니다|불러오지 못했습니다|주말|휴일/.test(value);
-              };
-              var flush = function () {
-                var mealTitle = compact(document.getElementById('meal-view-title') && document.getElementById('meal-view-title').innerText);
-                var lunch = document.getElementById('lunch-menu');
-                var lunchText = compact(lunch && lunch.innerText);
-                if (mealTitle === '오늘의 급식' && !invalid(lunchText)) {
-                  nativeApp.cacheNotificationContent('meal', todayKey(), ('오늘 중식: ' + lunchText).slice(0, 240));
-                }
-
-                var title = compact(document.getElementById('timetable-title') && document.getElementById('timetable-title').innerText);
-                var rows = Array.prototype.slice.call(document.querySelectorAll('#timetable-list .timetable-row')).map(function (row) {
-                  var period = compact(row.querySelector('.period') && row.querySelector('.period').innerText);
-                  var subject = compact(row.querySelector('.subject') && row.querySelector('.subject').innerText);
-                  return period && subject && subject !== '공강' ? period + ' ' + subject : '';
-                }).filter(Boolean);
-                if (title === '오늘 시간표' && rows.length) {
-                  nativeApp.cacheNotificationContent('timetable', todayKey(), ('오늘 시간표: ' + rows.join(', ')).slice(0, 240));
-                }
-              };
-              if (!window.__ghasNativeContentCollector) {
-                var observer = new MutationObserver(flush);
-                observer.observe(document.body, { childList: true, subtree: true, characterData: true });
-                window.__ghasNativeContentCollector = { flush: flush, observer: observer };
-              }
-              window.__ghasNativeContentCollector.flush();
-            }());
-        """.trimIndent()
-        webView.evaluateJavascript(script, null)
+    private fun syncNativeThemeFromPage() {
+        webView.evaluateJavascript(
+            "(function(){try{return localStorage.getItem('theme') || '';}catch(e){return '';}})();"
+        ) { value ->
+            val theme = value?.trim()?.trim('"')
+            if (theme == "dark" || theme == "light") {
+                saveTheme(theme)
+            } else {
+                applyNativeThemeToCard()
+            }
+        }
     }
 
->>>>>>> 5ea2f2af732af2e5459223a63d5b151b06745e14
     private fun collectFileChooserResults(data: Intent): Array<Uri> {
         val result = mutableListOf<Uri>()
         data.clipData?.let { clipData ->
@@ -918,6 +764,7 @@ class MainActivity : ComponentActivity() {
         const val NOTIFICATION_TOPIC = "meal"
 
         private const val APP_URL = "https://ghaslunch1.web.app/"
+        private const val PREFS_NAME = "ghas_lunch_preferences"
         private const val KEY_THEME = "theme"
         private const val TAG = "GHASLunch"
     }

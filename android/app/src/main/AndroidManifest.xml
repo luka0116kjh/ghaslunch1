@@ -40,30 +40,20 @@
         </service>
 
         <receiver
-<<<<<<< HEAD
             android:name=".NativeNotificationReceiver"
             android:exported="false" />
 
         <receiver
             android:name=".NativeNotificationRescheduleReceiver"
-=======
-            android:name=".LocalNotificationReceiver"
-            android:exported="false" />
-
-        <receiver
-            android:name=".NotificationBootReceiver"
->>>>>>> 5ea2f2af732af2e5459223a63d5b151b06745e14
             android:enabled="true"
             android:exported="false">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
-<<<<<<< HEAD
                 <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
                 <action android:name="android.intent.action.TIME_SET" />
                 <action android:name="android.intent.action.TIMEZONE_CHANGED" />
-=======
->>>>>>> 5ea2f2af732af2e5459223a63d5b151b06745e14
             </intent-filter>
         </receiver>
+
     </application>
 </manifest>

@@ -95,15 +95,9 @@ class NativeNotificationBridge(private val activity: MainActivity) {
     @JavascriptInterface
     fun getTheme(): String = activity.getSavedTheme()
 
-<<<<<<< HEAD
     private fun setCategoryEnabled(category: String, enabled: Boolean) {
         activity.runOnUiThread {
             activity.setNativeNotificationCategoryEnabled(category, enabled)
         }
-=======
-    @JavascriptInterface
-    fun cacheNotificationContent(category: String?, date: String?, body: String?) {
-        activity.cacheNotificationContent(category, date, body)
->>>>>>> 5ea2f2af732af2e5459223a63d5b151b06745e14
     }
 }
