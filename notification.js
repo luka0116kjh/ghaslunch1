@@ -32,18 +32,6 @@
         }
     }
 
-    async function getTokenDatabaseKey(token) {
-        if (!token || !window.crypto?.subtle || typeof TextEncoder === 'undefined') {
-            return null;
-        }
-
-        const tokenBytes = new TextEncoder().encode(token);
-        const hashBuffer = await window.crypto.subtle.digest('SHA-256', tokenBytes);
-        return Array.from(new Uint8Array(hashBuffer))
-            .map((byte) => byte.toString(16).padStart(2, '0'))
-            .join('');
-    }
-
     async function requestNoti() {
         // Android WebView APK: native bridge subscribes the app to the FCM topic.
         if (window.GHASAndroidNotifications?.requestNotifications) {
@@ -112,22 +100,6 @@
             localStorage.setItem('noti-enabled', 'true');
             updateNotiButton();
 
-            try {
-                const tokenKey = await getTokenDatabaseKey(currentToken);
-                if (!tokenKey) {
-                    throw new Error('토큰 저장 키를 생성하지 못했습니다.');
-                }
-
-                const db = firebase.database();
-                const tokenRef = db.ref('tokens/' + tokenKey);
-                await tokenRef.set({
-                    lastUpdated: firebase.database.ServerValue.TIMESTAMP,
-                    platform: 'web'
-                });
-            } catch (tokenSaveError) {
-                console.warn('FCM token save failed:', tokenSaveError);
-            }
-
             alert('푸시 알림 설정이 완료되었습니다. 이제 실시간 알림을 받을 수 있습니다.');
         } catch (err) {
             console.error('FCM 설정 중 오류:', err);
@@ -184,18 +156,6 @@
                     });
 
                     if (currentToken) {
-                        try {
-                            const tokenKey = await getTokenDatabaseKey(currentToken);
-                            if (!tokenKey) {
-                                throw new Error('토큰 저장 키를 생성하지 못했습니다.');
-                            }
-
-                            const db = firebase.database();
-                            await db.ref('tokens/' + tokenKey).remove();
-                        } catch (tokenRemoveError) {
-                            console.warn('FCM token remove failed:', tokenRemoveError);
-                        }
-
                         try {
                             await messaging.deleteToken(currentToken);
                         } catch (tokenDeleteError) {
@@ -255,10 +215,7 @@
             const data = await fetchMealData({ from: ymd, to: ymd, pSize: 100 });
             const rows = extractMealRows(data);
 
-            if (rows.length === 0) {
-                console.log("No meals today, skipping notification.");
-                return;
-            }
+            if (rows.length === 0) return;
 
             let bodyText = '오늘의 맛있는 급식 정보를 확인해보세요! ';
             const lunch = rows.find(r => r.MMEAL_SC_CODE === '2');
