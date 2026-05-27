@@ -25,6 +25,8 @@ internal enum class NativeNotificationCategory(
     val alarmRequestCode: Int,
     val contentRequestCode: Int,
     val notificationId: Int,
+    val alarmAction: String,
+    val contentAction: String,
     val defaultTime: String,
     val titleResId: Int,
     val fallbackBodyResId: Int,
@@ -37,6 +39,8 @@ internal enum class NativeNotificationCategory(
         alarmRequestCode = 1001,
         contentRequestCode = 3001,
         notificationId = 2001,
+        alarmAction = "kr.hs.ghas.ghason.action.DELIVER_NATIVE_NOTIFICATION.meal",
+        contentAction = "kr.hs.ghas.ghason.action.OPEN_NOTIFICATION.meal",
         defaultTime = "11:00",
         titleResId = R.string.meal_notification_title,
         fallbackBodyResId = R.string.meal_notification_body_fallback,
@@ -49,6 +53,8 @@ internal enum class NativeNotificationCategory(
         alarmRequestCode = 1002,
         contentRequestCode = 3002,
         notificationId = 2002,
+        alarmAction = "kr.hs.ghas.ghason.action.DELIVER_NATIVE_NOTIFICATION.timetable",
+        contentAction = "kr.hs.ghas.ghason.action.OPEN_NOTIFICATION.timetable",
         defaultTime = "07:30",
         titleResId = R.string.timetable_notification_title,
         fallbackBodyResId = R.string.timetable_notification_body_fallback,
@@ -61,6 +67,8 @@ internal enum class NativeNotificationCategory(
         alarmRequestCode = 1003,
         contentRequestCode = 3003,
         notificationId = 2003,
+        alarmAction = "kr.hs.ghas.ghason.action.DELIVER_NATIVE_NOTIFICATION.school_notice",
+        contentAction = "kr.hs.ghas.ghason.action.OPEN_NOTIFICATION.school_notice",
         defaultTime = "18:00",
         titleResId = R.string.school_notice_notification_title,
         fallbackBodyResId = R.string.school_notice_notification_body_fallback,
@@ -240,6 +248,8 @@ internal class NativeNotificationScheduler(private val context: Context) {
     fun cancelCategory(category: NativeNotificationCategory, cancelVisible: Boolean) {
         cancelScheduledAlarm(category)
         if (cancelVisible) {
+            notificationManager.cancel(category.key, category.notificationId)
+            // Remove notifications posted by earlier app versions that did not use tags.
             notificationManager.cancel(category.notificationId)
         }
     }
@@ -345,7 +355,9 @@ internal class NativeNotificationScheduler(private val context: Context) {
         body: String
     ) {
         val launchIntent = Intent(context, MainActivity::class.java).apply {
+            action = category.contentAction
             addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+            putExtra(EXTRA_CATEGORY, category.key)
         }
         val contentIntent = PendingIntent.getActivity(
             context,
@@ -374,7 +386,7 @@ internal class NativeNotificationScheduler(private val context: Context) {
         }
 
         try {
-            notificationManager.notify(category.notificationId, builder.build())
+            notificationManager.notify(category.key, category.notificationId, builder.build())
         } catch (error: SecurityException) {
             Log.w(TAG, "Unable to display ${category.key} notification", error)
         }
@@ -395,7 +407,7 @@ internal class NativeNotificationScheduler(private val context: Context) {
         creationFlag: Int
     ): PendingIntent? {
         val intent = Intent(context, NativeNotificationReceiver::class.java).apply {
-            action = ACTION_DELIVER_NOTIFICATION
+            action = category.alarmAction
             putExtra(EXTRA_CATEGORY, category.key)
         }
         return PendingIntent.getBroadcast(
@@ -460,8 +472,6 @@ internal class NativeNotificationScheduler(private val context: Context) {
         this?.trim()?.takeIf { it.isNotEmpty() }
 
     companion object {
-        const val ACTION_DELIVER_NOTIFICATION =
-            "kr.hs.ghas.ghason.action.DELIVER_NATIVE_NOTIFICATION"
         const val EXTRA_CATEGORY = "notification_category"
 
         private const val PREFS_NAME = "ghas_lunch_preferences"
@@ -486,12 +496,12 @@ internal class NativeNotificationScheduler(private val context: Context) {
 
 class NativeNotificationReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
-        if (intent.action != NativeNotificationScheduler.ACTION_DELIVER_NOTIFICATION) {
-            return
-        }
         val category = NativeNotificationCategory.fromKey(
             intent.getStringExtra(NativeNotificationScheduler.EXTRA_CATEGORY)
         ) ?: return
+        if (intent.action != category.alarmAction) {
+            return
+        }
         NativeNotificationScheduler(context.applicationContext)
             .deliverScheduledNotification(category)
     }
