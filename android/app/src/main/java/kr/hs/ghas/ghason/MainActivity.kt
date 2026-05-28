@@ -143,6 +143,11 @@ class MainActivity : ComponentActivity() {
     private fun configureSettings(settings: WebSettings) {
         settings.javaScriptEnabled = true
         settings.domStorageEnabled = true
+        settings.useWideViewPort = true
+        settings.loadWithOverviewMode = true
+        settings.builtInZoomControls = false
+        settings.displayZoomControls = false
+        settings.setSupportZoom(false)
     }
 
     private fun createWebViewClient(): WebViewClient {

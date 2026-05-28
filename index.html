@@ -21,7 +21,7 @@
 
     <link rel="stylesheet" as="style" crossorigin
         href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css" />
-<link rel="stylesheet" href="style.css?v=10">
+<link rel="stylesheet" href="style.css?v=11">
 </head>
 
 <body>
@@ -33,7 +33,6 @@
                     <h1 id="title-text">경기자동차과학고</h1>
                 </div>
                 <div class="header-actions">
-                    <button id="btn-qr" class="btn-qr" type="button" aria-label="학생 코드 보기">QR</button>
                     <button id="btn-share" class="btn-icon" type="button" aria-label="공유하기">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
                             stroke-linejoin="round">
@@ -78,6 +77,21 @@
                 <div id="dinner-title" class="meal-type">석식</div>
                 <div id="dinner-menu" class="meal-list">데이터를 불러오는 중...</div>
                 <div id="dinner-cal" class="calorie"></div>
+            </article>
+
+            <article id="student-code-inline-card" class="meal-card student-code-inline-card">
+                <div class="student-code-inline-header">
+                    <div class="meal-type">내 바코드 / QR</div>
+                    <label class="student-code-small-action" for="student-code-image-input">변경</label>
+                </div>
+                <div id="student-code-inline-empty" class="student-code-empty">
+                    <p>아직 등록된 바코드/QR이 없습니다.</p>
+                    <label class="upload-button student-code-register-button" for="student-code-image-input">등록하기</label>
+                </div>
+                <div id="student-code-inline-image-wrap" class="student-code-inline-image" hidden>
+                    <img id="student-code-inline-image" alt="">
+                </div>
+                <p id="student-code-inline-status" class="upload-status" aria-live="polite"></p>
             </article>
         </main>
 
@@ -160,7 +174,7 @@
     </div>
 
     <script src="schedule.js?v=3"></script>
-    <script src="script.js?v=62"></script>
+    <script src="script.js?v=63"></script>
     <script src="afterschool.js?v=20260522-afterschool-file-ready"></script>
     <!-- notification.js is intentionally unused while Web FCM/Web Push is disabled.
          Keep the file for future Android native FCM migration reference. -->

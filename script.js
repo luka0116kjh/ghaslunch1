@@ -467,6 +467,7 @@ async function showWeeklyMeals(baseDate) {
     if (document.getElementById('btn-schedule')) document.getElementById('btn-schedule').classList.remove('active');
     document.getElementById('btn-week').classList.add('active');
     if (document.getElementById('btn-timetable')) document.getElementById('btn-timetable').classList.remove('active');
+    renderStudentCodeCard();
     setText('lunch-title', `${weekLabel} 중식`);
     setText('dinner-title', `${weekLabel} 석식`);
     setText('today-date', `${formatMonthDay(monday)} ~ ${formatMonthDay(friday)}`);
@@ -582,10 +583,14 @@ function isValidStudentId(studentId) {
 function renderStudentCodeCard() {
     const studentId = getStoredStudentId();
     const storedImage = getStoredStudentCodeImage();
-    const shouldShowImage = Boolean(studentId && storedImage);
+    const shouldShowImage = Boolean(storedImage);
     const placeholder = document.getElementById('student-card-placeholder');
     const imageEl = document.getElementById('student-code-image');
     const imageWrap = document.getElementById('student-card-image');
+    const inlineEmpty = document.getElementById('student-code-inline-empty');
+    const inlineImageEl = document.getElementById('student-code-inline-image');
+    const inlineImageWrap = document.getElementById('student-code-inline-image-wrap');
+    const inlineChangeAction = document.querySelector('.student-code-small-action');
 
     if (placeholder) {
         placeholder.hidden = shouldShowImage;
@@ -604,13 +609,42 @@ function renderStudentCodeCard() {
         imageEl.removeAttribute('src');
         imageEl.alt = '';
     }
+
+    if (inlineEmpty) {
+        inlineEmpty.hidden = shouldShowImage;
+    }
+
+    if (inlineImageWrap) {
+        inlineImageWrap.hidden = !shouldShowImage;
+    }
+
+    if (inlineChangeAction) {
+        inlineChangeAction.hidden = !shouldShowImage;
+    }
+
+    if (!inlineImageEl) return;
+
+    if (shouldShowImage) {
+        inlineImageEl.src = storedImage;
+        inlineImageEl.alt = studentId ? `저장된 학생 코드 ${studentId}` : '저장된 바코드/QR 이미지';
+    } else {
+        inlineImageEl.removeAttribute('src');
+        inlineImageEl.alt = '';
+    }
+}
+
+function setStudentCodeUploadStatus(message) {
+    const statusIds = ['student-code-upload-status', 'student-code-inline-status'];
+    statusIds.forEach((id) => {
+        const statusEl = document.getElementById(id);
+        if (statusEl) statusEl.textContent = message;
+    });
 }
 
 function openStudentCodeModal() {
     const modal = document.getElementById('student-code-modal');
-    const statusEl = document.getElementById('student-code-upload-status');
 
-    if (statusEl) statusEl.textContent = '';
+    setStudentCodeUploadStatus('');
     renderStudentCodeCard();
 
     if (modal) {
@@ -759,32 +793,30 @@ async function handleStudentCodeImageUpload(event) {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    const statusEl = document.getElementById('student-code-upload-status');
-    if (statusEl) statusEl.textContent = 'QR/바코드를 읽는 중입니다...';
+    setStudentCodeUploadStatus('사진을 저장하는 중입니다...');
 
     try {
-        const barcodes = await scanStudentCodeImage(file);
-        const studentId = barcodes
-            .map(barcode => extractStudentCodeFromScan(barcode.rawValue))
-            .find(Boolean);
-
-        if (!studentId) {
-            if (statusEl) statusEl.textContent = '사진에서 학생 고유코드를 찾지 못했습니다. 더 선명한 사진으로 다시 올려 주세요.';
-            return;
-        }
-
         await saveStudentCodeImage(file);
         localStorage.removeItem(STUDENT_NAME_KEY);
-        localStorage.setItem(STUDENT_ID_KEY, studentId);
-        if (statusEl) statusEl.textContent = '학생 코드 사진을 저장했습니다.';
+
+        try {
+            const barcodes = await scanStudentCodeImage(file);
+            const studentId = barcodes
+                .map(barcode => extractStudentCodeFromScan(barcode.rawValue))
+                .find(Boolean);
+
+            if (studentId) {
+                localStorage.setItem(STUDENT_ID_KEY, studentId);
+            }
+        } catch (scanError) {
+            console.warn('Student code scan skipped after image save:', scanError);
+        }
+
+        setStudentCodeUploadStatus('바코드/QR 사진을 저장했습니다.');
         renderStudentCodeCard();
     } catch (error) {
-        console.error('Student code scan failed:', error);
-        if (statusEl) {
-            statusEl.textContent = error.message === 'UNSUPPORTED_BARCODE_DETECTOR'
-                ? '이 브라우저는 사진 속 QR/바코드 읽기를 지원하지 않습니다. 코드를 직접 입력해 주세요.'
-                : 'QR/바코드 사진을 읽지 못했습니다. 더 선명한 사진으로 다시 시도해 주세요.';
-        }
+        console.error('Student code image save failed:', error);
+        setStudentCodeUploadStatus('사진을 저장하지 못했습니다. 다른 사진으로 다시 시도해 주세요.');
     } finally {
         event.target.value = '';
     }
@@ -845,6 +877,7 @@ function showMeals(type) {
         if (btnWeek) btnWeek.classList.toggle('active', false);
         if (btnTimetable) btnTimetable.classList.toggle('active', false);
         updateMealSwitchUI(mealViewMode);
+        renderStudentCodeCard();
 
         // 타이틀 접두사 제거 (카카오 스타일은 심플함이 생명)
         setText('lunch-title', `중식`);
@@ -1175,7 +1208,6 @@ function updateTimetableHeader(titleText, targetDate, nextButtonText) {
 
 function registerAppEventHandlers() {
     const clickHandlers = [
-        ['btn-qr', openStudentCodeModal],
         ['btn-share', shareApp],
         ['btn-today', () => showMeals('today')],
         ['btn-week', () => showMeals('week')],
