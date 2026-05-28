@@ -325,6 +325,24 @@ function normalizeMenuText(rawMenu) {
     return clean.split(/\s+/).filter(Boolean).join('\n');
 }
 
+function renderMealMenuHtml(menuText) {
+    const items = String(menuText || '')
+        .split('\n')
+        .map(item => item.trim())
+        .filter(Boolean);
+
+    if (items.length === 0) {
+        return escapeHTML('정보가 없습니다.');
+    }
+
+    const lines = [];
+    for (let index = 0; index < items.length; index += 2) {
+        lines.push(items.slice(index, index + 2).map(escapeHTML).join(' / '));
+    }
+
+    return lines.join('<br>');
+}
+
 function extractMealRows(data) {
     const mealInfo = Array.isArray(data.mealServiceDietInfo)
         ? data.mealServiceDietInfo.find(section => Array.isArray(section.row))
@@ -391,11 +409,11 @@ async function fetchMeals(targetDate) {
             const cleanMenu = normalizeMenuText(row.DDISH_NM);
             if (row.MMEAL_SC_CODE === '2') {
                 const lunchEl = document.getElementById('lunch-menu');
-                if (lunchEl) lunchEl.innerHTML = escapeHTML(cleanMenu || '정보가 없습니다.').replace(/\n/g, '<br>');
+                if (lunchEl) lunchEl.innerHTML = renderMealMenuHtml(cleanMenu);
                 setText('lunch-cal', row.CAL_INFO || '');
             } else if (row.MMEAL_SC_CODE === '3') {
                 const dinnerEl = document.getElementById('dinner-menu');
-                if (dinnerEl) dinnerEl.innerHTML = escapeHTML(cleanMenu || '정보가 없습니다.').replace(/\n/g, '<br>');
+                if (dinnerEl) dinnerEl.innerHTML = renderMealMenuHtml(cleanMenu);
                 setText('dinner-cal', row.CAL_INFO || '');
             }
         });
@@ -432,7 +450,7 @@ function buildMealTextByWeek(mealMap, mealCode, monday) {
         date.setDate(monday.getDate() + i);
         const ymd = formatDate(date);
         const weekday = date.toLocaleDateString('ko-KR', { weekday: 'short' });
-        const menu = escapeHTML(mealMap[ymd]?.[mealCode] || '정보가 없습니다.').replace(/\n/g, '<br>');
+        const menu = renderMealMenuHtml(mealMap[ymd]?.[mealCode] || '정보가 없습니다.');
         lines.push(`
             <div class="weekly-meal-day">
                 <div class="weekly-meal-date">
