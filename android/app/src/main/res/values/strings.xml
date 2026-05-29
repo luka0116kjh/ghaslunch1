@@ -39,4 +39,5 @@
     <string name="notification_settings_save">저장</string>
     <string name="notification_settings_cancel">취소</string>
     <string name="external_link_error">이 링크를 열 수 없습니다.</string>
+    <string name="share_action">공유하기</string>
 </resources>

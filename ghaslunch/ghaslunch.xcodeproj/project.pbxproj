@@ -33,13 +33,13 @@
 		A16CB9E62FB61C8300CA31F5 /* ghaslunchTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ghaslunchTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		A16CB9F02FB61C8300CA31F5 /* ghaslunchUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ghaslunchUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		FBAA00000000000000000011 /* GoogleService-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; name = "GoogleService-Info.plist"; path = "../ios/GoogleService-Info.plist"; sourceTree = "<group>"; };
-		FBAA00000000000000000013 /* AppIcon Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = "AppIcon Assets.xcassets"; path = "ghaslunch/Assets.xcassets"; sourceTree = "<group>"; };
+		FBAA00000000000000000013 /* AppIcon Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = "AppIcon Assets.xcassets"; path = ghaslunch/Assets.xcassets; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
-		A16CB9DB2FB61C8100CA31F5 /* ghaslunch */ = {
+		A16CB9DB2FB61C8100CA31F5 /* ../ios/GHASLunchSwiftUI */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			path = "../ios/GHASLunchSwiftUI";
+			path = ../ios/GHASLunchSwiftUI;
 			sourceTree = "<group>";
 		};
 		A16CB9E92FB61C8300CA31F5 /* ghaslunchTests */ = {
@@ -82,7 +82,7 @@
 		A16CB9D02FB61C8100CA31F5 = {
 			isa = PBXGroup;
 			children = (
-				A16CB9DB2FB61C8100CA31F5 /* ghaslunch */,
+				A16CB9DB2FB61C8100CA31F5 /* ../ios/GHASLunchSwiftUI */,
 				FBAA00000000000000000011 /* GoogleService-Info.plist */,
 				FBAA00000000000000000013 /* AppIcon Assets.xcassets */,
 				A16CB9E92FB61C8300CA31F5 /* ghaslunchTests */,
@@ -117,7 +117,7 @@
 			dependencies = (
 			);
 			fileSystemSynchronizedGroups = (
-				A16CB9DB2FB61C8100CA31F5 /* ghaslunch */,
+				A16CB9DB2FB61C8100CA31F5 /* ../ios/GHASLunchSwiftUI */,
 			);
 			name = ghaslunch;
 			packageProductDependencies = (
@@ -407,7 +407,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 12;
 				DEVELOPMENT_TEAM = 7QW78Y4R8H;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -423,7 +423,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 3.2.1;
 				PRODUCT_BUNDLE_IDENTIFIER = kr.hs.ghas.lunch;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
@@ -442,7 +442,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 12;
 				DEVELOPMENT_TEAM = 7QW78Y4R8H;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -458,7 +458,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 3.2.1;
 				PRODUCT_BUNDLE_IDENTIFIER = kr.hs.ghas.lunch;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
@@ -591,7 +591,6 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
-
 	};
 	rootObject = A16CB9D12FB61C8100CA31F5 /* Project object */;
 }

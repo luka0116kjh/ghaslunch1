@@ -59,6 +59,7 @@ class MainActivity : ComponentActivity() {
     private lateinit var fileChooserLauncher: ActivityResultLauncher<Intent>
     private lateinit var notificationPermissionLauncher: ActivityResultLauncher<String>
     private lateinit var notificationSettingsIcon: ImageView
+    private lateinit var shareIcon: ImageView
     private val nativeBridge by lazy { NativeNotificationBridge(this) }
     private val notificationScheduler by lazy { NativeNotificationScheduler(applicationContext) }
     private var fileChooserCallback: ValueCallback<Array<Uri>>? = null
@@ -80,7 +81,7 @@ class MainActivity : ComponentActivity() {
 
         val contentView = FrameLayout(this).apply {
             addView(webView)
-            addView(createNotificationSettingsButton())
+            addView(createHeaderActionContainer())
         }
         setContentView(contentView)
         registerBackHandler()
@@ -173,6 +174,7 @@ class MainActivity : ComponentActivity() {
             override fun onPageFinished(view: WebView, url: String?) {
                 applySavedThemeToPage()
                 syncNativeThemeFromPage()
+                hideWebShareButton()
             }
 
             override fun onReceivedError(
@@ -295,10 +297,11 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    private fun createNotificationSettingsButton(): View {
+    private fun createHeaderActionContainer(): View {
         val ripple = TypedValue()
         theme.resolveAttribute(android.R.attr.selectableItemBackgroundBorderless, ripple, true)
-        return ImageView(this).apply {
+
+        val notifIcon = ImageView(this).apply {
             notificationSettingsIcon = this
             setImageResource(R.drawable.ic_notifications)
             scaleType = ImageView.ScaleType.FIT_CENTER
@@ -308,16 +311,57 @@ class MainActivity : ComponentActivity() {
             setBackgroundResource(ripple.resourceId)
             setColorFilter(nativePalette().accent)
             setOnClickListener { showNotificationSettingsDialog() }
-            val padding = dp(NOTIFICATION_ICON_PADDING_DP)
-            setPadding(padding, padding, padding, padding)
+            val p = dp(NOTIFICATION_ICON_PADDING_DP)
+            setPadding(p, p, p, p)
+            layoutParams = LinearLayout.LayoutParams(
+                dp(NOTIFICATION_ICON_TOUCH_SIZE_DP),
+                dp(NOTIFICATION_ICON_TOUCH_SIZE_DP)
+            )
+        }
+
+        val shareIconView = ImageView(this).apply {
+            shareIcon = this
+            setImageResource(R.drawable.ic_share)
+            scaleType = ImageView.ScaleType.FIT_CENTER
+            contentDescription = getString(R.string.share_action)
+            isClickable = true
+            isFocusable = true
+            setBackgroundResource(ripple.resourceId)
+            setColorFilter(nativePalette().accent)
+            setOnClickListener {
+                webView.evaluateJavascript(
+                    "typeof shareApp === 'function' && shareApp()",
+                    null
+                )
+            }
+            val p = dp(NOTIFICATION_ICON_PADDING_DP)
+            setPadding(p, p, p, p)
+            layoutParams = LinearLayout.LayoutParams(
+                dp(NOTIFICATION_ICON_TOUCH_SIZE_DP),
+                dp(NOTIFICATION_ICON_TOUCH_SIZE_DP)
+            )
+        }
+
+        return LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            addView(notifIcon)
+            addView(shareIconView)
             layoutParams = FrameLayout.LayoutParams(
-                dp(NOTIFICATION_ICON_TOUCH_SIZE_DP),
-                dp(NOTIFICATION_ICON_TOUCH_SIZE_DP),
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT,
                 Gravity.END or Gravity.TOP
             ).apply {
                 setMargins(0, dp(NOTIFICATION_ICON_TOP_MARGIN_DP), dp(NOTIFICATION_ICON_SIDE_MARGIN_DP), 0)
             }
         }
+    }
+
+    private fun hideWebShareButton() {
+        webView.evaluateJavascript(
+            "(function(){var el=document.getElementById('btn-share');if(el)el.style.display='none';})();",
+            null
+        )
     }
 
     private fun showNotificationSettingsDialog() {
@@ -700,7 +744,9 @@ class MainActivity : ComponentActivity() {
 
     private fun applyNativeThemeToCard() {
         if (!::notificationSettingsIcon.isInitialized) return
-        notificationSettingsIcon.setColorFilter(nativePalette().accent)
+        val accent = nativePalette().accent
+        notificationSettingsIcon.setColorFilter(accent)
+        if (::shareIcon.isInitialized) shareIcon.setColorFilter(accent)
     }
 
     private fun nativePalette(): NativePalette {

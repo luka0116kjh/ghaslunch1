@@ -4,6 +4,7 @@ import WebKit
 
 extension Notification.Name {
     static let nativeNotificationSettingsDidChange = Notification.Name("nativeNotificationSettingsDidChange")
+    static let triggerWebShareAction = Notification.Name("triggerWebShareAction")
 }
 
 struct ContentView: View {
@@ -31,6 +32,16 @@ struct ContentView: View {
                             .contentShape(Circle())
                     }
                     .accessibilityLabel("알림 설정")
+                    Button {
+                        NotificationCenter.default.post(name: .triggerWebShareAction, object: nil)
+                    } label: {
+                        Image(systemName: "square.and.arrow.up")
+                            .font(.system(size: 18, weight: .semibold))
+                            .foregroundStyle(AppTheme.primary)
+                            .frame(width: 38, height: 38)
+                            .contentShape(Circle())
+                    }
+                    .accessibilityLabel("공유하기")
                 }
                 .padding(.trailing, 6)
                 .padding(.top, 6)
@@ -248,6 +259,12 @@ struct GHASLunchWebView: UIViewRepresentable {
             )
             NotificationCenter.default.addObserver(
                 self,
+                selector: #selector(handleTriggerWebShareAction),
+                name: .triggerWebShareAction,
+                object: nil
+            )
+            NotificationCenter.default.addObserver(
+                self,
                 selector: #selector(appDidEnterBackground),
                 name: UIApplication.didEnterBackgroundNotification,
                 object: nil
@@ -326,6 +343,7 @@ struct GHASLunchWebView: UIViewRepresentable {
         func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
             applySavedTheme()
             applyPadLayoutIfNeeded()
+            hideWebShareButton()
             let enabled = NativeNotificationSettings.load().enabled
             UserDefaults.standard.set(enabled, forKey: notificationKey)
             updateWebNotificationState(enabled)
@@ -417,6 +435,22 @@ struct GHASLunchWebView: UIViewRepresentable {
 
         @objc private nonisolated func appWillResignActive() {
             Task { @MainActor [weak self] in self?.disableBarcodeScanMode() }
+        }
+
+        @objc private nonisolated func handleTriggerWebShareAction() {
+            Task { @MainActor [weak self] in
+                self?.webView?.evaluateJavaScript(
+                    "typeof shareApp === 'function' && shareApp()",
+                    completionHandler: nil
+                )
+            }
+        }
+
+        private func hideWebShareButton() {
+            webView?.evaluateJavaScript(
+                "(function(){var el=document.getElementById('btn-share');if(el)el.style.display='none';})()",
+                completionHandler: nil
+            )
         }
 
         private func saveTheme(_ theme: String?) {
