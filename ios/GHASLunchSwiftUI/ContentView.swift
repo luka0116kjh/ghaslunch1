@@ -95,6 +95,12 @@ struct GHASLunchWebView: UIViewRepresentable {
         let webView = WKWebView(frame: .zero, configuration: configuration)
         webView.backgroundColor = .clear
         webView.isOpaque = false
+        let initialTheme = UserDefaults.standard.string(forKey: themeKey) ?? ""
+        if initialTheme == "dark" {
+            webView.underPageBackgroundColor = UIColor(red: 18/255, green: 18/255, blue: 18/255, alpha: 1)
+        } else if initialTheme == "light" {
+            webView.underPageBackgroundColor = UIColor(red: 246/255, green: 246/255, blue: 246/255, alpha: 1)
+        }
         webView.navigationDelegate = context.coordinator
         webView.uiDelegate = context.coordinator
         webView.allowsBackForwardNavigationGestures = true
@@ -107,7 +113,7 @@ struct GHASLunchWebView: UIViewRepresentable {
     func updateUIView(_ webView: WKWebView, context: Context) {}
 
     static func dismantleUIView(_ webView: WKWebView, coordinator: Coordinator) {
-        coordinator.disableBarcodeScanMode()
+        Task { @MainActor in coordinator.disableBarcodeScanMode() }
         webView.configuration.userContentController.removeScriptMessageHandler(
             forName: Coordinator.messageHandlerName
         )
@@ -249,7 +255,6 @@ struct GHASLunchWebView: UIViewRepresentable {
 
         deinit {
             NotificationCenter.default.removeObserver(self)
-            disableBarcodeScanMode()
         }
 
         func userContentController(
@@ -399,12 +404,12 @@ struct GHASLunchWebView: UIViewRepresentable {
             UIApplication.shared.isIdleTimerDisabled = false
         }
 
-        @objc private func appDidEnterBackground() {
-            disableBarcodeScanMode()
+        @objc private nonisolated func appDidEnterBackground() {
+            Task { @MainActor [weak self] in self?.disableBarcodeScanMode() }
         }
 
-        @objc private func appWillResignActive() {
-            disableBarcodeScanMode()
+        @objc private nonisolated func appWillResignActive() {
+            Task { @MainActor [weak self] in self?.disableBarcodeScanMode() }
         }
 
         private func saveTheme(_ theme: String?) {
@@ -413,6 +418,9 @@ struct GHASLunchWebView: UIViewRepresentable {
             }
             UserDefaults.standard.set(theme, forKey: themeKey)
             UserDefaults.standard.set(theme, forKey: "themePreference")
+            webView?.underPageBackgroundColor = theme == "dark"
+                ? UIColor(red: 18/255, green: 18/255, blue: 18/255, alpha: 1)
+                : UIColor(red: 246/255, green: 246/255, blue: 246/255, alpha: 1)
         }
 
         private func applySavedTheme() {

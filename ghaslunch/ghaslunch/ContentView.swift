@@ -449,7 +449,7 @@ struct GHASLunchWebView: UIViewRepresentable {
     func updateUIView(_ webView: WKWebView, context: Context) {}
 
     static func dismantleUIView(_ webView: WKWebView, coordinator: Coordinator) {
-        coordinator.disableBarcodeScanMode()
+        Task { @MainActor in coordinator.disableBarcodeScanMode() }
         webView.configuration.userContentController.removeScriptMessageHandler(
             forName: Coordinator.messageHandlerName
         )
@@ -636,7 +636,6 @@ struct GHASLunchWebView: UIViewRepresentable {
 
         deinit {
             NotificationCenter.default.removeObserver(self)
-            disableBarcodeScanMode()
         }
 
         func userContentController(
@@ -766,12 +765,12 @@ struct GHASLunchWebView: UIViewRepresentable {
             UIApplication.shared.isIdleTimerDisabled = false
         }
 
-        @objc private func appDidEnterBackground() {
-            disableBarcodeScanMode()
+        @objc private nonisolated func appDidEnterBackground() {
+            Task { @MainActor [weak self] in self?.disableBarcodeScanMode() }
         }
 
-        @objc private func appWillResignActive() {
-            disableBarcodeScanMode()
+        @objc private nonisolated func appWillResignActive() {
+            Task { @MainActor [weak self] in self?.disableBarcodeScanMode() }
         }
 
         private func saveTheme(_ theme: String?) {
