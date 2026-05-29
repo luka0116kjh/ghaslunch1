@@ -50,6 +50,8 @@ import androidx.core.content.edit
 import androidx.core.graphics.toColorInt
 import androidx.core.net.toUri
 import com.google.firebase.messaging.FirebaseMessaging
+import org.json.JSONObject
+import org.json.JSONTokener
 import java.util.Locale
 
 class MainActivity : ComponentActivity() {
@@ -323,8 +325,13 @@ class MainActivity : ComponentActivity() {
                 ViewGroup.LayoutParams.WRAP_CONTENT,
                 Gravity.END or Gravity.BOTTOM
             ).apply {
-                val margin = dp(14)
-                setMargins(margin, margin, margin, dp(28))
+                val margin = dp(NOTIFICATION_SETTINGS_SIDE_MARGIN_DP)
+                setMargins(
+                    margin,
+                    margin,
+                    margin,
+                    dp(NOTIFICATION_SETTINGS_DEFAULT_BOTTOM_MARGIN_DP)
+                )
             }
             applyNativeThemeToCard()
         }
@@ -764,6 +771,11 @@ class MainActivity : ComponentActivity() {
         val accent: Int
     )
 
+    private data class BarcodeTargetRect(
+        val top: Double,
+        val viewportHeight: Double
+    )
+
     fun setNativeNotificationsEnabled(enabled: Boolean) {
         notificationScheduler.setMasterEnabled(enabled)
         if (!enabled) {
@@ -852,6 +864,17 @@ class MainActivity : ComponentActivity() {
         attributes.screenBrightness = WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_FULL
         window.attributes = attributes
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        notificationSettingsCard.post {
+            updateNotificationSettingsPositionForBarcode()
+        }
+        webView.postDelayed(
+            {
+                if (barcodeScanModeEnabled) {
+                    updateNotificationSettingsPositionForBarcode()
+                }
+            },
+            BARCODE_LAYOUT_SETTLE_DELAY_MS
+        )
     }
 
     fun disableBarcodeScanMode() {
@@ -862,6 +885,95 @@ class MainActivity : ComponentActivity() {
         attributes.screenBrightness = WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE
         window.attributes = attributes
         window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        setNotificationSettingsBottomMargin(dp(NOTIFICATION_SETTINGS_DEFAULT_BOTTOM_MARGIN_DP))
+    }
+
+    private fun updateNotificationSettingsPositionForBarcode() {
+        if (!::webView.isInitialized || !::notificationSettingsCard.isInitialized) {
+            return
+        }
+
+        webView.evaluateJavascript(BARCODE_TARGET_RECT_SCRIPT) { result ->
+            if (!barcodeScanModeEnabled) {
+                return@evaluateJavascript
+            }
+
+            val rect = parseBarcodeTargetRect(result)
+            if (rect == null) {
+                applyFallbackBarcodeNotificationSettingsPosition()
+                return@evaluateJavascript
+            }
+
+            applyBarcodeNotificationSettingsPosition(
+                barcodeTopCssPx = rect.top,
+                viewportHeightCssPx = rect.viewportHeight
+            )
+        }
+    }
+
+    private fun parseBarcodeTargetRect(result: String?): BarcodeTargetRect? {
+        if (result.isNullOrBlank() || result == "null") {
+            return null
+        }
+
+        return runCatching {
+            val decoded = JSONTokener(result).nextValue()
+            val payload = decoded as? String ?: result
+            val json = JSONObject(payload)
+            BarcodeTargetRect(
+                top = json.getDouble("top"),
+                viewportHeight = json.getDouble("viewportHeight")
+            )
+        }.getOrNull()
+    }
+
+    private fun applyBarcodeNotificationSettingsPosition(
+        barcodeTopCssPx: Double,
+        viewportHeightCssPx: Double
+    ) {
+        val webViewHeight = webView.height.takeIf { it > 0 } ?: return
+        val cardHeight = notificationSettingsCard.height.takeIf { it > 0 }
+            ?: dp(NOTIFICATION_SETTINGS_ESTIMATED_HEIGHT_DP)
+        if (viewportHeightCssPx <= 0.0 || barcodeTopCssPx <= 0.0) {
+            applyFallbackBarcodeNotificationSettingsPosition()
+            return
+        }
+
+        val barcodeTopPx = (barcodeTopCssPx / viewportHeightCssPx * webViewHeight).toInt()
+        val safeBottomMargin = webViewHeight - barcodeTopPx + dp(BARCODE_NOTIFICATION_SAFE_GAP_DP)
+        setNotificationSettingsBottomMargin(
+            coerceBarcodeNotificationBottomMargin(safeBottomMargin, cardHeight)
+        )
+    }
+
+    private fun applyFallbackBarcodeNotificationSettingsPosition() {
+        val cardHeight = notificationSettingsCard.height.takeIf { it > 0 }
+            ?: dp(NOTIFICATION_SETTINGS_ESTIMATED_HEIGHT_DP)
+        setNotificationSettingsBottomMargin(
+            coerceBarcodeNotificationBottomMargin(
+                dp(BARCODE_NOTIFICATION_FALLBACK_BOTTOM_MARGIN_DP),
+                cardHeight
+            )
+        )
+    }
+
+    private fun coerceBarcodeNotificationBottomMargin(bottomMargin: Int, cardHeight: Int): Int {
+        val webViewHeight = webView.height.takeIf { it > 0 } ?: resources.displayMetrics.heightPixels
+        val defaultBottomMargin = dp(NOTIFICATION_SETTINGS_DEFAULT_BOTTOM_MARGIN_DP)
+        val topGuard = dp(BARCODE_NOTIFICATION_TOP_GUARD_DP)
+        val maxBottomMargin = (webViewHeight - topGuard - cardHeight).coerceAtLeast(defaultBottomMargin)
+        return bottomMargin.coerceIn(defaultBottomMargin, maxBottomMargin)
+    }
+
+    private fun setNotificationSettingsBottomMargin(bottomMargin: Int) {
+        if (!::notificationSettingsCard.isInitialized) {
+            return
+        }
+
+        val params = notificationSettingsCard.layoutParams as? FrameLayout.LayoutParams ?: return
+        val sideMargin = dp(NOTIFICATION_SETTINGS_SIDE_MARGIN_DP)
+        params.setMargins(sideMargin, sideMargin, sideMargin, bottomMargin)
+        notificationSettingsCard.layoutParams = params
     }
 
     private fun requestNotificationPermissionAndSchedule(showConfirmation: Boolean) {
@@ -1014,5 +1126,32 @@ class MainActivity : ComponentActivity() {
         private const val PREFS_NAME = "ghas_lunch_preferences"
         private const val KEY_THEME = "theme"
         private const val TAG = "GHASLunch"
+        private const val NOTIFICATION_SETTINGS_SIDE_MARGIN_DP = 14
+        private const val NOTIFICATION_SETTINGS_DEFAULT_BOTTOM_MARGIN_DP = 28
+        private const val NOTIFICATION_SETTINGS_ESTIMATED_HEIGHT_DP = 44
+        private const val BARCODE_NOTIFICATION_SAFE_GAP_DP = 18
+        private const val BARCODE_NOTIFICATION_FALLBACK_BOTTOM_MARGIN_DP = 148
+        private const val BARCODE_NOTIFICATION_TOP_GUARD_DP = 88
+        private const val BARCODE_LAYOUT_SETTLE_DELAY_MS = 120L
+        private const val BARCODE_TARGET_RECT_SCRIPT = """
+            (function() {
+                var target =
+                    document.querySelector('#student-card-image:not([hidden]) img') ||
+                    document.querySelector('#student-card-image:not([hidden])') ||
+                    document.getElementById('student-card');
+                if (!target) return null;
+                var rect = target.getBoundingClientRect();
+                return JSON.stringify({
+                    top: Math.max(0, rect.top),
+                    viewportHeight: Math.max(
+                        1,
+                        window.innerHeight ||
+                            document.documentElement.clientHeight ||
+                            document.body.clientHeight ||
+                            1
+                    )
+                });
+            })();
+        """
     }
 }
