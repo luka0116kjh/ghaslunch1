@@ -19,6 +19,7 @@ import android.os.Bundle
 import android.text.InputFilter
 import android.text.InputType
 import android.util.Log
+import android.util.TypedValue
 import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
@@ -50,8 +51,6 @@ import androidx.core.content.edit
 import androidx.core.graphics.toColorInt
 import androidx.core.net.toUri
 import com.google.firebase.messaging.FirebaseMessaging
-import org.json.JSONObject
-import org.json.JSONTokener
 import java.util.Locale
 
 class MainActivity : ComponentActivity() {
@@ -59,9 +58,7 @@ class MainActivity : ComponentActivity() {
     private lateinit var preferences: SharedPreferences
     private lateinit var fileChooserLauncher: ActivityResultLauncher<Intent>
     private lateinit var notificationPermissionLauncher: ActivityResultLauncher<String>
-    private lateinit var notificationSettingsCard: LinearLayout
     private lateinit var notificationSettingsIcon: ImageView
-    private lateinit var notificationSettingsLabel: TextView
     private val nativeBridge by lazy { NativeNotificationBridge(this) }
     private val notificationScheduler by lazy { NativeNotificationScheduler(applicationContext) }
     private var fileChooserCallback: ValueCallback<Array<Uri>>? = null
@@ -298,42 +295,28 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    private fun createNotificationSettingsButton(): LinearLayout {
-        notificationSettingsIcon = ImageView(this).apply {
+    private fun createNotificationSettingsButton(): View {
+        val ripple = TypedValue()
+        theme.resolveAttribute(android.R.attr.selectableItemBackgroundBorderless, ripple, true)
+        return ImageView(this).apply {
+            notificationSettingsIcon = this
             setImageResource(R.drawable.ic_notifications)
-            layoutParams = LinearLayout.LayoutParams(dp(20), dp(20))
-        }
-        notificationSettingsLabel = TextView(this).apply {
-            text = getString(R.string.notification_settings_button)
-            textSize = 14f
-            setPadding(dp(8), 0, 0, 0)
-        }
-        return LinearLayout(this).apply {
-            notificationSettingsCard = this
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
+            scaleType = ImageView.ScaleType.FIT_CENTER
             contentDescription = getString(R.string.notification_settings_title)
             isClickable = true
             isFocusable = true
-            elevation = dp(5).toFloat()
-            setPadding(dp(14), dp(11), dp(16), dp(11))
-            addView(notificationSettingsIcon)
-            addView(notificationSettingsLabel)
+            setBackgroundResource(ripple.resourceId)
+            setColorFilter(nativePalette().accent)
             setOnClickListener { showNotificationSettingsDialog() }
+            val padding = dp(NOTIFICATION_ICON_PADDING_DP)
+            setPadding(padding, padding, padding, padding)
             layoutParams = FrameLayout.LayoutParams(
-                ViewGroup.LayoutParams.WRAP_CONTENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT,
-                Gravity.END or Gravity.BOTTOM
+                dp(NOTIFICATION_ICON_TOUCH_SIZE_DP),
+                dp(NOTIFICATION_ICON_TOUCH_SIZE_DP),
+                Gravity.END or Gravity.TOP
             ).apply {
-                val margin = dp(NOTIFICATION_SETTINGS_SIDE_MARGIN_DP)
-                setMargins(
-                    margin,
-                    margin,
-                    margin,
-                    dp(NOTIFICATION_SETTINGS_DEFAULT_BOTTOM_MARGIN_DP)
-                )
+                setMargins(0, dp(NOTIFICATION_ICON_TOP_MARGIN_DP), dp(NOTIFICATION_ICON_SIDE_MARGIN_DP), 0)
             }
-            applyNativeThemeToCard()
         }
     }
 
@@ -716,14 +699,8 @@ class MainActivity : ComponentActivity() {
         (value * resources.displayMetrics.density).toInt()
 
     private fun applyNativeThemeToCard() {
-        if (!::notificationSettingsCard.isInitialized) {
-            return
-        }
-        val palette = nativePalette()
-        notificationSettingsCard.background =
-            roundedBackground(palette.surface, palette.border, 22)
-        notificationSettingsLabel.setTextColor(palette.text)
-        notificationSettingsIcon.setColorFilter(palette.accent)
+        if (!::notificationSettingsIcon.isInitialized) return
+        notificationSettingsIcon.setColorFilter(nativePalette().accent)
     }
 
     private fun nativePalette(): NativePalette {
@@ -769,11 +746,6 @@ class MainActivity : ComponentActivity() {
         val border: Int,
         val muted: Int,
         val accent: Int
-    )
-
-    private data class BarcodeTargetRect(
-        val top: Double,
-        val viewportHeight: Double
     )
 
     fun setNativeNotificationsEnabled(enabled: Boolean) {
@@ -855,125 +827,21 @@ class MainActivity : ComponentActivity() {
     }
 
     fun enableBarcodeScanMode() {
-        if (barcodeScanModeEnabled) {
-            return
-        }
+        if (barcodeScanModeEnabled) return
         barcodeScanModeEnabled = true
-
         val attributes = window.attributes
         attributes.screenBrightness = WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_FULL
         window.attributes = attributes
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-        notificationSettingsCard.post {
-            updateNotificationSettingsPositionForBarcode()
-        }
-        webView.postDelayed(
-            {
-                if (barcodeScanModeEnabled) {
-                    updateNotificationSettingsPositionForBarcode()
-                }
-            },
-            BARCODE_LAYOUT_SETTLE_DELAY_MS
-        )
     }
 
     fun disableBarcodeScanMode() {
         if (!barcodeScanModeEnabled) return
         barcodeScanModeEnabled = false
-
         val attributes = window.attributes
         attributes.screenBrightness = WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE
         window.attributes = attributes
         window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-        setNotificationSettingsBottomMargin(dp(NOTIFICATION_SETTINGS_DEFAULT_BOTTOM_MARGIN_DP))
-    }
-
-    private fun updateNotificationSettingsPositionForBarcode() {
-        if (!::webView.isInitialized || !::notificationSettingsCard.isInitialized) {
-            return
-        }
-
-        webView.evaluateJavascript(BARCODE_TARGET_RECT_SCRIPT) { result ->
-            if (!barcodeScanModeEnabled) {
-                return@evaluateJavascript
-            }
-
-            val rect = parseBarcodeTargetRect(result)
-            if (rect == null) {
-                applyFallbackBarcodeNotificationSettingsPosition()
-                return@evaluateJavascript
-            }
-
-            applyBarcodeNotificationSettingsPosition(
-                barcodeTopCssPx = rect.top,
-                viewportHeightCssPx = rect.viewportHeight
-            )
-        }
-    }
-
-    private fun parseBarcodeTargetRect(result: String?): BarcodeTargetRect? {
-        if (result.isNullOrBlank() || result == "null") {
-            return null
-        }
-
-        return runCatching {
-            val decoded = JSONTokener(result).nextValue()
-            val payload = decoded as? String ?: result
-            val json = JSONObject(payload)
-            BarcodeTargetRect(
-                top = json.getDouble("top"),
-                viewportHeight = json.getDouble("viewportHeight")
-            )
-        }.getOrNull()
-    }
-
-    private fun applyBarcodeNotificationSettingsPosition(
-        barcodeTopCssPx: Double,
-        viewportHeightCssPx: Double
-    ) {
-        val webViewHeight = webView.height.takeIf { it > 0 } ?: return
-        val cardHeight = notificationSettingsCard.height.takeIf { it > 0 }
-            ?: dp(NOTIFICATION_SETTINGS_ESTIMATED_HEIGHT_DP)
-        if (viewportHeightCssPx <= 0.0 || barcodeTopCssPx <= 0.0) {
-            applyFallbackBarcodeNotificationSettingsPosition()
-            return
-        }
-
-        val barcodeTopPx = (barcodeTopCssPx / viewportHeightCssPx * webViewHeight).toInt()
-        val safeBottomMargin = webViewHeight - barcodeTopPx + dp(BARCODE_NOTIFICATION_SAFE_GAP_DP)
-        setNotificationSettingsBottomMargin(
-            coerceBarcodeNotificationBottomMargin(safeBottomMargin, cardHeight)
-        )
-    }
-
-    private fun applyFallbackBarcodeNotificationSettingsPosition() {
-        val cardHeight = notificationSettingsCard.height.takeIf { it > 0 }
-            ?: dp(NOTIFICATION_SETTINGS_ESTIMATED_HEIGHT_DP)
-        setNotificationSettingsBottomMargin(
-            coerceBarcodeNotificationBottomMargin(
-                dp(BARCODE_NOTIFICATION_FALLBACK_BOTTOM_MARGIN_DP),
-                cardHeight
-            )
-        )
-    }
-
-    private fun coerceBarcodeNotificationBottomMargin(bottomMargin: Int, cardHeight: Int): Int {
-        val webViewHeight = webView.height.takeIf { it > 0 } ?: resources.displayMetrics.heightPixels
-        val defaultBottomMargin = dp(NOTIFICATION_SETTINGS_DEFAULT_BOTTOM_MARGIN_DP)
-        val topGuard = dp(BARCODE_NOTIFICATION_TOP_GUARD_DP)
-        val maxBottomMargin = (webViewHeight - topGuard - cardHeight).coerceAtLeast(defaultBottomMargin)
-        return bottomMargin.coerceIn(defaultBottomMargin, maxBottomMargin)
-    }
-
-    private fun setNotificationSettingsBottomMargin(bottomMargin: Int) {
-        if (!::notificationSettingsCard.isInitialized) {
-            return
-        }
-
-        val params = notificationSettingsCard.layoutParams as? FrameLayout.LayoutParams ?: return
-        val sideMargin = dp(NOTIFICATION_SETTINGS_SIDE_MARGIN_DP)
-        params.setMargins(sideMargin, sideMargin, sideMargin, bottomMargin)
-        notificationSettingsCard.layoutParams = params
     }
 
     private fun requestNotificationPermissionAndSchedule(showConfirmation: Boolean) {
@@ -1126,32 +994,9 @@ class MainActivity : ComponentActivity() {
         private const val PREFS_NAME = "ghas_lunch_preferences"
         private const val KEY_THEME = "theme"
         private const val TAG = "GHASLunch"
-        private const val NOTIFICATION_SETTINGS_SIDE_MARGIN_DP = 14
-        private const val NOTIFICATION_SETTINGS_DEFAULT_BOTTOM_MARGIN_DP = 28
-        private const val NOTIFICATION_SETTINGS_ESTIMATED_HEIGHT_DP = 44
-        private const val BARCODE_NOTIFICATION_SAFE_GAP_DP = 18
-        private const val BARCODE_NOTIFICATION_FALLBACK_BOTTOM_MARGIN_DP = 148
-        private const val BARCODE_NOTIFICATION_TOP_GUARD_DP = 88
-        private const val BARCODE_LAYOUT_SETTLE_DELAY_MS = 120L
-        private const val BARCODE_TARGET_RECT_SCRIPT = """
-            (function() {
-                var target =
-                    document.querySelector('#student-card-image:not([hidden]) img') ||
-                    document.querySelector('#student-card-image:not([hidden])') ||
-                    document.getElementById('student-card');
-                if (!target) return null;
-                var rect = target.getBoundingClientRect();
-                return JSON.stringify({
-                    top: Math.max(0, rect.top),
-                    viewportHeight: Math.max(
-                        1,
-                        window.innerHeight ||
-                            document.documentElement.clientHeight ||
-                            document.body.clientHeight ||
-                            1
-                    )
-                });
-            })();
-        """
+        private const val NOTIFICATION_ICON_TOUCH_SIZE_DP = 44
+        private const val NOTIFICATION_ICON_PADDING_DP = 11
+        private const val NOTIFICATION_ICON_TOP_MARGIN_DP = 14
+        private const val NOTIFICATION_ICON_SIDE_MARGIN_DP = 14
     }
 }

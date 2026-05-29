@@ -19,15 +19,22 @@ struct ContentView: View {
                 .ignoresSafeArea(.container, edges: .bottom)
 
             VStack {
-                Spacer()
                 HStack {
                     Spacer()
-                    NotificationSettingsCardButton {
+                    Button {
                         presentsNotificationSettings = true
+                    } label: {
+                        Image(systemName: "bell.badge")
+                            .font(.system(size: 18, weight: .semibold))
+                            .foregroundStyle(AppTheme.primary)
+                            .frame(width: 38, height: 38)
+                            .contentShape(Circle())
                     }
+                    .accessibilityLabel("알림 설정")
                 }
-                .padding(.trailing, 14)
-                .padding(.bottom, 14)
+                .padding(.trailing, 6)
+                .padding(.top, 6)
+                Spacer()
             }
         }
         .sheet(isPresented: $presentsNotificationSettings) {
