@@ -115,9 +115,14 @@ struct GHASLunchWebView: UIViewRepresentable {
     }
 
     private func loadFreshAppURL(in webView: WKWebView) {
-        let dataTypes = WKWebsiteDataStore.allWebsiteDataTypes()
+        // Clear only HTTP caches; localStorage and other persistent storage
+        // must be preserved so user data (e.g. student code image) survives restarts.
+        let cacheTypes: Set<String> = [
+            WKWebsiteDataTypeDiskCache,
+            WKWebsiteDataTypeMemoryCache,
+        ]
         WKWebsiteDataStore.default().removeData(
-            ofTypes: dataTypes,
+            ofTypes: cacheTypes,
             modifiedSince: .distantPast
         ) {
             webView.load(
