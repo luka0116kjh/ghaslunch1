@@ -328,18 +328,15 @@ class MainActivity : ComponentActivity() {
             isFocusable = true
             setBackgroundResource(ripple.resourceId)
             setColorFilter(nativePalette().accent)
-            setOnClickListener {
-                webView.evaluateJavascript(
-                    "typeof shareApp === 'function' && shareApp()",
-                    null
-                )
-            }
+            setOnClickListener { shareAppNatively() }
             val p = dp(NOTIFICATION_ICON_PADDING_DP)
             setPadding(p, p, p, p)
             layoutParams = LinearLayout.LayoutParams(
                 dp(NOTIFICATION_ICON_TOUCH_SIZE_DP),
                 dp(NOTIFICATION_ICON_TOUCH_SIZE_DP)
-            )
+            ).apply {
+                marginStart = dp(HEADER_ACTION_GAP_DP)
+            }
         }
 
         return LinearLayout(this).apply {
@@ -352,8 +349,25 @@ class MainActivity : ComponentActivity() {
                 ViewGroup.LayoutParams.WRAP_CONTENT,
                 Gravity.END or Gravity.TOP
             ).apply {
-                setMargins(0, dp(NOTIFICATION_ICON_TOP_MARGIN_DP), dp(NOTIFICATION_ICON_SIDE_MARGIN_DP), 0)
+                setMargins(0, dp(HEADER_ACTION_TOP_MARGIN_DP), dp(HEADER_ACTION_SIDE_MARGIN_DP), 0)
             }
+        }
+    }
+
+    private fun shareAppNatively() {
+        val shareUrl = "https://ghaslunch1.web.app"
+        val shareText = "경기자동차과학고등학교 급식 및 시간표 확인 앱!\n$shareUrl"
+        val shareIntent = Intent(Intent.ACTION_SEND).apply {
+            type = "text/plain"
+            putExtra(Intent.EXTRA_SUBJECT, "GHAS 오늘의 급식")
+            putExtra(Intent.EXTRA_TEXT, shareText)
+        }
+
+        try {
+            startActivity(Intent.createChooser(shareIntent, getString(R.string.share_action)))
+        } catch (error: ActivityNotFoundException) {
+            Log.e(TAG, "No activity can share app link", error)
+            Toast.makeText(this, R.string.external_link_error, Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -1042,7 +1056,8 @@ class MainActivity : ComponentActivity() {
         private const val TAG = "GHASLunch"
         private const val NOTIFICATION_ICON_TOUCH_SIZE_DP = 44
         private const val NOTIFICATION_ICON_PADDING_DP = 11
-        private const val NOTIFICATION_ICON_TOP_MARGIN_DP = 14
-        private const val NOTIFICATION_ICON_SIDE_MARGIN_DP = 14
+        private const val HEADER_ACTION_TOP_MARGIN_DP = 30
+        private const val HEADER_ACTION_SIDE_MARGIN_DP = 24
+        private const val HEADER_ACTION_GAP_DP = 4
     }
 }

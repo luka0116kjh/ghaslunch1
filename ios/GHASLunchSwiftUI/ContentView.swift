@@ -4,7 +4,6 @@ import WebKit
 
 extension Notification.Name {
     static let nativeNotificationSettingsDidChange = Notification.Name("nativeNotificationSettingsDidChange")
-    static let triggerWebShareAction = Notification.Name("triggerWebShareAction")
 }
 
 struct ContentView: View {
@@ -20,7 +19,7 @@ struct ContentView: View {
                 .ignoresSafeArea(.container, edges: .bottom)
 
             VStack {
-                HStack {
+                HStack(spacing: 6) {
                     Spacer()
                     Button {
                         presentsNotificationSettings = true
@@ -33,7 +32,7 @@ struct ContentView: View {
                     }
                     .accessibilityLabel("알림 설정")
                     Button {
-                        NotificationCenter.default.post(name: .triggerWebShareAction, object: nil)
+                        presentNativeShareSheet()
                     } label: {
                         Image(systemName: "square.and.arrow.up")
                             .font(.system(size: 18, weight: .semibold))
@@ -43,8 +42,8 @@ struct ContentView: View {
                     }
                     .accessibilityLabel("공유하기")
                 }
-                .padding(.trailing, 6)
-                .padding(.top, 6)
+                .padding(.trailing, 24)
+                .padding(.top, 30)
                 Spacer()
             }
         }
@@ -53,6 +52,54 @@ struct ContentView: View {
                 .presentationDetents([.medium, .large])
                 .presentationDragIndicator(.visible)
         }
+    }
+
+    private func presentNativeShareSheet() {
+        guard let url = URL(string: "https://ghaslunch1.web.app"),
+              let presenter = topViewController()
+        else {
+            return
+        }
+
+        let message = "경기자동차과학고등학교 급식 및 시간표 확인 앱!"
+        let activityController = UIActivityViewController(activityItems: [message, url], applicationActivities: nil)
+        activityController.setValue("GHAS 오늘의 급식", forKey: "subject")
+
+        if let popover = activityController.popoverPresentationController,
+           let sourceView = presenter.view {
+            popover.sourceView = sourceView
+            popover.sourceRect = CGRect(
+                x: sourceView.bounds.maxX - 44,
+                y: sourceView.safeAreaInsets.top + 34,
+                width: 1,
+                height: 1
+            )
+            popover.permittedArrowDirections = [.up, .right]
+        }
+
+        presenter.present(activityController, animated: true)
+    }
+
+    private func topViewController(
+        from root: UIViewController? = UIApplication.shared.connectedScenes
+            .compactMap { $0 as? UIWindowScene }
+            .flatMap(\.windows)
+            .first { $0.isKeyWindow }?
+            .rootViewController
+    ) -> UIViewController? {
+        if let navigation = root as? UINavigationController {
+            return topViewController(from: navigation.visibleViewController)
+        }
+
+        if let tab = root as? UITabBarController {
+            return topViewController(from: tab.selectedViewController)
+        }
+
+        if let presented = root?.presentedViewController {
+            return topViewController(from: presented)
+        }
+
+        return root
     }
 
     private var backgroundColor: Color {
@@ -259,12 +306,6 @@ struct GHASLunchWebView: UIViewRepresentable {
             )
             NotificationCenter.default.addObserver(
                 self,
-                selector: #selector(handleTriggerWebShareAction),
-                name: .triggerWebShareAction,
-                object: nil
-            )
-            NotificationCenter.default.addObserver(
-                self,
                 selector: #selector(appDidEnterBackground),
                 name: UIApplication.didEnterBackgroundNotification,
                 object: nil
@@ -435,15 +476,6 @@ struct GHASLunchWebView: UIViewRepresentable {
 
         @objc private nonisolated func appWillResignActive() {
             Task { @MainActor [weak self] in self?.disableBarcodeScanMode() }
-        }
-
-        @objc private nonisolated func handleTriggerWebShareAction() {
-            Task { @MainActor [weak self] in
-                self?.webView?.evaluateJavaScript(
-                    "typeof shareApp === 'function' && shareApp()",
-                    completionHandler: nil
-                )
-            }
         }
 
         private func hideWebShareButton() {
