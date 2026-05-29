@@ -317,7 +317,7 @@ class MainActivity : ComponentActivity() {
                 Gravity.END or Gravity.BOTTOM
             ).apply {
                 val margin = dp(14)
-                setMargins(margin, margin, margin, margin)
+                setMargins(margin, margin, margin, dp(28))
             }
             applyNativeThemeToCard()
         }
