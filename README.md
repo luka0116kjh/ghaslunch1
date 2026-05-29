@@ -44,7 +44,7 @@
 | 데이터 | NEIS Open API, Firebase Realtime Database |
 | 배포 | Firebase Hosting |
 | 서버리스 | Firebase Functions v2, Node.js 20 |
-| Android | Gradle, Java, Android WebView, Firebase Messaging |
+| Android | Gradle, Kotlin, Android WebView, Firebase Messaging |
 | iOS | SwiftUI, WKWebView, FirebaseCore |
 
 ## 로컬 개발
