@@ -88,6 +88,20 @@ class NativeNotificationBridge(private val activity: MainActivity) {
     }
 
     @JavascriptInterface
+    fun enableBarcodeScanMode() {
+        activity.runOnUiThread {
+            activity.enableBarcodeScanMode()
+        }
+    }
+
+    @JavascriptInterface
+    fun disableBarcodeScanMode() {
+        activity.runOnUiThread {
+            activity.disableBarcodeScanMode()
+        }
+    }
+
+    @JavascriptInterface
     fun setTheme(theme: String?) {
         activity.saveTheme(theme)
     }

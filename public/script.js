@@ -53,6 +53,7 @@ let mealViewMode = 'today';
 let scheduleViewMode = 'current';
 let classTimetable2026Promise = null;
 let classTimetable2026ImportStatus = 'not-started';
+let barcodeScanModeActive = false;
 
 function buildNeisUrl(endpoint, params) {
     const url = new URL(endpoint, NEIS_BASE_URL);
@@ -659,6 +660,38 @@ function setStudentCodeUploadStatus(message) {
     });
 }
 
+function getNativeBarcodeBridge() {
+    return window.AndroidBridge || window.GHASAndroidApp || null;
+}
+
+function enableBarcodeScanMode() {
+    if (barcodeScanModeActive) return;
+    barcodeScanModeActive = true;
+
+    try {
+        const bridge = getNativeBarcodeBridge();
+        if (typeof bridge?.enableBarcodeScanMode === 'function') {
+            bridge.enableBarcodeScanMode();
+        }
+    } catch (error) {
+        console.warn('Native barcode scan mode enable failed:', error);
+    }
+}
+
+function disableBarcodeScanMode() {
+    if (!barcodeScanModeActive) return;
+    barcodeScanModeActive = false;
+
+    try {
+        const bridge = getNativeBarcodeBridge();
+        if (typeof bridge?.disableBarcodeScanMode === 'function') {
+            bridge.disableBarcodeScanMode();
+        }
+    } catch (error) {
+        console.warn('Native barcode scan mode disable failed:', error);
+    }
+}
+
 function openStudentCodeModal() {
     const modal = document.getElementById('student-code-modal');
 
@@ -668,14 +701,23 @@ function openStudentCodeModal() {
     if (modal) {
         modal.classList.add('open');
         modal.setAttribute('aria-hidden', 'false');
+        enableBarcodeScanMode();
     }
 }
 
 function closeStudentCodeModal() {
     const modal = document.getElementById('student-code-modal');
-    if (!modal) return;
+    if (!modal) {
+        disableBarcodeScanMode();
+        return;
+    }
     modal.classList.remove('open');
     modal.setAttribute('aria-hidden', 'true');
+    disableBarcodeScanMode();
+}
+
+function isStudentCodeModalOpen() {
+    return document.getElementById('student-code-modal')?.classList.contains('open') === true;
 }
 
 function extractStudentCodeFromScan(rawValue) {
@@ -1260,10 +1302,29 @@ function registerAppEventHandlers() {
         });
     }
 
+    const studentCodeInlineImageWrap = document.getElementById('student-code-inline-image-wrap');
+    if (studentCodeInlineImageWrap) {
+        studentCodeInlineImageWrap.addEventListener('click', () => {
+            if (getStoredStudentCodeImage()) {
+                openStudentCodeModal();
+            }
+        });
+    }
+
     const studentCodeImageInput = document.getElementById('student-code-image-input');
     if (studentCodeImageInput) {
         studentCodeImageInput.addEventListener('change', handleStudentCodeImageUpload);
     }
+
+    window.addEventListener('pagehide', disableBarcodeScanMode);
+    window.addEventListener('beforeunload', disableBarcodeScanMode);
+    document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'hidden') {
+            disableBarcodeScanMode();
+        } else if (isStudentCodeModalOpen()) {
+            enableBarcodeScanMode();
+        }
+    });
 }
 
 function registerServiceWorker() {

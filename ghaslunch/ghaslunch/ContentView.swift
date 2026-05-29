@@ -449,6 +449,7 @@ struct GHASLunchWebView: UIViewRepresentable {
     func updateUIView(_ webView: WKWebView, context: Context) {}
 
     static func dismantleUIView(_ webView: WKWebView, coordinator: Coordinator) {
+        coordinator.disableBarcodeScanMode()
         webView.configuration.userContentController.removeScriptMessageHandler(
             forName: Coordinator.messageHandlerName
         )
@@ -506,6 +507,12 @@ struct GHASLunchWebView: UIViewRepresentable {
                 },
                 getTheme: function() {
                     return savedTheme;
+                },
+                enableBarcodeScanMode: function() {
+                    post('enableBarcodeScanMode', null);
+                },
+                disableBarcodeScanMode: function() {
+                    post('disableBarcodeScanMode', null);
                 },
                 cacheNotificationContent: function(category, date, body) {
                     post('cacheNotificationContent', {
@@ -604,6 +611,8 @@ struct GHASLunchWebView: UIViewRepresentable {
         private let notificationKey: String
         private let usesPadLayout: Bool
         weak var webView: WKWebView?
+        private var originalBrightness: CGFloat?
+        private var barcodeScanModeEnabled = false
 
         init(allowedHost: String, themeKey: String, notificationKey: String, usesPadLayout: Bool) {
             self.allowedHost = allowedHost
@@ -611,6 +620,23 @@ struct GHASLunchWebView: UIViewRepresentable {
             self.notificationKey = notificationKey
             self.usesPadLayout = usesPadLayout
             super.init()
+            NotificationCenter.default.addObserver(
+                self,
+                selector: #selector(appDidEnterBackground),
+                name: UIApplication.didEnterBackgroundNotification,
+                object: nil
+            )
+            NotificationCenter.default.addObserver(
+                self,
+                selector: #selector(appWillResignActive),
+                name: UIApplication.willResignActiveNotification,
+                object: nil
+            )
+        }
+
+        deinit {
+            NotificationCenter.default.removeObserver(self)
+            disableBarcodeScanMode()
         }
 
         func userContentController(
@@ -635,9 +661,17 @@ struct GHASLunchWebView: UIViewRepresentable {
                 saveTheme(body["value"] as? String)
             case "cacheNotificationContent":
                 cacheNotificationContent(body["value"] as? [String: Any])
+            case "enableBarcodeScanMode":
+                enableBarcodeScanMode()
+            case "disableBarcodeScanMode":
+                disableBarcodeScanMode()
             default:
                 break
             }
+        }
+
+        func webView(_ webView: WKWebView, didStartProvisionalNavigation navigation: WKNavigation!) {
+            disableBarcodeScanMode()
         }
 
         func webView(
@@ -710,6 +744,34 @@ struct GHASLunchWebView: UIViewRepresentable {
         private func cancelNotifications() {
             UserDefaults.standard.set(false, forKey: notificationKey)
             updateWebNotificationState(false)
+        }
+
+        func enableBarcodeScanMode() {
+            guard !barcodeScanModeEnabled else {
+                return
+            }
+            barcodeScanModeEnabled = true
+            originalBrightness = UIScreen.main.brightness
+            UIScreen.main.brightness = 1.0
+            UIApplication.shared.isIdleTimerDisabled = true
+        }
+
+        func disableBarcodeScanMode() {
+            guard barcodeScanModeEnabled else { return }
+            if let brightness = originalBrightness {
+                UIScreen.main.brightness = brightness
+            }
+            originalBrightness = nil
+            barcodeScanModeEnabled = false
+            UIApplication.shared.isIdleTimerDisabled = false
+        }
+
+        @objc private func appDidEnterBackground() {
+            disableBarcodeScanMode()
+        }
+
+        @objc private func appWillResignActive() {
+            disableBarcodeScanMode()
         }
 
         private func saveTheme(_ theme: String?) {

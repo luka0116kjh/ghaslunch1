@@ -22,6 +22,7 @@ import android.util.Log
 import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
+import android.view.WindowManager
 import android.widget.Button
 import android.widget.EditText
 import android.widget.FrameLayout
@@ -63,6 +64,7 @@ class MainActivity : ComponentActivity() {
     private val notificationScheduler by lazy { NativeNotificationScheduler(applicationContext) }
     private var fileChooserCallback: ValueCallback<Array<Uri>>? = null
     private var bridgeAttached = false
+    private var barcodeScanModeEnabled = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -92,6 +94,7 @@ class MainActivity : ComponentActivity() {
             this,
             object : OnBackPressedCallback(true) {
                 override fun handleOnBackPressed() {
+                    disableBarcodeScanMode()
                     if (::webView.isInitialized && webView.canGoBack()) {
                         webView.goBack()
                     } else {
@@ -163,6 +166,7 @@ class MainActivity : ComponentActivity() {
             }
 
             override fun onPageStarted(view: WebView, url: String?, favicon: Bitmap?) {
+                disableBarcodeScanMode()
                 updateNativeBridge(url)
                 Log.d(TAG, "Loading $url")
             }
@@ -263,10 +267,13 @@ class MainActivity : ComponentActivity() {
         if (trusted && !bridgeAttached) {
             webView.addJavascriptInterface(nativeBridge, "GHASAndroidApp")
             webView.addJavascriptInterface(nativeBridge, "GHASAndroidNotifications")
+            webView.addJavascriptInterface(nativeBridge, "AndroidBridge")
             bridgeAttached = true
         } else if (!trusted && bridgeAttached) {
+            disableBarcodeScanMode()
             webView.removeJavascriptInterface("GHASAndroidApp")
             webView.removeJavascriptInterface("GHASAndroidNotifications")
+            webView.removeJavascriptInterface("AndroidBridge")
             bridgeAttached = false
         }
     }
@@ -835,6 +842,28 @@ class MainActivity : ComponentActivity() {
         notificationScheduler.cacheTodayTimetableContent(renderedTitle, body)
     }
 
+    fun enableBarcodeScanMode() {
+        if (barcodeScanModeEnabled) {
+            return
+        }
+        barcodeScanModeEnabled = true
+
+        val attributes = window.attributes
+        attributes.screenBrightness = WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_FULL
+        window.attributes = attributes
+        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+    }
+
+    fun disableBarcodeScanMode() {
+        if (!barcodeScanModeEnabled) return
+        barcodeScanModeEnabled = false
+
+        val attributes = window.attributes
+        attributes.screenBrightness = WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE
+        window.attributes = attributes
+        window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+    }
+
     private fun requestNotificationPermissionAndSchedule(showConfirmation: Boolean) {
         if (
             Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
@@ -964,12 +993,18 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onDestroy() {
+        disableBarcodeScanMode()
         fileChooserCallback?.onReceiveValue(null)
         fileChooserCallback = null
         if (::webView.isInitialized) {
             webView.destroy()
         }
         super.onDestroy()
+    }
+
+    override fun onPause() {
+        disableBarcodeScanMode()
+        super.onPause()
     }
 
     companion object {
