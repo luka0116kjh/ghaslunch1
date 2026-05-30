@@ -896,6 +896,105 @@ body {
     text-align: center;
 }
 
+.student-code-editor {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.student-code-editor[hidden] {
+    display: none;
+}
+
+.student-code-editor-help {
+    margin: 0;
+    color: var(--text-main);
+    font-size: 13px;
+    font-weight: 800;
+    line-height: 1.45;
+    text-align: center;
+}
+
+.student-code-cropper {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    max-height: min(58vh, 420px);
+    overflow: hidden;
+    border: 1px solid var(--border-color);
+    border-radius: 18px;
+    background-color: #F3F3F3;
+    touch-action: none;
+    user-select: none;
+}
+
+.student-code-cropper img {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    display: block;
+    max-width: none;
+    transform-origin: center center;
+    will-change: transform;
+    touch-action: none;
+    pointer-events: none;
+    user-select: none;
+    -webkit-user-drag: none;
+}
+
+.student-code-crop-frame {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: min(86%, 360px);
+    aspect-ratio: 3 / 1;
+    transform: translate(-50%, -50%);
+    border: 2px solid var(--primary-color);
+    border-radius: 10px;
+    box-shadow: 0 0 0 999px rgba(0, 0, 0, 0.34);
+    pointer-events: none;
+}
+
+.student-code-crop-frame::before,
+.student-code-crop-frame::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 18%;
+    background: rgba(255, 255, 255, 0.18);
+}
+
+.student-code-crop-frame::before {
+    left: 0;
+    border-radius: 8px 0 0 8px;
+}
+
+.student-code-crop-frame::after {
+    right: 0;
+    border-radius: 0 8px 8px 0;
+}
+
+.student-code-editor-actions {
+    display: grid;
+    grid-template-columns: 1fr 1.5fr;
+    gap: 8px;
+}
+
+.secondary-action {
+    width: 100%;
+    border: none;
+    border-radius: 18px;
+    background-color: var(--pill-inactive);
+    color: var(--text-main);
+    padding: 14px 16px;
+    font-size: 16px;
+    font-weight: 800;
+    text-align: center;
+    cursor: pointer;
+}
+
 .student-card {
     box-sizing: border-box;
     width: 100%;
@@ -924,9 +1023,13 @@ body {
     box-sizing: border-box;
     width: 100%;
     max-width: 100%;
-    min-height: 0;
-    padding: 0;
+    min-height: 180px;
+    padding: 16px;
     overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: #FFFFFF;
 }
 
 .student-card-image img {
@@ -935,8 +1038,9 @@ body {
     width: 100%;
     max-width: 100%;
     height: auto;
-    max-height: min(60vh, 360px);
+    max-height: min(58vh, 420px);
     object-fit: contain;
+    object-position: center;
     border-radius: 0;
 }
 

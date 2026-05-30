@@ -54,6 +54,28 @@ let scheduleViewMode = 'current';
 let classTimetable2026Promise = null;
 let classTimetable2026ImportStatus = 'not-started';
 let barcodeScanModeActive = false;
+const STUDENT_CODE_CROP_ASPECT = 3;
+const STUDENT_CODE_CROP_OUTPUT_WIDTH = 1200;
+const STUDENT_CODE_CROP_OUTPUT_HEIGHT = Math.round(STUDENT_CODE_CROP_OUTPUT_WIDTH / STUDENT_CODE_CROP_ASPECT);
+const studentCodeCropperState = {
+    image: null,
+    baseWidth: 0,
+    baseHeight: 0,
+    scale: 1,
+    minScale: 1,
+    maxScale: 5,
+    offsetX: 0,
+    offsetY: 0,
+    pointers: new Map(),
+    dragStartX: 0,
+    dragStartY: 0,
+    startOffsetX: 0,
+    startOffsetY: 0,
+    pinchStartDistance: 0,
+    pinchStartScale: 1,
+    pinchStartMidX: 0,
+    pinchStartMidY: 0
+};
 
 function buildNeisUrl(endpoint, params) {
     const url = new URL(endpoint, NEIS_BASE_URL);
@@ -591,14 +613,6 @@ function toggleMealView() {
     showMeals(nextType);
 }
 
-function normalizeStudentCode(value) {
-    return String(value || '').trim().toUpperCase().replace(/[^0-9A-Z ./$%+-]/g, '');
-}
-
-function isValidStudentId(studentId) {
-    return /^[0-9A-Z ./$%+-]{1,24}$/.test(studentId);
-}
-
 function renderStudentCodeCard() {
     const studentId = getStoredStudentId();
     const storedImage = getStoredStudentCodeImage();
@@ -708,11 +722,13 @@ function openStudentCodeModal() {
 function closeStudentCodeModal() {
     const modal = document.getElementById('student-code-modal');
     if (!modal) {
+        closeStudentCodeEditor();
         disableBarcodeScanMode();
         return;
     }
     modal.classList.remove('open');
     modal.setAttribute('aria-hidden', 'true');
+    closeStudentCodeEditor();
     disableBarcodeScanMode();
 }
 
@@ -720,165 +736,309 @@ function isStudentCodeModalOpen() {
     return document.getElementById('student-code-modal')?.classList.contains('open') === true;
 }
 
-function extractStudentCodeFromScan(rawValue) {
-    const raw = String(rawValue || '').trim();
-    if (!raw) return '';
-
-    const queryKeys = ['studentCode', 'student_code', 'code', 'studentId', 'student_id', 'id'];
-
-    try {
-        const url = new URL(raw);
-        for (const key of queryKeys) {
-            const value = normalizeStudentCode(url.searchParams.get(key));
-            if (isValidStudentId(value)) return value;
-        }
-    } catch (error) {
-        // Plain code text is expected for most QR images.
-    }
-
-    const normalizedRaw = normalizeStudentCode(raw);
-    if (isValidStudentId(normalizedRaw)) return normalizedRaw;
-
-    const candidates = raw.match(/[0-9A-Za-z ./$%+-]{1,24}/g) || [];
-    return candidates
-        .map(normalizeStudentCode)
-        .find(candidate => isValidStudentId(candidate) && /\d/.test(candidate)) || '';
-}
-
-async function getSupportedBarcodeFormats() {
-    const fallbackFormats = ['qr_code', 'code_39', 'code_128', 'ean_13', 'ean_8', 'itf', 'codabar', 'upc_a', 'upc_e'];
-    if (!('BarcodeDetector' in window)) return [];
-    if (typeof BarcodeDetector.getSupportedFormats !== 'function') return fallbackFormats;
-
-    const supported = await BarcodeDetector.getSupportedFormats();
-    return fallbackFormats.filter(format => supported.includes(format));
-}
-
-async function scanStudentCodeImage(file) {
-    const formats = await getSupportedBarcodeFormats();
-    if (formats.length > 0) {
-        const detector = new BarcodeDetector({ formats });
-        const bitmap = await createImageBitmap(file);
-
-        try {
-            const detected = await detector.detect(bitmap);
-            if (detected.length > 0) return detected;
-        } finally {
-            bitmap.close?.();
-        }
-    }
-
-    return scanStudentQrImageWithJsQr(file);
-}
-
 function loadImageFromFile(file) {
     return new Promise((resolve, reject) => {
+        const reader = new FileReader();
         const image = new Image();
-        const objectUrl = URL.createObjectURL(file);
 
         image.onload = () => {
-            URL.revokeObjectURL(objectUrl);
             resolve(image);
         };
 
         image.onerror = () => {
-            URL.revokeObjectURL(objectUrl);
             reject(new Error('IMAGE_LOAD_FAILED'));
         };
 
-        image.src = objectUrl;
-    });
-}
-
-function readFileAsDataUrl(file) {
-    return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(String(reader.result || ''));
+        reader.onload = () => {
+            const dataUrl = String(reader.result || '');
+            if (!dataUrl) {
+                reject(new Error('IMAGE_READ_EMPTY'));
+                return;
+            }
+            image.src = dataUrl;
+        };
         reader.onerror = () => reject(new Error('IMAGE_READ_FAILED'));
         reader.readAsDataURL(file);
     });
-}
-
-async function createCompressedStudentCodeImage(file) {
-    const image = await loadImageFromFile(file);
-    const canvas = document.createElement('canvas');
-    const maxSize = 1600;
-    const scale = Math.min(1, maxSize / Math.max(image.naturalWidth, image.naturalHeight));
-    canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
-    canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
-
-    const context = canvas.getContext('2d');
-    context.drawImage(image, 0, 0, canvas.width, canvas.height);
-    return canvas.toDataURL('image/jpeg', 0.92);
-}
-
-async function saveStudentCodeImage(file) {
-    const originalDataUrl = await readFileAsDataUrl(file);
-
-    try {
-        localStorage.setItem(STUDENT_CODE_IMAGE_KEY, originalDataUrl);
-        return;
-    } catch (error) {
-        console.warn('Original student code image was too large, saving compressed copy:', error);
-    }
-
-    const compressedDataUrl = await createCompressedStudentCodeImage(file);
-    localStorage.setItem(STUDENT_CODE_IMAGE_KEY, compressedDataUrl);
-}
-
-async function scanStudentQrImageWithJsQr(file) {
-    if (typeof window.jsQR !== 'function') {
-        throw new Error('UNSUPPORTED_BARCODE_DETECTOR');
-    }
-
-    const image = await loadImageFromFile(file);
-    const canvas = document.createElement('canvas');
-    const maxSize = 1600;
-    const scale = Math.min(1, maxSize / Math.max(image.naturalWidth, image.naturalHeight));
-    canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
-    canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
-
-    const context = canvas.getContext('2d', { willReadFrequently: true });
-    context.drawImage(image, 0, 0, canvas.width, canvas.height);
-
-    const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
-    const qr = window.jsQR(imageData.data, imageData.width, imageData.height, {
-        inversionAttempts: 'attemptBoth'
-    });
-
-    return qr ? [{ rawValue: qr.data, format: 'qr_code' }] : [];
 }
 
 async function handleStudentCodeImageUpload(event) {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    setStudentCodeUploadStatus('사진을 저장하는 중입니다...');
-
     try {
-        await saveStudentCodeImage(file);
-        localStorage.removeItem(STUDENT_NAME_KEY);
-
-        try {
-            const barcodes = await scanStudentCodeImage(file);
-            const studentId = barcodes
-                .map(barcode => extractStudentCodeFromScan(barcode.rawValue))
-                .find(Boolean);
-
-            if (studentId) {
-                localStorage.setItem(STUDENT_ID_KEY, studentId);
-            }
-        } catch (scanError) {
-            console.warn('Student code scan skipped after image save:', scanError);
-        }
-
-        setStudentCodeUploadStatus('바코드/QR 사진을 저장했습니다.');
-        renderStudentCodeCard();
+        setStudentCodeUploadStatus('사진에서 바코드 영역을 맞춰 주세요.');
+        await openStudentCodeEditor(file);
     } catch (error) {
-        console.error('Student code image save failed:', error);
-        setStudentCodeUploadStatus('사진을 저장하지 못했습니다. 다른 사진으로 다시 시도해 주세요.');
+        console.error('Student code image edit failed:', error);
+        setStudentCodeUploadStatus('사진을 불러오지 못했습니다. 다른 사진으로 다시 시도해 주세요.');
     } finally {
         event.target.value = '';
+    }
+}
+
+async function openStudentCodeEditor(file) {
+    const image = await loadImageFromFile(file);
+    const editor = document.getElementById('student-code-editor');
+    const cropperImage = document.getElementById('student-code-cropper-image');
+    if (!editor || !cropperImage) return;
+
+    const modal = document.getElementById('student-code-modal');
+    if (modal && !modal.classList.contains('open')) {
+        renderStudentCodeCard();
+        modal.classList.add('open');
+        modal.setAttribute('aria-hidden', 'false');
+        enableBarcodeScanMode();
+    }
+
+    const studentCard = document.getElementById('student-card');
+    if (studentCard) studentCard.hidden = true;
+
+    resetStudentCodeCropperImageSource();
+    studentCodeCropperState.image = image;
+    cropperImage.src = image.src;
+    cropperImage.alt = '편집할 바코드 사진';
+    editor.hidden = false;
+
+    requestAnimationFrame(() => requestAnimationFrame(resetStudentCodeCropperTransform));
+}
+
+function resetStudentCodeCropperImageSource() {
+    studentCodeCropperState.image = null;
+    studentCodeCropperState.pointers.clear();
+}
+
+function closeStudentCodeEditor() {
+    const editor = document.getElementById('student-code-editor');
+    const cropperImage = document.getElementById('student-code-cropper-image');
+    if (editor) editor.hidden = true;
+    if (cropperImage) {
+        cropperImage.removeAttribute('src');
+        cropperImage.alt = '';
+        cropperImage.style.removeProperty('width');
+        cropperImage.style.removeProperty('height');
+        cropperImage.style.removeProperty('transform');
+    }
+    resetStudentCodeCropperImageSource();
+    const studentCard = document.getElementById('student-card');
+    if (studentCard) studentCard.hidden = false;
+    setStudentCodeUploadStatus('');
+}
+
+function cropperElements() {
+    return {
+        viewport: document.getElementById('student-code-cropper'),
+        frame: document.querySelector('.student-code-crop-frame'),
+        imageEl: document.getElementById('student-code-cropper-image')
+    };
+}
+
+function resetStudentCodeCropperTransform() {
+    const { viewport, frame, imageEl } = cropperElements();
+    const image = studentCodeCropperState.image;
+    if (!viewport || !frame || !imageEl || !image) return;
+
+    const frameRect = frame.getBoundingClientRect();
+    if (!frameRect.width || !image.naturalWidth || !image.naturalHeight) return;
+    const coverScale = Math.max(
+        frameRect.width / image.naturalWidth,
+        frameRect.height / image.naturalHeight
+    );
+
+    studentCodeCropperState.baseWidth = image.naturalWidth * coverScale;
+    studentCodeCropperState.baseHeight = image.naturalHeight * coverScale;
+    studentCodeCropperState.scale = 1;
+    studentCodeCropperState.minScale = 1;
+    studentCodeCropperState.offsetX = 0;
+    studentCodeCropperState.offsetY = 0;
+
+    imageEl.style.width = `${studentCodeCropperState.baseWidth}px`;
+    imageEl.style.height = `${studentCodeCropperState.baseHeight}px`;
+    applyStudentCodeCropperTransform();
+}
+
+function clampStudentCodeCropperOffset() {
+    const { frame } = cropperElements();
+    if (!frame) return;
+
+    const frameRect = frame.getBoundingClientRect();
+    const scaledWidth = studentCodeCropperState.baseWidth * studentCodeCropperState.scale;
+    const scaledHeight = studentCodeCropperState.baseHeight * studentCodeCropperState.scale;
+    const maxOffsetX = Math.max(0, (scaledWidth - frameRect.width) / 2);
+    const maxOffsetY = Math.max(0, (scaledHeight - frameRect.height) / 2);
+
+    studentCodeCropperState.offsetX = Math.min(
+        maxOffsetX,
+        Math.max(-maxOffsetX, studentCodeCropperState.offsetX)
+    );
+    studentCodeCropperState.offsetY = Math.min(
+        maxOffsetY,
+        Math.max(-maxOffsetY, studentCodeCropperState.offsetY)
+    );
+}
+
+function applyStudentCodeCropperTransform() {
+    const { imageEl } = cropperElements();
+    if (!imageEl) return;
+
+    clampStudentCodeCropperOffset();
+    const { offsetX, offsetY, scale } = studentCodeCropperState;
+    imageEl.style.transform = `translate(-50%, -50%) translate(${offsetX}px, ${offsetY}px) scale(${scale})`;
+}
+
+function distanceBetweenPointers(points) {
+    const [a, b] = points;
+    return Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
+}
+
+function midpointBetweenPointers(points) {
+    const [a, b] = points;
+    return {
+        x: (a.clientX + b.clientX) / 2,
+        y: (a.clientY + b.clientY) / 2
+    };
+}
+
+function setStudentCodeCropperScale(nextScale, anchorX, anchorY) {
+    const { viewport } = cropperElements();
+    if (!viewport) return;
+
+    const previousScale = studentCodeCropperState.scale;
+    const clampedScale = Math.min(
+        studentCodeCropperState.maxScale,
+        Math.max(studentCodeCropperState.minScale, nextScale)
+    );
+    if (previousScale === clampedScale) return;
+
+    const viewportRect = viewport.getBoundingClientRect();
+    const centerX = viewportRect.left + viewportRect.width / 2;
+    const centerY = viewportRect.top + viewportRect.height / 2;
+    const localAnchorX = anchorX - centerX;
+    const localAnchorY = anchorY - centerY;
+    const ratio = clampedScale / previousScale;
+
+    studentCodeCropperState.offsetX = localAnchorX - (localAnchorX - studentCodeCropperState.offsetX) * ratio;
+    studentCodeCropperState.offsetY = localAnchorY - (localAnchorY - studentCodeCropperState.offsetY) * ratio;
+    studentCodeCropperState.scale = clampedScale;
+    applyStudentCodeCropperTransform();
+}
+
+function handleStudentCodeCropperPointerDown(event) {
+    const { viewport } = cropperElements();
+    if (!viewport || !studentCodeCropperState.image) return;
+
+    viewport.setPointerCapture?.(event.pointerId);
+    studentCodeCropperState.pointers.set(event.pointerId, event);
+
+    if (studentCodeCropperState.pointers.size === 1) {
+        studentCodeCropperState.dragStartX = event.clientX;
+        studentCodeCropperState.dragStartY = event.clientY;
+        studentCodeCropperState.startOffsetX = studentCodeCropperState.offsetX;
+        studentCodeCropperState.startOffsetY = studentCodeCropperState.offsetY;
+    } else if (studentCodeCropperState.pointers.size === 2) {
+        const points = Array.from(studentCodeCropperState.pointers.values());
+        const midpoint = midpointBetweenPointers(points);
+        studentCodeCropperState.pinchStartDistance = distanceBetweenPointers(points);
+        studentCodeCropperState.pinchStartScale = studentCodeCropperState.scale;
+        studentCodeCropperState.pinchStartMidX = midpoint.x;
+        studentCodeCropperState.pinchStartMidY = midpoint.y;
+        studentCodeCropperState.startOffsetX = studentCodeCropperState.offsetX;
+        studentCodeCropperState.startOffsetY = studentCodeCropperState.offsetY;
+    }
+}
+
+function handleStudentCodeCropperPointerMove(event) {
+    if (!studentCodeCropperState.pointers.has(event.pointerId)) return;
+    studentCodeCropperState.pointers.set(event.pointerId, event);
+
+    if (studentCodeCropperState.pointers.size === 1) {
+        studentCodeCropperState.offsetX = studentCodeCropperState.startOffsetX + event.clientX - studentCodeCropperState.dragStartX;
+        studentCodeCropperState.offsetY = studentCodeCropperState.startOffsetY + event.clientY - studentCodeCropperState.dragStartY;
+        applyStudentCodeCropperTransform();
+        return;
+    }
+
+    if (studentCodeCropperState.pointers.size === 2) {
+        const points = Array.from(studentCodeCropperState.pointers.values());
+        const midpoint = midpointBetweenPointers(points);
+        const distance = distanceBetweenPointers(points);
+        const nextScale = studentCodeCropperState.pinchStartScale * (distance / studentCodeCropperState.pinchStartDistance);
+        const clampedScale = Math.min(
+            studentCodeCropperState.maxScale,
+            Math.max(studentCodeCropperState.minScale, nextScale)
+        );
+
+        studentCodeCropperState.scale = clampedScale;
+        studentCodeCropperState.offsetX = studentCodeCropperState.startOffsetX + midpoint.x - studentCodeCropperState.pinchStartMidX;
+        studentCodeCropperState.offsetY = studentCodeCropperState.startOffsetY + midpoint.y - studentCodeCropperState.pinchStartMidY;
+        applyStudentCodeCropperTransform();
+    }
+}
+
+function handleStudentCodeCropperPointerEnd(event) {
+    studentCodeCropperState.pointers.delete(event.pointerId);
+    if (studentCodeCropperState.pointers.size === 1) {
+        const [remaining] = Array.from(studentCodeCropperState.pointers.values());
+        studentCodeCropperState.dragStartX = remaining.clientX;
+        studentCodeCropperState.dragStartY = remaining.clientY;
+        studentCodeCropperState.startOffsetX = studentCodeCropperState.offsetX;
+        studentCodeCropperState.startOffsetY = studentCodeCropperState.offsetY;
+    }
+}
+
+function handleStudentCodeCropperWheel(event) {
+    if (!studentCodeCropperState.image) return;
+    event.preventDefault();
+    const direction = event.deltaY > 0 ? -1 : 1;
+    setStudentCodeCropperScale(
+        studentCodeCropperState.scale * (direction > 0 ? 1.08 : 0.92),
+        event.clientX,
+        event.clientY
+    );
+}
+
+function createCroppedStudentCodeImage() {
+    const { viewport, frame } = cropperElements();
+    const image = studentCodeCropperState.image;
+    if (!viewport || !frame || !image) throw new Error('CROPPER_NOT_READY');
+
+    const viewportRect = viewport.getBoundingClientRect();
+    const frameRect = frame.getBoundingClientRect();
+    const displayScale = (studentCodeCropperState.baseWidth * studentCodeCropperState.scale) / image.naturalWidth;
+    if (!frameRect.width || !frameRect.height || !displayScale || !Number.isFinite(displayScale)) {
+        throw new Error('CROPPER_NOT_READY');
+    }
+    const imageLeft = viewportRect.left + viewportRect.width / 2 + studentCodeCropperState.offsetX
+        - (studentCodeCropperState.baseWidth * studentCodeCropperState.scale) / 2;
+    const imageTop = viewportRect.top + viewportRect.height / 2 + studentCodeCropperState.offsetY
+        - (studentCodeCropperState.baseHeight * studentCodeCropperState.scale) / 2;
+    const sourceX = Math.max(0, (frameRect.left - imageLeft) / displayScale);
+    const sourceY = Math.max(0, (frameRect.top - imageTop) / displayScale);
+    const sourceWidth = Math.min(image.naturalWidth - sourceX, frameRect.width / displayScale);
+    const sourceHeight = Math.min(image.naturalHeight - sourceY, frameRect.height / displayScale);
+
+    const canvas = document.createElement('canvas');
+    canvas.width = STUDENT_CODE_CROP_OUTPUT_WIDTH;
+    canvas.height = STUDENT_CODE_CROP_OUTPUT_HEIGHT;
+    const context = canvas.getContext('2d');
+    context.fillStyle = '#FFFFFF';
+    context.fillRect(0, 0, canvas.width, canvas.height);
+    context.imageSmoothingEnabled = false;
+    context.drawImage(image, sourceX, sourceY, sourceWidth, sourceHeight, 0, 0, canvas.width, canvas.height);
+    return canvas.toDataURL('image/png');
+}
+
+function saveStudentCodeCrop() {
+    try {
+        const croppedDataUrl = createCroppedStudentCodeImage();
+        localStorage.setItem(STUDENT_CODE_IMAGE_KEY, croppedDataUrl);
+        localStorage.removeItem(STUDENT_NAME_KEY);
+        closeStudentCodeEditor();
+        setStudentCodeUploadStatus('편집한 바코드 이미지를 저장했습니다.');
+        renderStudentCodeCard();
+    } catch (error) {
+        console.error('Student code crop save failed:', error);
+        setStudentCodeUploadStatus('편집한 이미지를 저장하지 못했습니다. 다시 시도해 주세요.');
     }
 }
 
@@ -1279,6 +1439,8 @@ function registerAppEventHandlers() {
         ['btn-meal-switch', toggleMealView],
         ['btn-schedule-switch', toggleScheduleView],
         ['btn-close-student-code', closeStudentCodeModal],
+        ['btn-cancel-student-code-edit', closeStudentCodeEditor],
+        ['btn-save-student-code-crop', saveStudentCodeCrop],
         ['btn-theme', toggleTheme],
         ['btn-retry', () => window.location.reload()]
     ];
@@ -1315,6 +1477,19 @@ function registerAppEventHandlers() {
     if (studentCodeImageInput) {
         studentCodeImageInput.addEventListener('change', handleStudentCodeImageUpload);
     }
+
+    const studentCodeCropper = document.getElementById('student-code-cropper');
+    if (studentCodeCropper) {
+        studentCodeCropper.addEventListener('pointerdown', handleStudentCodeCropperPointerDown);
+        studentCodeCropper.addEventListener('pointermove', handleStudentCodeCropperPointerMove);
+        studentCodeCropper.addEventListener('pointerup', handleStudentCodeCropperPointerEnd);
+        studentCodeCropper.addEventListener('pointercancel', handleStudentCodeCropperPointerEnd);
+        studentCodeCropper.addEventListener('wheel', handleStudentCodeCropperWheel, { passive: false });
+    }
+
+    window.addEventListener('resize', () => {
+        if (studentCodeCropperState.image) resetStudentCodeCropperTransform();
+    });
 
     window.addEventListener('pagehide', disableBarcodeScanMode);
     window.addEventListener('beforeunload', disableBarcodeScanMode);

@@ -17,11 +17,10 @@
     <!-- Web FCM/Web Push is temporarily disabled in Android WebView.
          Notification delivery will be reconnected later through Android native FCM
          with FirebaseMessagingService. -->
-    <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
 
     <link rel="stylesheet" as="style" crossorigin
         href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css" />
-<link rel="stylesheet" href="style.css?v=13">
+<link rel="stylesheet" href="style.css?v=14">
 </head>
 
 <body>
@@ -145,13 +144,25 @@
 
                 <div class="field-group">
                     <label class="upload-button" for="student-code-image-input">사진 올리기</label>
-                    <p class="upload-help">사진을 올리면 학생 코드 사진이 저장됩니다.</p>
+                    <p class="upload-help">사진을 올린 뒤 바코드 영역만 맞춰 저장합니다.</p>
                     <input id="student-code-image-input" class="file-input" type="file" accept="image/*">
                     <p id="student-code-upload-status" class="upload-status" aria-live="polite"></p>
                 </div>
 
+                <div id="student-code-editor" class="student-code-editor" hidden>
+                    <p class="student-code-editor-help">바코드 선뿐 아니라 양옆의 흰 여백도 함께 포함해 주세요.</p>
+                    <div id="student-code-cropper" class="student-code-cropper">
+                        <img id="student-code-cropper-image" alt="">
+                        <div class="student-code-crop-frame" aria-hidden="true"></div>
+                    </div>
+                    <div class="student-code-editor-actions">
+                        <button id="btn-cancel-student-code-edit" class="secondary-action" type="button">취소</button>
+                        <button id="btn-save-student-code-crop" class="upload-button" type="button">이 영역 사용</button>
+                    </div>
+                </div>
+
                 <div id="student-card" class="student-card">
-                    <div id="student-card-placeholder" class="student-card-placeholder">사진을 올리면 학생 코드 사진이 저장됩니다.</div>
+                    <div id="student-card-placeholder" class="student-card-placeholder">사진을 올리면 바코드 영역만 저장됩니다.</div>
                     <div id="student-card-image" class="student-card-image" hidden>
                         <img id="student-code-image" alt="">
                     </div>
@@ -174,7 +185,7 @@
     </div>
 
     <script src="schedule.js?v=3"></script>
-    <script src="script.js?v=65"></script>
+    <script src="script.js?v=66"></script>
     <script src="afterschool.js?v=20260522-afterschool-file-ready"></script>
     <!-- notification.js is intentionally unused while Web FCM/Web Push is disabled.
          Keep the file for future Android native FCM migration reference. -->
