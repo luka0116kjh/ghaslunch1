@@ -142,13 +142,6 @@
                     <button id="btn-close-student-code" class="modal-close" type="button" aria-label="닫기">×</button>
                 </div>
 
-                <div class="field-group">
-                    <label class="upload-button" for="student-code-image-input">사진 올리기</label>
-                    <p class="upload-help">사진을 올린 뒤 바코드 영역만 맞춰 저장합니다.</p>
-                    <input id="student-code-image-input" class="file-input" type="file" accept="image/*">
-                    <p id="student-code-upload-status" class="upload-status" aria-live="polite"></p>
-                </div>
-
                 <div id="student-code-editor" class="student-code-editor" hidden>
                     <p class="student-code-editor-help">바코드 선뿐 아니라 양옆의 흰 여백도 함께 포함해 주세요.</p>
                     <div id="student-code-cropper" class="student-code-cropper">
@@ -166,6 +159,13 @@
                     <div id="student-card-image" class="student-card-image" hidden>
                         <img id="student-code-image" alt="">
                     </div>
+                </div>
+
+                <div class="field-group">
+                    <label class="upload-button" for="student-code-image-input">사진 올리기</label>
+                    <p class="upload-help">사진을 올린 뒤 바코드 영역만 맞춰 저장합니다.</p>
+                    <input id="student-code-image-input" class="file-input" type="file" accept="image/*">
+                    <p id="student-code-upload-status" class="upload-status" aria-live="polite"></p>
                 </div>
             </div>
         </section>

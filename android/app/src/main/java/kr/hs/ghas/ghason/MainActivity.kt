@@ -435,20 +435,24 @@ class MainActivity : ComponentActivity() {
         content.addView(schoolNoticeTimeButton)
 
         fun updateAvailability() {
-            val masterEnabled = masterSwitch.isChecked
-            mealSwitch.isEnabled = masterEnabled
-            timetableSwitch.isEnabled = masterEnabled
-            schoolNoticeSwitch.isEnabled = masterEnabled
-            mealTimeButton.isEnabled = masterEnabled && mealSwitch.isChecked
-            timetableTimeButton.isEnabled = masterEnabled && timetableSwitch.isChecked
-            schoolNoticeTimeButton.isEnabled =
-                masterEnabled && schoolNoticeSwitch.isChecked
+            mealTimeButton.isEnabled = mealSwitch.isChecked
+            timetableTimeButton.isEnabled = timetableSwitch.isChecked
+            schoolNoticeTimeButton.isEnabled = schoolNoticeSwitch.isChecked
         }
 
         masterSwitch.setOnCheckedChangeListener { _, _ -> updateAvailability() }
-        mealSwitch.setOnCheckedChangeListener { _, _ -> updateAvailability() }
-        timetableSwitch.setOnCheckedChangeListener { _, _ -> updateAvailability() }
-        schoolNoticeSwitch.setOnCheckedChangeListener { _, _ -> updateAvailability() }
+        mealSwitch.setOnCheckedChangeListener { _, checked ->
+            if (checked && !masterSwitch.isChecked) masterSwitch.isChecked = true
+            updateAvailability()
+        }
+        timetableSwitch.setOnCheckedChangeListener { _, checked ->
+            if (checked && !masterSwitch.isChecked) masterSwitch.isChecked = true
+            updateAvailability()
+        }
+        schoolNoticeSwitch.setOnCheckedChangeListener { _, checked ->
+            if (checked && !masterSwitch.isChecked) masterSwitch.isChecked = true
+            updateAvailability()
+        }
         mealTimeButton.setOnClickListener {
             showTimeInputDialog(mealTime) { selectedTime ->
                 mealTime = selectedTime
@@ -1045,6 +1049,22 @@ class MainActivity : ComponentActivity() {
     override fun onPause() {
         disableBarcodeScanMode()
         super.onPause()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        restoreBarcodeScanModeIfModalOpen()
+    }
+
+    private fun restoreBarcodeScanModeIfModalOpen() {
+        if (!::webView.isInitialized || !bridgeAttached) return
+        webView.evaluateJavascript(
+            "(function(){var el=document.getElementById('student-code-modal');return !!(el&&el.classList.contains('open'));})()"
+        ) { value ->
+            if (value == "true") {
+                enableBarcodeScanMode()
+            }
+        }
     }
 
     companion object {

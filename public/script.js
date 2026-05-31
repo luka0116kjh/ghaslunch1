@@ -348,7 +348,7 @@ function normalizeMenuText(rawMenu) {
     return clean.split(/\s+/).filter(Boolean).join('\n');
 }
 
-function renderMealMenuHtml(menuText) {
+function renderMealMenuHtml(menuText, calorieText = '') {
     const items = String(menuText || '')
         .split('\n')
         .map(item => item.trim())
@@ -361,6 +361,11 @@ function renderMealMenuHtml(menuText) {
     const lines = [];
     for (let index = 0; index < items.length; index += 2) {
         lines.push(items.slice(index, index + 2).map(escapeHTML).join(' / '));
+    }
+
+    const calorie = String(calorieText || '').trim();
+    if (calorie) {
+        lines[lines.length - 1] = `${lines[lines.length - 1]} · ${escapeHTML(calorie)}`;
     }
 
     return lines.join('<br>');
@@ -432,12 +437,12 @@ async function fetchMeals(targetDate) {
             const cleanMenu = normalizeMenuText(row.DDISH_NM);
             if (row.MMEAL_SC_CODE === '2') {
                 const lunchEl = document.getElementById('lunch-menu');
-                if (lunchEl) lunchEl.innerHTML = renderMealMenuHtml(cleanMenu);
-                setText('lunch-cal', row.CAL_INFO || '');
+                if (lunchEl) lunchEl.innerHTML = renderMealMenuHtml(cleanMenu, row.CAL_INFO);
+                setText('lunch-cal', '');
             } else if (row.MMEAL_SC_CODE === '3') {
                 const dinnerEl = document.getElementById('dinner-menu');
-                if (dinnerEl) dinnerEl.innerHTML = renderMealMenuHtml(cleanMenu);
-                setText('dinner-cal', row.CAL_INFO || '');
+                if (dinnerEl) dinnerEl.innerHTML = renderMealMenuHtml(cleanMenu, row.CAL_INFO);
+                setText('dinner-cal', '');
             }
         });
 
@@ -473,7 +478,8 @@ function buildMealTextByWeek(mealMap, mealCode, monday) {
         date.setDate(monday.getDate() + i);
         const ymd = formatDate(date);
         const weekday = date.toLocaleDateString('ko-KR', { weekday: 'short' });
-        const menu = renderMealMenuHtml(mealMap[ymd]?.[mealCode] || '정보가 없습니다.');
+        const meal = mealMap[ymd]?.[mealCode];
+        const menu = renderMealMenuHtml(meal?.menu || '정보가 없습니다.', meal?.calorie || '');
         lines.push(`
             <div class="weekly-meal-day">
                 <div class="weekly-meal-date">
@@ -531,7 +537,10 @@ async function showWeeklyMeals(baseDate) {
             const rows = extractMealRows(data);
             const map = {};
             rows.forEach((row) => {
-                map[row.MLSV_YMD] = normalizeMenuText(row.DDISH_NM);
+                map[row.MLSV_YMD] = {
+                    menu: normalizeMenuText(row.DDISH_NM),
+                    calorie: row.CAL_INFO || ''
+                };
             });
             return map;
         } catch (error) {
@@ -548,15 +557,15 @@ async function showWeeklyMeals(baseDate) {
 
         const mealMap = {};
         if (lunchData) {
-            Object.entries(lunchData).forEach(([ymd, menu]) => {
+            Object.entries(lunchData).forEach(([ymd, meal]) => {
                 if (!mealMap[ymd]) mealMap[ymd] = {};
-                mealMap[ymd]['2'] = menu;
+                mealMap[ymd]['2'] = meal;
             });
         }
         if (dinnerData) {
-            Object.entries(dinnerData).forEach(([ymd, menu]) => {
+            Object.entries(dinnerData).forEach(([ymd, meal]) => {
                 if (!mealMap[ymd]) mealMap[ymd] = {};
-                mealMap[ymd]['3'] = menu;
+                mealMap[ymd]['3'] = meal;
             });
         }
 
@@ -1033,9 +1042,8 @@ function saveStudentCodeCrop() {
         const croppedDataUrl = createCroppedStudentCodeImage();
         localStorage.setItem(STUDENT_CODE_IMAGE_KEY, croppedDataUrl);
         localStorage.removeItem(STUDENT_NAME_KEY);
-        closeStudentCodeEditor();
-        setStudentCodeUploadStatus('편집한 바코드 이미지를 저장했습니다.');
         renderStudentCodeCard();
+        closeStudentCodeEditor();
     } catch (error) {
         console.error('Student code crop save failed:', error);
         setStudentCodeUploadStatus('편집한 이미지를 저장하지 못했습니다. 다시 시도해 주세요.');

@@ -316,6 +316,12 @@ struct GHASLunchWebView: UIViewRepresentable {
                 name: UIApplication.willResignActiveNotification,
                 object: nil
             )
+            NotificationCenter.default.addObserver(
+                self,
+                selector: #selector(appDidBecomeActive),
+                name: UIApplication.didBecomeActiveNotification,
+                object: nil
+            )
         }
 
         deinit {
@@ -476,6 +482,19 @@ struct GHASLunchWebView: UIViewRepresentable {
 
         @objc private nonisolated func appWillResignActive() {
             Task { @MainActor [weak self] in self?.disableBarcodeScanMode() }
+        }
+
+        @objc private nonisolated func appDidBecomeActive() {
+            Task { @MainActor [weak self] in self?.restoreBarcodeScanModeIfModalOpen() }
+        }
+
+        private func restoreBarcodeScanModeIfModalOpen() {
+            webView?.evaluateJavaScript(
+                "(function(){var el=document.getElementById('student-code-modal');return !!(el&&el.classList.contains('open'));})()"
+            ) { [weak self] result, _ in
+                guard result as? Bool == true else { return }
+                self?.enableBarcodeScanMode()
+            }
         }
 
         private func hideWebShareButton() {
