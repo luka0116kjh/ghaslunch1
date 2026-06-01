@@ -129,6 +129,15 @@
         ]
       },
       {
+        "source": "/afterschoolScheduleData.js",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "no-cache, no-store, must-revalidate"
+          }
+        ]
+      },
+      {
         "source": "/src/data/classTimetable2026.js",
         "headers": [
           {
@@ -186,8 +195,5 @@
   },
   "database": {
     "rules": "database.rules.json"
-  },
-  "firestore": {
-    "rules": "firestore.rules"
   }
 }

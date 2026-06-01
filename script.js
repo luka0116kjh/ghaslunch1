@@ -38,15 +38,20 @@ const FIREBASE_CONFIG = {
 const FIREBASE_VAPID_KEY = "BBgDLFBJt3E1eA5UtvC1IOusTUzUinGk6zLqe1PLELuusOqZo0loSMNUdMbKt1Uldj2g1ueUU5vt_JFEPHyLU7U";
 window.FIREBASE_CONFIG = FIREBASE_CONFIG;
 window.FIREBASE_VAPID_KEY = FIREBASE_VAPID_KEY;
-// 같은 페이지/앱 세션 안에서의 중복 집계를 막는 sessionStorage 키.
-// 세션당 1회만 집계하며, 새 탭·새 앱 실행(새 세션)에서는 다시 집계된다.
-// (출시 이전 누적분 600은 Firestore 문서의 초기값으로 직접 저장한다 — 표시 보정값 없음)
-const VISIT_SESSION_KEY = 'ghas-visit-counted-session';
+// 누적 방문자 = 페이지/앱 진입 횟수. 모든 전체 페이지 로드마다 +1 집계한다.
+// 브라우저 저장소 가드는 사용하지 않으므로 새로고침·재진입은 다시 집계된다.
+// 같은 문서 로드 안에서 initVisitorCounter 가 실수로 두 번 호출돼도 쓰기는 1회만
+// 수행하도록 하는 인메모리 가드 (새로고침·새 WebView/탭 로드 시 자연히 초기화됨).
+// (기존 Realtime Database 의 stats/visitCount 누적값을 그대로 사용한다 — 표시 보정값 없음)
+let visitorCountIncrementStarted = false;
 const STUDENT_NAME_KEY = 'ghas-student-name';
 const STUDENT_ID_KEY = 'ghas-student-id';
 const STUDENT_CODE_IMAGE_KEY = 'ghas-student-code-image';
 const SCHEDULE_YEAR = window.GHAS_SCHEDULE_YEAR || 2026;
 const SCHEDULE_SOURCE = window.GHAS_SCHEDULE_SOURCE || '';
+const AFTER_SCHOOL_SCHEDULES = Array.isArray(window.GHAS_AFTER_SCHOOL_SCHEDULES)
+    ? window.GHAS_AFTER_SCHOOL_SCHEDULES
+    : [];
 let SCHEDULE_EVENTS;
 const CLASS_TIMETABLE_VERSION = '20260520';
 const CLASS_TIMETABLE_RUNTIME_PATH = './src/data/classTimetable2026.js';
@@ -113,6 +118,18 @@ function formatScheduleDotDate(date) {
     return `${date.getFullYear()}.${String(date.getMonth() + 1).padStart(2, '0')}.${String(date.getDate()).padStart(2, '0')}`;
 }
 
+function formatDateHyphen(date) {
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const d = String(date.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+}
+
+function createDateFromYmd(ymd) {
+    const [year, month, day] = String(ymd).split('-').map(Number);
+    return new Date(year, month - 1, day);
+}
+
 function formatScheduleRange(event) {
     if (isSameScheduleDay(event.startDate, event.endDate)) {
         return formatScheduleDotDate(event.startDate);
@@ -165,6 +182,7 @@ function getScheduleEventName(event) {
 }
 
 function getScheduleCategory(event) {
+    if (event.category) return event.category;
     const title = getScheduleEventName(event);
     if (isHolidayScheduleTitle(title)) return '휴일';
     if (/시험|정기시험|평가|검정|합격|접수/.test(title)) return '시험/검정';
@@ -207,9 +225,61 @@ function isRangeOverlapping(startA, endA, startB, endB) {
 function getVisibleScheduleEvents() {
     const { start, end } = getScheduleRange();
     const today = startOfDay(new Date());
-    return SCHEDULE_EVENTS.filter((event) => {
+    return getAllScheduleEvents().filter((event) => {
         return startOfDay(event.endDate) >= today && isRangeOverlapping(event.startDate, event.endDate, start, end);
     });
+}
+
+function getAfterschoolDayInfo(targetDate) {
+    const ymd = formatDateHyphen(targetDate);
+
+    for (const schedule of AFTER_SCHOOL_SCHEDULES) {
+        const exception = schedule.exceptions?.[ymd];
+        if (exception) {
+            return {
+                type: 'exception',
+                schedule,
+                date: ymd,
+                title: exception.title,
+                message: exception.message
+            };
+        }
+
+        if (Array.isArray(schedule.operatingDates) && schedule.operatingDates.includes(ymd)) {
+            return {
+                type: 'operating',
+                schedule,
+                date: ymd,
+                message: '오늘 방과후 있음'
+            };
+        }
+    }
+
+    return null;
+}
+
+function getAfterschoolScheduleEvents() {
+    return AFTER_SCHOOL_SCHEDULES.flatMap((schedule) => {
+        if (!Array.isArray(schedule.operatingDates)) return [];
+
+        return schedule.operatingDates.map((ymd) => ({
+            id: `${schedule.id}-${ymd}`,
+            startDate: createDateFromYmd(ymd),
+            endDate: createDateFromYmd(ymd),
+            title: schedule.scheduleTitle || schedule.title,
+            category: '방과후',
+            timeText: schedule.classTime,
+            detailTitle: schedule.title,
+            courseRooms: Array.isArray(schedule.courseRooms) ? schedule.courseRooms : []
+        }));
+    });
+}
+
+function getAllScheduleEvents() {
+    return [
+        ...SCHEDULE_EVENTS,
+        ...getAfterschoolScheduleEvents()
+    ].sort((a, b) => a.startDate - b.startDate || a.endDate - b.endDate || getScheduleEventName(a).localeCompare(getScheduleEventName(b), 'ko'));
 }
 
 function getScheduleDisplayDate(event) {
@@ -224,8 +294,10 @@ function renderScheduleRow(event) {
     const displayDate = getScheduleDisplayDate(event);
     const meta = [
         formatScheduleRange(event),
+        event.timeText,
         getScheduleCategory(event)
-    ].join(' · ');
+    ].filter(Boolean).join(' · ');
+    const detailHtml = renderScheduleDetail(event);
 
     return `
         <div class="schedule-row ${status.className === 'today' ? 'is-today' : ''}">
@@ -239,8 +311,29 @@ function renderScheduleRow(event) {
                     <span class="status-pill ${status.className}">${status.label}</span>
                 </div>
                 <div class="schedule-meta">${escapeHTML(meta)}</div>
+                ${detailHtml}
             </div>
         </div>
+    `;
+}
+
+function renderScheduleDetail(event) {
+    if (!Array.isArray(event.courseRooms) || event.courseRooms.length === 0) {
+        return '';
+    }
+
+    return `
+        <details class="schedule-detail">
+            <summary>${escapeHTML(event.detailTitle || '상세 보기')}</summary>
+            <div class="schedule-detail-list">
+                ${event.courseRooms.map((course) => `
+                    <div class="schedule-detail-row">
+                        <span>${escapeHTML(course.name)}</span>
+                        <span>${escapeHTML(course.room)}</span>
+                    </div>
+                `).join('')}
+            </div>
+        </details>
     `;
 }
 
@@ -292,6 +385,56 @@ function updateScheduleHeader() {
 function toggleScheduleView() {
     scheduleViewMode = scheduleViewMode === 'current' ? 'next' : 'current';
     showSchedule();
+}
+
+function ensureAfterschoolTodayCard() {
+    let card = document.getElementById('afterschool-today-card');
+    if (card) return card;
+
+    const toolbarCard = document.getElementById('meal-toolbar-card');
+    if (!toolbarCard || !toolbarCard.parentNode) return null;
+
+    card = document.createElement('article');
+    card.id = 'afterschool-today-card';
+    card.className = 'meal-card afterschool-today-card';
+    toolbarCard.insertAdjacentElement('afterend', card);
+    return card;
+}
+
+function renderAfterschoolTodayCard(targetDate, mode) {
+    const card = ensureAfterschoolTodayCard();
+    if (!card) return;
+
+    if (mode !== 'today') {
+        card.hidden = true;
+        card.innerHTML = '';
+        return;
+    }
+
+    const dayInfo = getAfterschoolDayInfo(targetDate);
+    if (!dayInfo) {
+        card.hidden = true;
+        card.innerHTML = '';
+        return;
+    }
+
+    card.hidden = false;
+    if (dayInfo.type === 'exception') {
+        card.classList.add('is-exception');
+        card.innerHTML = `
+            <div class="meal-type">방과후 수업</div>
+            <div class="afterschool-today-message">${escapeHTML(dayInfo.message)}</div>
+        `;
+        return;
+    }
+
+    const schedule = dayInfo.schedule;
+    card.classList.remove('is-exception');
+    card.innerHTML = `
+        <div class="meal-type">방과후 수업</div>
+        <div class="afterschool-today-message">오늘 방과후 있음</div>
+        <div class="afterschool-today-time">석식 ${escapeHTML(schedule.dinnerTime)} · 수업 ${escapeHTML(schedule.classTime)}</div>
+    `;
 }
 
 function showOfflineUI(isOffline) {
@@ -513,6 +656,7 @@ async function showWeeklyMeals(baseDate) {
     if (scheduleContainer) scheduleContainer.style.display = 'none';
     const mealToolbarCard = document.getElementById('meal-toolbar-card');
     if (mealToolbarCard) mealToolbarCard.style.display = 'none';
+    renderAfterschoolTodayCard(monday, 'week');
     document.getElementById('btn-today').classList.remove('active');
     if (document.getElementById('btn-schedule')) document.getElementById('btn-schedule').classList.remove('active');
     document.getElementById('btn-week').classList.add('active');
@@ -1109,6 +1253,7 @@ function showMeals(type) {
         if (btnTimetable) btnTimetable.classList.toggle('active', false);
         updateMealSwitchUI(mealViewMode);
         renderStudentCodeCard();
+        renderAfterschoolTodayCard(targetDate, mealViewMode);
 
         // 타이틀 접두사 제거 (카카오 스타일은 심플함이 생명)
         setText('lunch-title', `중식`);
@@ -1814,8 +1959,15 @@ function initTheme() {
     }
 }
 
-// Firestore 기반 누적 방문자 카운터 초기화
+// Realtime Database 기반 누적 방문자 카운터 초기화
 function initVisitorCounter() {
+    // 같은 로드 안에서 중복 호출 시 두 번 증가하지 않도록 인메모리 가드로 막는다.
+    // 새로고침·새 WebView/탭 로드에서는 이 플래그가 초기화되므로 매 로드마다 1회 집계된다.
+    if (visitorCountIncrementStarted) {
+        return;
+    }
+    visitorCountIncrementStarted = true;
+
     const counterEl = document.getElementById('visitor-counter');
     const countEl = document.getElementById('visit-count');
     const labelEl = document.getElementById('visitor-label');
@@ -1825,7 +1977,7 @@ function initVisitorCounter() {
         hasRenderedCount = true;
         if (counterEl) counterEl.style.display = 'block';
         if (labelEl) labelEl.textContent = '누적 방문자: ';
-        // Firestore 에 저장된 누적값을 그대로 표시한다 (초기 baseline 600 포함, 표시 보정값 없음).
+        // RTDB 에 저장된 누적값을 그대로 표시한다 (표시 보정값 없음).
         const total = Number(rawCount || 0);
         if (countEl) countEl.textContent = total.toLocaleString();
     };
@@ -1837,70 +1989,45 @@ function initVisitorCounter() {
         if (countEl) countEl.textContent = '확인 불가';
     };
 
-    if (typeof firebase === 'undefined' || !firebase.firestore) {
+    if (typeof firebase === 'undefined' || !firebase.database) {
         showUnavailable();
         return;
     }
 
-    let db;
+    let visitRef;
     try {
         if (!firebase.apps.length) {
             firebase.initializeApp(FIREBASE_CONFIG);
         }
-        db = firebase.firestore();
+        visitRef = firebase.database().ref('stats/visitCount');
     } catch (error) {
         console.error('Firebase 초기화 실패:', error);
         showUnavailable();
         return;
     }
 
-    const visitRef = db.collection('stats').doc('visitCount');
-
-    // 실시간 구독: 다른 방문으로 값이 바뀌어도 즉시 반영
-    visitRef.onSnapshot(
-        (snapshot) => {
-            const data = snapshot.exists ? snapshot.data() : null;
-            renderCount(data && typeof data.count === 'number' ? data.count : 0);
+    // 트랜잭션으로 원자적 +1 증가 → 동시 방문에도 집계 손실이 없다.
+    // 보안 규칙에서 정확히 +1 만 허용하므로 다른 조작은 거부된다.
+    // 매 페이지 로드마다 1회 실행되며, 브라우저 저장소 가드는 사용하지 않는다.
+    visitRef.transaction(
+        (currentValue) => {
+            const currentCount = Number(currentValue) || 0;
+            return currentCount + 1;
         },
-        (error) => {
-            console.warn('Visit count read failed:', error);
-            showUnavailable();
+        (error, committed, snapshot) => {
+            if (error) {
+                console.warn('Visit count increment failed:', error);
+                showUnavailable();
+                return;
+            }
+            if (committed && snapshot) {
+                // 트랜잭션이 커밋한 서버 값(= 이전 값 + 1)을 표시한다.
+                renderCount(snapshot.val());
+            } else {
+                showUnavailable();
+            }
         }
     );
-
-    // 이 세션에서 이미 집계됐다면 증가하지 않음 (새로고침/JS 재초기화 중복 방지).
-    // sessionStorage 는 탭·앱 세션 동안 유지되고 세션 종료 시 사라지므로,
-    // 같은 세션의 재실행은 막고 새 세션에서는 다시 집계되도록 한다.
-    let alreadyCounted = false;
-    try {
-        alreadyCounted = sessionStorage.getItem(VISIT_SESSION_KEY) === '1';
-    } catch (storageError) {
-        alreadyCounted = false; // 프라이빗 모드 등 sessionStorage 접근 불가
-    }
-
-    if (alreadyCounted) {
-        return;
-    }
-
-    // 새로고침 경합으로 인한 중복 증가를 막기 위해 쓰기를 보내기 전에 세션 플래그를 먼저 설정.
-    try {
-        sessionStorage.setItem(VISIT_SESSION_KEY, '1');
-    } catch (storageError) {
-        /* 저장 실패는 무시 (집계는 1회만 시도) */
-    }
-
-    // 원자적 +1 증가 (보안 규칙에서 +1 증가만 허용). 초기 baseline 600 문서를 601 로 갱신한다.
-    visitRef
-        .set({ count: firebase.firestore.FieldValue.increment(1) }, { merge: true })
-        .catch((error) => {
-            console.warn('Visit count increment failed:', error);
-            // 실패 시 같은 세션의 다음 재초기화에서 다시 시도할 수 있도록 플래그 해제.
-            try {
-                sessionStorage.removeItem(VISIT_SESSION_KEY);
-            } catch (storageError) {
-                /* 무시 */
-            }
-        });
 }
 
 // 초기화 호출

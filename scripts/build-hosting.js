@@ -8,6 +8,7 @@ const files = [
   "index.html",
   "script.js",
   "afterschool.js",
+  "afterschoolScheduleData.js",
   "style.css",
   "schedule.js",
   "privacy.html",

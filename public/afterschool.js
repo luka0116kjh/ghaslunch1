@@ -1,37 +1,35 @@
 (function () {
     const SECTION_ID = "after-school-section";
-    const UPDATE_NOTICE_TEXT = "방과후 수업 정보는 업데이트 중입니다.";
+    const UPDATE_NOTICE_TEXT = "2026 4차 방과후수업(취업역량강화)";
     const DAY_LABELS = ["월", "화", "수", "목", "금"];
-    const DATA_VERSION = "2026-05-22-file-ready";
-    let selectedProgramName = "";
-
-    const afterSchoolData = {
-        version: DATA_VERSION,
-        status: "updating",
-        programs: [
-            { name: "공학리더반", classroom: null, days: [] },
-            { name: "오토테크니션기초A반", classroom: null, days: [] },
-            { name: "오토테크니션기초B반", classroom: null, days: [] },
-            { name: "오토테크니션기초C반", classroom: null, days: [] },
-            { name: "오토테크니션심화A반", classroom: null, days: [] },
-            { name: "오토테크니션심화B반", classroom: null, days: [] },
-            { name: "오토테크니션심화C반", classroom: null, days: [] },
-            { name: "바디페인팅심화반", classroom: null, days: [] },
-            { name: "바디리페어심화반", classroom: null, days: [] },
-            { name: "컴퓨터활용기초반", classroom: null, days: [] },
-            { name: "웹프로그래밍기초반", classroom: null, days: [] },
-            { name: "웹프로그래밍심화반", classroom: null, days: [] },
-            { name: "그래픽디자인반", classroom: null, days: [] },
-            { name: "전기기능심화반", classroom: null, days: [] },
-            { name: "컴퓨터활용기초(1-8)", classroom: null, days: [] }
-        ]
+    const DATA_VERSION = "2026-06-01-4th";
+    const SELECTED_PROGRAM_KEY = "ghas-after-school-selected-program";
+    const PROGRAM_ALIASES = {
+        "오토테크니션심화A반": "오토테크니션심화반",
+        "오토테크니션심화B반": "오토테크니션심화반",
+        "오토테크니션심화C반": "오토테크니션심화반",
+        "컴퓨터활용기초(1-8)": "1-8컴활",
+        "컴퓨터활용기초1-8": "1-8컴활",
+        "1-8 컴활": "1-8컴활"
     };
+    const currentSchedule = Array.isArray(window.GHAS_AFTER_SCHOOL_SCHEDULES)
+        ? window.GHAS_AFTER_SCHOOL_SCHEDULES[0]
+        : null;
+
+    const storedProgramName = readStoredProgramName();
+    let selectedProgramName = normalizeProgramName(storedProgramName);
+
+    const afterSchoolData = buildAfterSchoolData();
 
     const afterSchoolPrograms = afterSchoolData.programs
         .filter((program) => !String(program.name || "").includes("성합"));
 
     window.afterSchoolData = afterSchoolData;
     window.afterSchoolPrograms = afterSchoolPrograms;
+
+    if (storedProgramName && selectedProgramName && storedProgramName !== selectedProgramName) {
+        saveStoredProgramName(selectedProgramName);
+    }
 
     function removeExistingSection() {
         const existingSection = document.getElementById(SECTION_ID);
@@ -40,8 +38,97 @@
         }
     }
 
+    function buildAfterSchoolData() {
+        const courseRooms = Array.isArray(currentSchedule?.courseRooms) ? currentSchedule.courseRooms : [];
+        const days = getOperatingWeekdays(currentSchedule?.operatingDates || []);
+
+        return {
+            version: DATA_VERSION,
+            status: currentSchedule ? "ready" : "missing",
+            schedule: currentSchedule,
+            programs: courseRooms.map((course) => ({
+                name: course.name,
+                classroom: course.room,
+                days
+            }))
+        };
+    }
+
+    function readStoredProgramName() {
+        try {
+            return window.localStorage?.getItem(SELECTED_PROGRAM_KEY) || "";
+        } catch (error) {
+            return "";
+        }
+    }
+
+    function saveStoredProgramName(name) {
+        try {
+            window.localStorage?.setItem(SELECTED_PROGRAM_KEY, name);
+        } catch (error) {
+            /* 저장 실패는 화면 표시에는 영향이 없다. */
+        }
+    }
+
+    function normalizeProgramName(name) {
+        const normalized = String(name || "").trim().replace(/\s+/g, "");
+        if (!normalized) return "";
+
+        const aliasKey = Object.keys(PROGRAM_ALIASES).find((key) => key.replace(/\s+/g, "") === normalized);
+        if (aliasKey) return PROGRAM_ALIASES[aliasKey];
+
+        const matchedProgram = currentSchedule?.courseRooms?.find((course) => {
+            return String(course.name || "").trim().replace(/\s+/g, "") === normalized;
+        });
+
+        return matchedProgram?.name || String(name || "").trim();
+    }
+
+    function formatDateHyphen(date) {
+        const y = date.getFullYear();
+        const m = String(date.getMonth() + 1).padStart(2, "0");
+        const d = String(date.getDate()).padStart(2, "0");
+        return `${y}-${m}-${d}`;
+    }
+
+    function getOperatingWeekdays(dates) {
+        const weekdays = new Set();
+        dates.forEach((ymd) => {
+            const [year, month, day] = String(ymd).split("-").map(Number);
+            const date = new Date(year, month - 1, day);
+            const label = DAY_LABELS[date.getDay() - 1];
+            if (label) weekdays.add(label);
+        });
+        return DAY_LABELS.filter((label) => weekdays.has(label));
+    }
+
+    function getTodayScheduleStatus() {
+        if (!currentSchedule) return { type: "missing", label: "정보 없음" };
+
+        const today = formatDateHyphen(new Date());
+        const exception = currentSchedule.exceptions?.[today];
+        if (exception) {
+            return {
+                type: "exception",
+                label: "방과후 없음",
+                message: exception.message || `${exception.title} · 오늘은 방과후 수업이 없습니다.`
+            };
+        }
+
+        if (currentSchedule.operatingDates?.includes(today)) {
+            return { type: "operating", label: "방과후 있음" };
+        }
+
+        return { type: "closed", label: "운영일 아님" };
+    }
+
     function getSelectedProgram() {
-        return afterSchoolPrograms.find((program) => program.name === selectedProgramName) || null;
+        const canonicalName = normalizeProgramName(selectedProgramName);
+        if (canonicalName !== selectedProgramName) {
+            selectedProgramName = canonicalName;
+            if (selectedProgramName) saveStoredProgramName(selectedProgramName);
+        }
+        return afterSchoolPrograms.find((program) => program.name === canonicalName) || null;
     }
 
     function createProgramSelect() {
@@ -61,9 +148,10 @@
             select.append(option);
         });
 
-        select.value = selectedProgramName;
+        select.value = normalizeProgramName(selectedProgramName);
         select.addEventListener("change", () => {
-            selectedProgramName = select.value;
+            selectedProgramName = normalizeProgramName(select.value);
+            saveStoredProgramName(selectedProgramName);
             updateSelectedProgramDetails();
         });
 
@@ -79,6 +167,8 @@
 
     function createDayChips(program) {
         const days = new Set((program?.days || []).map((day) => String(day).trim()));
+        const todayIndex = new Date().getDay() - 1;
+        const todayStatus = getTodayScheduleStatus();
         const wrap = document.createElement("div");
         wrap.id = "after-school-day-chips";
         wrap.className = "after-school-day-chips";
@@ -86,8 +176,13 @@
 
         DAY_LABELS.forEach((day) => {
             const chip = document.createElement("span");
-            const active = days.has(day);
-            chip.className = `after-school-day-chip${active ? " active" : ""}`;
+            const isToday = todayIndex >= 0 && DAY_LABELS[todayIndex] === day;
+            const active = days.has(day) && (!isToday || todayStatus.type === "operating");
+            chip.className = [
+                "after-school-day-chip",
+                active ? "active" : "",
+                isToday && active ? "today" : ""
+            ].filter(Boolean).join(" ");
             chip.textContent = day;
             wrap.append(chip);
         });
@@ -98,6 +193,7 @@
     function createSelectedProgramRow(program) {
         const row = document.createElement("div");
         row.className = "timetable-row after-school-row";
+        const todayStatus = getTodayScheduleStatus();
 
         const name = document.createElement("span");
         name.className = "subject";
@@ -105,7 +201,7 @@
 
         const status = document.createElement("span");
         status.className = "timetable-source-badge after-school-status-badge";
-        status.textContent = program ? "방과후 있음" : "선택 필요";
+        status.textContent = program ? todayStatus.label : "선택 필요";
 
         const classroom = document.createElement("span");
         classroom.className = "timetable-source-badge";
@@ -125,6 +221,19 @@
         if (dayChips) {
             dayChips.replaceWith(createDayChips(getSelectedProgram()));
         }
+
+        const notice = document.getElementById("after-school-notice");
+        if (notice) {
+            notice.textContent = getNoticeText();
+        }
+    }
+
+    function getNoticeText() {
+        const todayStatus = getTodayScheduleStatus();
+        if (todayStatus.type === "exception") return todayStatus.message;
+        if (todayStatus.type === "closed") return "오늘은 방과후 운영일이 아닙니다.";
+        if (currentSchedule) return `${currentSchedule.title} · 수업 ${currentSchedule.classTime}`;
+        return UPDATE_NOTICE_TEXT;
     }
 
     function renderAfterSchoolSection() {
@@ -153,7 +262,11 @@
         result.className = "meal-list after-school-list";
         result.append(createSelectedProgramRow(getSelectedProgram()));
 
-        section.append(title, selectorWrap, createDayChips(getSelectedProgram()), createUpdateNotice(), result);
+        const notice = createUpdateNotice();
+        notice.id = "after-school-notice";
+        notice.textContent = getNoticeText();
+
+        section.append(title, selectorWrap, createDayChips(getSelectedProgram()), notice, result);
         timetableContainer.append(section);
     }
 

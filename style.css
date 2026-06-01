@@ -568,6 +568,15 @@ body {
     opacity: 1;
 }
 
+.after-school-day-chip.today {
+    box-shadow: 0 0 0 2px var(--primary-color);
+    opacity: 1;
+}
+
+.after-school-day-chip.active.today {
+    box-shadow: 0 0 0 2px var(--primary-text), 0 0 0 4px var(--primary-color);
+}
+
 .after-school-notice {
     margin: 0 0 8px;
     color: var(--text-sub);
@@ -585,6 +594,30 @@ body {
 .after-school-status-badge {
     color: var(--primary-text);
     background-color: var(--primary-color);
+}
+
+.afterschool-today-card[hidden] {
+    display: none;
+}
+
+.afterschool-today-card {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.afterschool-today-message {
+    color: var(--text-main);
+    font-size: 16px;
+    font-weight: 800;
+    line-height: 1.45;
+}
+
+.afterschool-today-time {
+    color: var(--text-sub);
+    font-size: 14px;
+    font-weight: 700;
+    line-height: 1.5;
 }
 
 /* Schedule UI */
@@ -684,6 +717,40 @@ body {
     color: var(--text-sub);
     font-size: 13px;
     line-height: 1.5;
+}
+
+.schedule-detail {
+    margin-top: 2px;
+    color: var(--text-sub);
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+.schedule-detail summary {
+    cursor: pointer;
+    color: var(--text-main);
+    font-weight: 800;
+    list-style-position: inside;
+}
+
+.schedule-detail-list {
+    margin-top: 8px;
+    display: grid;
+    gap: 6px;
+}
+
+.schedule-detail-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 10px;
+    padding: 8px 10px;
+    border-radius: 8px;
+    background-color: var(--pill-inactive);
+}
+
+.schedule-detail-row span {
+    min-width: 0;
+    overflow-wrap: anywhere;
 }
 
 .schedule-month-title {
@@ -1138,6 +1205,11 @@ body {
 
     .student-code-inline-image img {
         max-height: min(180px, 30vh);
+    }
+
+    .schedule-detail-row {
+        grid-template-columns: 1fr;
+        gap: 4px;
     }
 
 }
