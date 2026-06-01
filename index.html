@@ -10,6 +10,46 @@
     <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
     <meta name="theme-color" content="#F6F6F6" media="(prefers-color-scheme: light)">
     <meta name="theme-color" content="#121212" media="(prefers-color-scheme: dark)">
+    <script>
+        (function () {
+            function getCookieTheme() {
+                return document.cookie
+                    .split("; ")
+                    .find(function (row) { return row.indexOf("theme=") === 0; })
+                    ?.split("=")[1];
+            }
+
+            function getNativeTheme() {
+                try {
+                    var bridge = window.GHASAndroidApp || window.GHASAndroidNotifications;
+                    return bridge?.getTheme?.();
+                } catch (error) {
+                    return null;
+                }
+            }
+
+            function getInitialTheme() {
+                try {
+                    var localTheme = localStorage.getItem("theme");
+                    if (localTheme === "dark" || localTheme === "light") return localTheme;
+                } catch (error) {
+                    /* Storage can be unavailable in restricted webviews. */
+                }
+
+                var nativeTheme = getNativeTheme();
+                if (nativeTheme === "dark" || nativeTheme === "light") return nativeTheme;
+
+                var cookieTheme = getCookieTheme();
+                return cookieTheme === "dark" || cookieTheme === "light" ? cookieTheme : null;
+            }
+
+            var theme = getInitialTheme();
+            if (!theme) return;
+
+            document.documentElement.classList.toggle("dark-theme", theme === "dark");
+            document.documentElement.classList.toggle("light-theme", theme === "light");
+        }());
+    </script>
 
     <!-- Firebase SDKs -->
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
@@ -186,7 +226,7 @@
 
     <script src="schedule.js?v=3"></script>
     <script src="afterschoolScheduleData.js?v=20260601-4th"></script>
-    <script src="script.js?v=67"></script>
+    <script src="script.js?v=68"></script>
     <script src="afterschool.js?v=20260522-afterschool-file-ready"></script>
     <!-- notification.js is intentionally unused while Web FCM/Web Push is disabled.
          Keep the file for future Android native FCM migration reference. -->

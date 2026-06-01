@@ -57,6 +57,14 @@ const CLASS_TIMETABLE_VERSION = '20260520';
 const CLASS_TIMETABLE_RUNTIME_PATH = './src/data/classTimetable2026.js';
 const TIMETABLE_DAYS = ['일', '월', '화', '수', '목', '금', '토'];
 const TIMETABLE_PERIODS = [1, 2, 3, 4, 5, 6, 7];
+const APPRENTICESHIP_TIMETABLE_DAYS = {
+    '2-1': [4],
+    '2-2': [4],
+    '2-7': [2],
+    '3-1': [2, 3],
+    '3-2': [2, 3],
+    '3-7': [3, 4]
+};
 let mealViewMode = 'today';
 let scheduleViewMode = 'current';
 let classTimetable2026Promise = null;
@@ -1687,6 +1695,19 @@ function toggleTimetableView() {
     updateTimetable();
 }
 
+function isApprenticeshipTimetableDay(grade, classNum, targetDate) {
+    const days = APPRENTICESHIP_TIMETABLE_DAYS[`${grade}-${classNum}`];
+    return Array.isArray(days) && days.includes(targetDate.getDay());
+}
+
+function renderApprenticeshipTimetableEmpty(grade, classNum) {
+    return `
+        <div class="timetable-empty timetable-apprenticeship">
+            ${escapeHTML(`${grade}-${classNum} 도제 수업일입니다. 일반 시간표는 표시하지 않습니다.`)}
+        </div>
+    `;
+}
+
 function getFallbackTimetableRows(classTimetable2026, grade, classNum, targetDate) {
     const selectedClassKey = `${grade}-${classNum}`;
     const dayName = TIMETABLE_DAYS[targetDate.getDay()];
@@ -1783,6 +1804,12 @@ async function updateTimetable() {
     const titleText = showNext ? nextTitle : currentTitle;
     const buttonText = showNext ? currentTitle : nextTitle;
 
+    updateTimetableHeader(titleText, targetDate, buttonText);
+    if (isApprenticeshipTimetableDay(grade, classNum, targetDate)) {
+        container.innerHTML = renderApprenticeshipTimetableEmpty(grade, classNum);
+        return;
+    }
+
     const [rows, classTimetable2026] = await Promise.all([
         fetchTimetable(grade, classNum, targetDate),
         loadClassTimetable2026()
@@ -1813,7 +1840,6 @@ async function updateTimetable() {
     });
     logTimetableMergeSummary(rows, fallbackRows, displayRows);
 
-    updateTimetableHeader(titleText, targetDate, buttonText);
     container.innerHTML = renderTimetableRows(displayRows, targetDate, titleText);
     return;
 }
