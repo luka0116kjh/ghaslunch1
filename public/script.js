@@ -1253,7 +1253,7 @@ function showMeals(type) {
         if (btnTimetable) btnTimetable.classList.toggle('active', false);
         updateMealSwitchUI(mealViewMode);
         renderStudentCodeCard();
-        renderAfterschoolTodayCard(targetDate, mealViewMode);
+        renderAfterschoolTodayCard(targetDate, 'hidden');
 
         // 타이틀 접두사 제거 (카카오 스타일은 심플함이 생명)
         setText('lunch-title', `중식`);
