@@ -80,6 +80,9 @@ class MainActivity : ComponentActivity() {
             configureSettings(settings)
             webViewClient = createWebViewClient()
             webChromeClient = createWebChromeClient()
+            // Paint the resolved theme background before the URL loads so the page
+            // never flashes a light frame on a dark-mode launch (or vice versa).
+            setBackgroundColor(resolveWebViewBackgroundColor())
         }
 
         val contentView = FrameLayout(this).apply {
@@ -802,12 +805,28 @@ class MainActivity : ComponentActivity() {
         if (::shareIcon.isInitialized) shareIcon.setColorFilter(accent)
     }
 
+    private fun isSystemNightMode(): Boolean =
+        (resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) ==
+            Configuration.UI_MODE_NIGHT_YES
+
+    /**
+     * Background painted behind the WebView before the page renders. Honours an explicit saved
+     * theme, otherwise follows the system dark-mode flag so the very first frame matches the page.
+     */
+    private fun resolveWebViewBackgroundColor(): Int {
+        val dark = when (getSavedTheme()) {
+            "dark" -> true
+            "light" -> false
+            else -> isSystemNightMode()
+        }
+        return if (dark) WEB_BACKGROUND_DARK.toColorInt() else WEB_BACKGROUND_LIGHT.toColorInt()
+    }
+
     private fun nativePalette(): NativePalette {
         val dark = when (getSavedTheme()) {
             "dark" -> true
             "light" -> false
-            else -> (resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) ==
-                Configuration.UI_MODE_NIGHT_YES
+            else -> isSystemNightMode()
         }
         return if (dark) {
             NativePalette(
@@ -1113,6 +1132,9 @@ class MainActivity : ComponentActivity() {
         const val NOTIFICATION_TOPIC = "meal"
 
         private const val APP_URL = "https://ghaslunch1.web.app/"
+        // Match the web page's --bg-color so the WebView's first frame blends in (no theme flash).
+        private const val WEB_BACKGROUND_DARK = "#121212"
+        private const val WEB_BACKGROUND_LIGHT = "#F6F6F6"
         private const val PREFS_NAME = "ghas_lunch_preferences"
         private const val KEY_THEME = "theme"
         private const val TAG = "GHASLunch"

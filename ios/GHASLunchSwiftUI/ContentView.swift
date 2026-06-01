@@ -158,14 +158,23 @@ struct GHASLunchWebView: UIViewRepresentable {
         }
 
         let webView = WKWebView(frame: .zero, configuration: configuration)
-        webView.backgroundColor = .clear
+        // Keep the web view transparent so the resolved theme background shows through
+        // immediately and the page never flashes a light frame before it paints.
         webView.isOpaque = false
+        webView.backgroundColor = .clear
+        webView.scrollView.backgroundColor = .clear
+        // Honour an explicit saved theme, otherwise follow the system appearance so the
+        // very first frame matches the page background.
         let initialTheme = UserDefaults.standard.string(forKey: themeKey) ?? ""
-        if initialTheme == "dark" {
-            webView.underPageBackgroundColor = UIColor(red: 18/255, green: 18/255, blue: 18/255, alpha: 1)
-        } else if initialTheme == "light" {
-            webView.underPageBackgroundColor = UIColor(red: 246/255, green: 246/255, blue: 246/255, alpha: 1)
+        let prefersDark: Bool
+        switch initialTheme {
+        case "dark": prefersDark = true
+        case "light": prefersDark = false
+        default: prefersDark = UITraitCollection.current.userInterfaceStyle == .dark
         }
+        webView.underPageBackgroundColor = prefersDark
+            ? UIColor(hex: 0x121212)
+            : UIColor(hex: 0xF6F6F6)
         webView.navigationDelegate = context.coordinator
         webView.uiDelegate = context.coordinator
         webView.allowsBackForwardNavigationGestures = true
@@ -513,8 +522,8 @@ struct GHASLunchWebView: UIViewRepresentable {
             UserDefaults.standard.set(theme, forKey: themeKey)
             UserDefaults.standard.set(theme, forKey: "themePreference")
             webView?.underPageBackgroundColor = theme == "dark"
-                ? UIColor(red: 18/255, green: 18/255, blue: 18/255, alpha: 1)
-                : UIColor(red: 246/255, green: 246/255, blue: 246/255, alpha: 1)
+                ? UIColor(hex: 0x121212)
+                : UIColor(hex: 0xF6F6F6)
         }
 
         private func applySavedTheme() {
