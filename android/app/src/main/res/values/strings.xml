@@ -18,6 +18,9 @@
     <string name="notification_disabled">알림을 취소했습니다.</string>
     <string name="notification_settings_button">알림 설정</string>
     <string name="notification_settings_title">알림 설정</string>
+    <string name="notification_settings_hint">필요한 알림만 선택해 받을 수 있습니다.</string>
+    <string name="notification_enable_all">모든 알림 켜기</string>
+    <string name="notification_disable_all">모든 알림 끄기</string>
     <string name="notification_master_enabled">전체 알림</string>
     <string name="notification_meal_enabled">급식 알림</string>
     <string name="notification_timetable_enabled">시간표 알림</string>

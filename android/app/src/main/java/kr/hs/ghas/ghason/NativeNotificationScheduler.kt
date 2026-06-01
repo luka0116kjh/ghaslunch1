@@ -84,7 +84,6 @@ internal enum class NativeNotificationCategory(
 }
 
 internal data class NativeNotificationSettings(
-    val enabled: Boolean,
     val mealEnabled: Boolean,
     val timetableEnabled: Boolean,
     val schoolNoticeEnabled: Boolean,
@@ -92,6 +91,11 @@ internal data class NativeNotificationSettings(
     val timetableTime: String,
     val schoolNoticeTime: String
 ) {
+    // Derived aggregate: notifications are "on" when at least one category is enabled.
+    // There is no separate master gate anymore; categories work independently.
+    val enabled: Boolean
+        get() = mealEnabled || timetableEnabled || schoolNoticeEnabled
+
     fun isEnabled(category: NativeNotificationCategory): Boolean = when (category) {
         NativeNotificationCategory.MEAL -> mealEnabled
         NativeNotificationCategory.TIMETABLE -> timetableEnabled
@@ -111,11 +115,18 @@ internal class NativeNotificationScheduler(private val context: Context) {
     private val notificationManager =
         context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
 
+    init {
+        // Guarantee the legacy master-gate migration runs before any caller can read state,
+        // schedule, reschedule, or deliver. Headless entry points (alarm receiver, boot /
+        // package-replaced / time-change reschedule receiver, FCM service) construct their own
+        // scheduler without opening MainActivity, so the migration cannot rely on onCreate().
+        migrateMasterGateIfNeeded()
+    }
+
     fun settings(): NativeNotificationSettings = NativeNotificationSettings(
-        enabled = preferences.getBoolean(KEY_MASTER_ENABLED, false),
-        mealEnabled = preferences.getBoolean(KEY_MEAL_ENABLED, true),
-        timetableEnabled = preferences.getBoolean(KEY_TIMETABLE_ENABLED, true),
-        schoolNoticeEnabled = preferences.getBoolean(KEY_SCHOOL_NOTICE_ENABLED, true),
+        mealEnabled = preferences.getBoolean(KEY_MEAL_ENABLED, false),
+        timetableEnabled = preferences.getBoolean(KEY_TIMETABLE_ENABLED, false),
+        schoolNoticeEnabled = preferences.getBoolean(KEY_SCHOOL_NOTICE_ENABLED, false),
         mealTime = savedTime(KEY_MEAL_TIME, NativeNotificationCategory.MEAL.defaultTime),
         timetableTime = savedTime(KEY_TIMETABLE_TIME, NativeNotificationCategory.TIMETABLE.defaultTime),
         schoolNoticeTime = savedTime(
@@ -125,7 +136,6 @@ internal class NativeNotificationScheduler(private val context: Context) {
     )
 
     fun updateSettings(
-        enabled: Boolean,
         mealEnabled: Boolean,
         timetableEnabled: Boolean,
         schoolNoticeEnabled: Boolean,
@@ -134,7 +144,6 @@ internal class NativeNotificationScheduler(private val context: Context) {
         schoolNoticeTime: String?
     ): NativeNotificationSettings {
         val updated = NativeNotificationSettings(
-            enabled = enabled,
             mealEnabled = mealEnabled,
             timetableEnabled = timetableEnabled,
             schoolNoticeEnabled = schoolNoticeEnabled,
@@ -152,10 +161,38 @@ internal class NativeNotificationScheduler(private val context: Context) {
         return updated
     }
 
-    fun setMasterEnabled(enabled: Boolean): NativeNotificationSettings {
-        val updated = settings().copy(enabled = enabled)
+    // Convenience action behind "모든 알림 켜기" / "모든 알림 끄기": flips every category at once.
+    fun setAllCategoriesEnabled(enabled: Boolean): NativeNotificationSettings {
+        val updated = settings().copy(
+            mealEnabled = enabled,
+            timetableEnabled = enabled,
+            schoolNoticeEnabled = enabled
+        )
         persistSettings(updated)
         return updated
+    }
+
+    /**
+     * One-time migration away from the old master-gate model. Previously a single master flag
+     * gated all categories; now each category is independent. To preserve every user's prior
+     * effective state we collapse `effectiveCategory = oldMaster && storedCategory` exactly once.
+     * Invoked from `init` so every instance (including headless receivers/services) migrates
+     * before reading or acting on state; the migrated flag keeps it idempotent.
+     */
+    private fun migrateMasterGateIfNeeded() {
+        if (preferences.getBoolean(KEY_MASTER_GATE_MIGRATED, false)) {
+            return
+        }
+        val oldMaster = preferences.getBoolean(KEY_MASTER_ENABLED, false)
+        val meal = oldMaster && preferences.getBoolean(KEY_MEAL_ENABLED, true)
+        val timetable = oldMaster && preferences.getBoolean(KEY_TIMETABLE_ENABLED, true)
+        val schoolNotice = oldMaster && preferences.getBoolean(KEY_SCHOOL_NOTICE_ENABLED, true)
+        preferences.edit {
+            putBoolean(KEY_MEAL_ENABLED, meal)
+            putBoolean(KEY_TIMETABLE_ENABLED, timetable)
+            putBoolean(KEY_SCHOOL_NOTICE_ENABLED, schoolNotice)
+            putBoolean(KEY_MASTER_GATE_MIGRATED, true)
+        }
     }
 
     fun setCategoryEnabled(
@@ -221,10 +258,6 @@ internal class NativeNotificationScheduler(private val context: Context) {
 
     fun scheduleSelectedNotifications() {
         val current = settings()
-        if (!current.enabled) {
-            cancelAllLocalNotifications()
-            return
-        }
         if (!canPostNotifications()) {
             cancelAllScheduledAlarms()
             return
@@ -257,7 +290,7 @@ internal class NativeNotificationScheduler(private val context: Context) {
 
     fun deliverScheduledNotification(category: NativeNotificationCategory) {
         val current = settings()
-        if (!current.enabled || !current.isEnabled(category)) {
+        if (!current.isEnabled(category)) {
             cancelScheduledAlarm(category)
             return
         }
@@ -278,7 +311,7 @@ internal class NativeNotificationScheduler(private val context: Context) {
 
     fun displayLegacyMealNotification(title: String?, body: String?) {
         val current = settings()
-        if (!current.enabled || !current.mealEnabled || !canPostNotifications()) {
+        if (!current.mealEnabled || !canPostNotifications()) {
             Log.d(TAG, "Ignored legacy meal FCM notification while meal notifications are disabled")
             return
         }
@@ -442,6 +475,7 @@ internal class NativeNotificationScheduler(private val context: Context) {
 
     private fun persistSettings(settings: NativeNotificationSettings) {
         preferences.edit {
+            // Kept in sync (as the derived aggregate) only for backward compatibility.
             putBoolean(KEY_MASTER_ENABLED, settings.enabled)
             putBoolean(KEY_MEAL_ENABLED, settings.mealEnabled)
             putBoolean(KEY_TIMETABLE_ENABLED, settings.timetableEnabled)
@@ -478,6 +512,7 @@ internal class NativeNotificationScheduler(private val context: Context) {
 
         private const val PREFS_NAME = "ghas_lunch_preferences"
         private const val KEY_MASTER_ENABLED = "native_notification_enabled"
+        private const val KEY_MASTER_GATE_MIGRATED = "native_notification_master_gate_migrated_v1"
         private const val KEY_MEAL_ENABLED = "native_notification_meal_enabled"
         private const val KEY_TIMETABLE_ENABLED = "native_notification_timetable_enabled"
         private const val KEY_SCHOOL_NOTICE_ENABLED = "native_notification_school_notice_enabled"

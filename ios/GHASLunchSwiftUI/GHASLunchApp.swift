@@ -5,7 +5,9 @@ struct GHASLunchApp: App {
     @AppStorage("theme") private var themePreference = ""
 
     init() {
+        // Order matters: legacy copy first, then collapse the old master gate into categories.
         NativeNotificationSettings.prepareLegacyMigrationIfNeeded()
+        NativeNotificationSettings.migrateMasterGateIfNeeded()
     }
 
     var body: some Scene {

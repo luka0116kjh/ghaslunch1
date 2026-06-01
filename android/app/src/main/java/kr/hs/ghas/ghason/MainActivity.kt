@@ -69,7 +69,10 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         registerActivityResultLaunchers()
+        // Migration now runs in NativeNotificationScheduler's init, so it is already done by the
+        // time this lazy scheduler is first touched here (and on every headless entry point too).
         notificationScheduler.createNotificationChannels()
+        notificationScheduler.scheduleSelectedNotifications()
         syncLegacyMealTopicSubscription()
 
         preferences = getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
@@ -124,10 +127,10 @@ class MainActivity : ComponentActivity() {
             if (granted) {
                 notificationScheduler.scheduleSelectedNotifications()
                 syncLegacyMealTopicSubscription()
-                updateWebNotificationState(true)
+                updateWebNotificationState(notificationScheduler.settings().enabled)
                 Toast.makeText(this, R.string.notification_enabled, Toast.LENGTH_SHORT).show()
             } else {
-                notificationScheduler.setMasterEnabled(false)
+                // Keep the user's category choices, but nothing can be delivered without permission.
                 notificationScheduler.cancelAllLocalNotifications()
                 unsubscribeFromLegacyMealTopic()
                 updateWebNotificationState(false)
@@ -390,11 +393,12 @@ class MainActivity : ComponentActivity() {
             setPadding(dp(22), dp(18), dp(22), dp(10))
             addView(createDialogTitle(R.string.notification_settings_title, palette))
         }
-        val masterSwitch = createNotificationSwitch(
-            R.string.notification_master_enabled,
-            current.enabled,
-            palette
-        )
+        val hintLabel = TextView(this).apply {
+            text = getString(R.string.notification_settings_hint)
+            setTextColor(palette.muted)
+            textSize = 13f
+            setPadding(0, 0, 0, dp(6))
+        }
         val mealSwitch = createNotificationSwitch(
             R.string.notification_meal_enabled,
             current.mealEnabled,
@@ -426,7 +430,48 @@ class MainActivity : ComponentActivity() {
             palette
         )
 
-        content.addView(masterSwitch)
+        val enableAllButton = createDialogActionButton(
+            R.string.notification_enable_all,
+            palette
+        ).apply {
+            setOnClickListener {
+                mealSwitch.isChecked = true
+                timetableSwitch.isChecked = true
+                schoolNoticeSwitch.isChecked = true
+                // Explicit bulk action: persist + reconcile immediately (saved times untouched).
+                setNativeNotificationsEnabled(true)
+            }
+        }
+        val disableAllButton = createDialogActionButton(
+            R.string.notification_disable_all,
+            palette
+        ).apply {
+            setOnClickListener {
+                mealSwitch.isChecked = false
+                timetableSwitch.isChecked = false
+                schoolNoticeSwitch.isChecked = false
+                // Explicit "turn every category off": persist OFF, cancel all, report aggregate OFF.
+                setNativeNotificationsEnabled(false)
+            }
+        }
+        val bulkActionRow = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            addView(
+                enableAllButton,
+                LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply {
+                    marginEnd = dp(5)
+                }
+            )
+            addView(
+                disableAllButton,
+                LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply {
+                    marginStart = dp(5)
+                }
+            )
+        }
+
+        content.addView(hintLabel)
+        content.addView(bulkActionRow)
         content.addView(mealSwitch)
         content.addView(mealTimeButton)
         content.addView(timetableSwitch)
@@ -434,25 +479,7 @@ class MainActivity : ComponentActivity() {
         content.addView(schoolNoticeSwitch)
         content.addView(schoolNoticeTimeButton)
 
-        fun updateAvailability() {
-            mealTimeButton.isEnabled = mealSwitch.isChecked
-            timetableTimeButton.isEnabled = timetableSwitch.isChecked
-            schoolNoticeTimeButton.isEnabled = schoolNoticeSwitch.isChecked
-        }
-
-        masterSwitch.setOnCheckedChangeListener { _, _ -> updateAvailability() }
-        mealSwitch.setOnCheckedChangeListener { _, checked ->
-            if (checked && !masterSwitch.isChecked) masterSwitch.isChecked = true
-            updateAvailability()
-        }
-        timetableSwitch.setOnCheckedChangeListener { _, checked ->
-            if (checked && !masterSwitch.isChecked) masterSwitch.isChecked = true
-            updateAvailability()
-        }
-        schoolNoticeSwitch.setOnCheckedChangeListener { _, checked ->
-            if (checked && !masterSwitch.isChecked) masterSwitch.isChecked = true
-            updateAvailability()
-        }
+        // Time editors stay tappable even when their category toggle is OFF; the time is just saved.
         mealTimeButton.setOnClickListener {
             showTimeInputDialog(mealTime) { selectedTime ->
                 mealTime = selectedTime
@@ -483,14 +510,11 @@ class MainActivity : ComponentActivity() {
                 )
             }
         }
-        updateAvailability()
-
         val dialog = AlertDialog.Builder(this)
             .setView(ScrollView(this).apply { addView(content) })
             .setNegativeButton(R.string.notification_settings_cancel, null)
             .setPositiveButton(R.string.notification_settings_save) { _, _ ->
                 updateNativeNotificationSettings(
-                    masterSwitch.isChecked,
                     mealSwitch.isChecked,
                     timetableSwitch.isChecked,
                     schoolNoticeSwitch.isChecked,
@@ -568,6 +592,17 @@ class MainActivity : ComponentActivity() {
             displayTime(time)
         )
     }
+
+    private fun createDialogActionButton(labelResId: Int, palette: NativePalette): Button =
+        Button(this).apply {
+            isAllCaps = false
+            minHeight = 0
+            minimumHeight = 0
+            text = getString(labelResId)
+            setTextColor(palette.accent)
+            background = roundedBackground(palette.control, palette.border, 18)
+            setPadding(dp(14), dp(10), dp(14), dp(10))
+        }
 
     private fun showTimeInputDialog(time: String, onSelected: (String) -> Unit) {
         val palette = nativePalette()
@@ -812,8 +847,13 @@ class MainActivity : ComponentActivity() {
         val accent: Int
     )
 
+    /**
+     * "모든 알림" convenience switch from the web bell: enables or disables every category at once.
+     * Turning it OFF only mirrors the bell action (disable all); individual categories are managed
+     * independently from the native settings dialog.
+     */
     fun setNativeNotificationsEnabled(enabled: Boolean) {
-        notificationScheduler.setMasterEnabled(enabled)
+        notificationScheduler.setAllCategoriesEnabled(enabled)
         if (!enabled) {
             notificationScheduler.cancelAllLocalNotifications()
             unsubscribeFromLegacyMealTopic()
@@ -826,7 +866,6 @@ class MainActivity : ComponentActivity() {
     }
 
     fun updateNativeNotificationSettings(
-        enabled: Boolean,
         mealEnabled: Boolean,
         timetableEnabled: Boolean,
         schoolNoticeEnabled: Boolean,
@@ -835,7 +874,6 @@ class MainActivity : ComponentActivity() {
         schoolNoticeTime: String?
     ) {
         notificationScheduler.updateSettings(
-            enabled,
             mealEnabled,
             timetableEnabled,
             schoolNoticeEnabled,
@@ -843,8 +881,11 @@ class MainActivity : ComponentActivity() {
             timetableTime,
             schoolNoticeTime
         )
-        if (!enabled) {
-            setNativeNotificationsEnabled(false)
+        if (!notificationScheduler.settings().enabled) {
+            // No category is on: nothing to schedule, just clear any leftovers.
+            notificationScheduler.cancelAllLocalNotifications()
+            unsubscribeFromLegacyMealTopic()
+            updateWebNotificationState(false)
             return
         }
 
@@ -859,20 +900,21 @@ class MainActivity : ComponentActivity() {
             if (category == NativeNotificationCategory.MEAL) {
                 unsubscribeFromLegacyMealTopic()
             }
+            updateWebNotificationState(notificationScheduler.settings().enabled)
             return
         }
 
-        if (notificationScheduler.settings().enabled) {
-            requestNotificationPermissionAndSchedule(showConfirmation = false)
-        }
+        // Each category schedules independently; no master gate required.
+        requestNotificationPermissionAndSchedule(showConfirmation = false)
     }
 
     fun setNativeNotificationCategoryTime(categoryKey: String, time: String?): Boolean {
         val category = NativeNotificationCategory.fromKey(categoryKey) ?: return false
         val saved = notificationScheduler.setCategoryTime(category, time)
+        // Reschedule only when that category is currently ON; otherwise just persist the time.
         if (
             saved &&
-            notificationScheduler.settings().enabled &&
+            notificationScheduler.settings().isEnabled(category) &&
             notificationScheduler.canPostNotifications()
         ) {
             notificationScheduler.scheduleSelectedNotifications()
@@ -920,7 +962,7 @@ class MainActivity : ComponentActivity() {
 
         notificationScheduler.scheduleSelectedNotifications()
         syncLegacyMealTopicSubscription()
-        updateWebNotificationState(true)
+        updateWebNotificationState(notificationScheduler.settings().enabled)
         if (showConfirmation) {
             Toast.makeText(this, R.string.notification_enabled, Toast.LENGTH_SHORT).show()
         }
@@ -928,7 +970,7 @@ class MainActivity : ComponentActivity() {
 
     private fun syncLegacyMealTopicSubscription() {
         val settings = notificationScheduler.settings()
-        if (settings.enabled && settings.mealEnabled && notificationScheduler.canPostNotifications()) {
+        if (settings.mealEnabled && notificationScheduler.canPostNotifications()) {
             FirebaseMessaging.getInstance().subscribeToTopic(NOTIFICATION_TOPIC)
                 .addOnCompleteListener { task ->
                     if (!task.isSuccessful) {

@@ -26,7 +26,6 @@ class NativeNotificationBridge(private val activity: MainActivity) {
 
     @JavascriptInterface
     fun setNotificationSettings(
-        enabled: Boolean,
         mealEnabled: Boolean,
         timetableEnabled: Boolean,
         schoolNoticeEnabled: Boolean,
@@ -36,7 +35,6 @@ class NativeNotificationBridge(private val activity: MainActivity) {
     ) {
         activity.runOnUiThread {
             activity.updateNativeNotificationSettings(
-                enabled,
                 mealEnabled,
                 timetableEnabled,
                 schoolNoticeEnabled,

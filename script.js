@@ -38,7 +38,10 @@ const FIREBASE_CONFIG = {
 const FIREBASE_VAPID_KEY = "BBgDLFBJt3E1eA5UtvC1IOusTUzUinGk6zLqe1PLELuusOqZo0loSMNUdMbKt1Uldj2g1ueUU5vt_JFEPHyLU7U";
 window.FIREBASE_CONFIG = FIREBASE_CONFIG;
 window.FIREBASE_VAPID_KEY = FIREBASE_VAPID_KEY;
-const VISIT_COUNT_URL = `${FIREBASE_CONFIG.databaseURL}/stats/visitCount.json`;
+// 같은 페이지/앱 세션 안에서의 중복 집계를 막는 sessionStorage 키.
+// 세션당 1회만 집계하며, 새 탭·새 앱 실행(새 세션)에서는 다시 집계된다.
+// (출시 이전 누적분 600은 Firestore 문서의 초기값으로 직접 저장한다 — 표시 보정값 없음)
+const VISIT_SESSION_KEY = 'ghas-visit-counted-session';
 const STUDENT_NAME_KEY = 'ghas-student-name';
 const STUDENT_ID_KEY = 'ghas-student-id';
 const STUDENT_CODE_IMAGE_KEY = 'ghas-student-code-image';
@@ -1811,111 +1814,93 @@ function initTheme() {
     }
 }
 
-// Firebase 및 누적 방문자 카운터 초기화
+// Firestore 기반 누적 방문자 카운터 초기화
 function initVisitorCounter() {
     const counterEl = document.getElementById('visitor-counter');
+    const countEl = document.getElementById('visit-count');
+    const labelEl = document.getElementById('visitor-label');
     let hasRenderedCount = false;
-    const MAX_REST_INCREMENT_ATTEMPTS = 3;
 
-    const renderCount = (count) => {
-        const countEl = document.getElementById('visit-count');
-        const labelEl = document.getElementById('visitor-label');
+    const renderCount = (rawCount) => {
         hasRenderedCount = true;
         if (counterEl) counterEl.style.display = 'block';
         if (labelEl) labelEl.textContent = '누적 방문자: ';
-        if (countEl) countEl.textContent = Number(count || 0).toLocaleString();
+        // Firestore 에 저장된 누적값을 그대로 표시한다 (초기 baseline 600 포함, 표시 보정값 없음).
+        const total = Number(rawCount || 0);
+        if (countEl) countEl.textContent = total.toLocaleString();
     };
 
     const showUnavailable = () => {
         if (hasRenderedCount) return;
-        const countEl = document.getElementById('visit-count');
-        const labelEl = document.getElementById('visitor-label');
         if (counterEl) counterEl.style.display = 'block';
         if (labelEl) labelEl.textContent = '누적 방문자: ';
         if (countEl) countEl.textContent = '확인 불가';
     };
 
-    const loadVisitorCountFallback = async () => {
-        try {
-            const response = await fetch(VISIT_COUNT_URL, { cache: 'no-store' });
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
-            renderCount(await response.json());
-        } catch (error) {
-            console.warn('Visit count REST fallback failed:', error);
-            showUnavailable();
-        }
-    };
-
-    const incrementVisitorCount = async () => {
-        for (let attempt = 0; attempt < MAX_REST_INCREMENT_ATTEMPTS; attempt += 1) {
-            const readResponse = await fetch(VISIT_COUNT_URL, {
-                cache: 'no-store',
-                headers: { 'X-Firebase-ETag': 'true' }
-            });
-
-            if (!readResponse.ok) {
-                throw new Error(`Visit count read failed: HTTP ${readResponse.status}`);
-            }
-
-            const etag = readResponse.headers.get('ETag');
-            const currentValue = await readResponse.json();
-            const nextValue = Number(currentValue || 0) + 1;
-
-            const writeResponse = await fetch(VISIT_COUNT_URL, {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                    ...(etag ? { 'if-match': etag } : {})
-                },
-                body: JSON.stringify(nextValue)
-            });
-
-            if (writeResponse.status === 412) {
-                continue;
-            }
-
-            if (!writeResponse.ok) {
-                throw new Error(`Visit count update failed: HTTP ${writeResponse.status}`);
-            }
-
-            renderCount(await writeResponse.json());
-            return;
-        }
-
-        throw new Error('Visit count update conflicted too many times');
-    };
-
-    loadVisitorCountFallback();
-
-    incrementVisitorCount().catch((error) => {
-        console.warn('Visit count REST increment failed:', error);
-        loadVisitorCountFallback();
-    });
-
-    if (typeof firebase === 'undefined') {
+    if (typeof firebase === 'undefined' || !firebase.firestore) {
+        showUnavailable();
         return;
     }
 
+    let db;
     try {
         if (!firebase.apps.length) {
             firebase.initializeApp(FIREBASE_CONFIG);
         }
-
-        const db = firebase.database();
-        const visitRef = db.ref('stats/visitCount');
-
-        visitRef.on('value', (snapshot) => {
-            renderCount(snapshot.val());
-        }, (error) => {
-            console.warn('Visit count read failed:', error);
-            loadVisitorCountFallback();
-        });
-    } catch (e) {
-        console.error('Firebase 초기화 실패:', e);
-        loadVisitorCountFallback();
+        db = firebase.firestore();
+    } catch (error) {
+        console.error('Firebase 초기화 실패:', error);
+        showUnavailable();
         return;
     }
 
+    const visitRef = db.collection('stats').doc('visitCount');
+
+    // 실시간 구독: 다른 방문으로 값이 바뀌어도 즉시 반영
+    visitRef.onSnapshot(
+        (snapshot) => {
+            const data = snapshot.exists ? snapshot.data() : null;
+            renderCount(data && typeof data.count === 'number' ? data.count : 0);
+        },
+        (error) => {
+            console.warn('Visit count read failed:', error);
+            showUnavailable();
+        }
+    );
+
+    // 이 세션에서 이미 집계됐다면 증가하지 않음 (새로고침/JS 재초기화 중복 방지).
+    // sessionStorage 는 탭·앱 세션 동안 유지되고 세션 종료 시 사라지므로,
+    // 같은 세션의 재실행은 막고 새 세션에서는 다시 집계되도록 한다.
+    let alreadyCounted = false;
+    try {
+        alreadyCounted = sessionStorage.getItem(VISIT_SESSION_KEY) === '1';
+    } catch (storageError) {
+        alreadyCounted = false; // 프라이빗 모드 등 sessionStorage 접근 불가
+    }
+
+    if (alreadyCounted) {
+        return;
+    }
+
+    // 새로고침 경합으로 인한 중복 증가를 막기 위해 쓰기를 보내기 전에 세션 플래그를 먼저 설정.
+    try {
+        sessionStorage.setItem(VISIT_SESSION_KEY, '1');
+    } catch (storageError) {
+        /* 저장 실패는 무시 (집계는 1회만 시도) */
+    }
+
+    // 원자적 +1 증가 (보안 규칙에서 +1 증가만 허용). 초기 baseline 600 문서를 601 로 갱신한다.
+    visitRef
+        .set({ count: firebase.firestore.FieldValue.increment(1) }, { merge: true })
+        .catch((error) => {
+            console.warn('Visit count increment failed:', error);
+            // 실패 시 같은 세션의 다음 재초기화에서 다시 시도할 수 있도록 플래그 해제.
+            try {
+                sessionStorage.removeItem(VISIT_SESSION_KEY);
+            } catch (storageError) {
+                /* 무시 */
+            }
+        });
 }
 
 // 초기화 호출

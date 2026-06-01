@@ -242,8 +242,14 @@ struct NotificationSettingsSheet: View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 14) {
+                    Text("필요한 알림만 선택해 받을 수 있습니다.")
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundStyle(AppTheme.subText(scheme))
+                        .frame(maxWidth: .infinity, alignment: .leading)
+
+                    bulkActionButtons
+
                     settingCard {
-                        themedToggle("전체 알림", isOn: binding(\.enabled))
                         categoryRow(
                             title: "급식 알림",
                             enabled: binding(\.mealEnabled),
@@ -339,10 +345,76 @@ struct NotificationSettingsSheet: View {
                     .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
             }
             .buttonStyle(.plain)
-            .disabled(!settings.enabled || !enabled.wrappedValue)
-            .opacity(settings.enabled && enabled.wrappedValue ? 1 : 0.45)
+            // Time editing stays available even when the category toggle is OFF; the time is just saved.
         }
         .padding(.vertical, 3)
+    }
+
+    private var allCategoriesOn: Bool {
+        settings.mealEnabled && settings.timetableEnabled && settings.schoolNoticeEnabled
+    }
+
+    // Explicit, clearly-labeled bulk actions (not a master gate): each flips every category at once
+    // and immediately persists + reconciles. Saved times are left untouched either way.
+    private var bulkActionButtons: some View {
+        HStack(spacing: 10) {
+            bulkButton(title: "모든 알림 켜기", systemImage: "bell.fill", filled: true) {
+                applyAllCategories(enabled: true)
+            }
+            .disabled(allCategoriesOn)
+            .opacity(allCategoriesOn ? 0.5 : 1)
+
+            bulkButton(title: "모든 알림 끄기", systemImage: "bell.slash.fill", filled: false) {
+                applyAllCategories(enabled: false)
+            }
+            .disabled(!settings.enabled)
+            .opacity(settings.enabled ? 1 : 0.5)
+        }
+    }
+
+    private func bulkButton(
+        title: String,
+        systemImage: String,
+        filled: Bool,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            HStack(spacing: 6) {
+                Image(systemName: systemImage)
+                    .font(.system(size: 13, weight: .semibold))
+                Text(title)
+                    .font(.system(size: 14, weight: .semibold))
+            }
+            .foregroundStyle(filled ? Color.white : AppTheme.primary)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 12)
+            .background(filled ? AppTheme.primary : AppTheme.pill(scheme))
+            .overlay {
+                if !filled {
+                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        .stroke(AppTheme.border(scheme), lineWidth: 1)
+                }
+            }
+            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func applyAllCategories(enabled: Bool) {
+        settings.setAllCategories(enabled: enabled)
+        settings.save()
+        Task {
+            let allowed = await NativeNotificationService.applySavedSettings()
+            await MainActor.run {
+                if enabled && !allowed && settings.enabled {
+                    // Categories turned on but OS permission is missing: keep choices, report OFF.
+                    permissionDenied = true
+                    postNotificationState(false)
+                } else {
+                    postNotificationState(enabled ? (allowed && settings.enabled) : false)
+                }
+            }
+        }
     }
 
     private func themedToggle(_ title: String, isOn: Binding<Bool>) -> some View {
@@ -350,8 +422,6 @@ struct NotificationSettingsSheet: View {
             .tint(AppTheme.primary)
             .font(.system(size: 16, weight: .semibold))
             .foregroundStyle(AppTheme.text(scheme))
-            .disabled(title != "전체 알림" && !settings.enabled)
-            .opacity(title == "전체 알림" || settings.enabled ? 1 : 0.45)
     }
 
     private func binding(_ keyPath: WritableKeyPath<NativeNotificationSettings, Bool>) -> Binding<Bool> {
@@ -508,8 +578,8 @@ struct NotificationSettingsSheet: View {
             let allowed = await NativeNotificationService.applySavedSettings()
             await MainActor.run {
                 if !allowed && settings.enabled {
-                    settings.enabled = false
-                    settings.save()
+                    // Categories are on but OS permission is missing: keep the user's choices,
+                    // report the aggregate as off (nothing can be delivered) and explain.
                     postNotificationState(false)
                     permissionDenied = true
                 } else {

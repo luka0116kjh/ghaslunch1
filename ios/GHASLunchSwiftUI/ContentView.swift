@@ -425,14 +425,11 @@ struct GHASLunchWebView: UIViewRepresentable {
 
         private func requestNotifications() {
             Task {
+                // The web bell is a simple on/off, so it enables every category at once.
                 var settings = NativeNotificationSettings.load()
-                settings.enabled = true
+                settings.setAllCategories(enabled: true)
                 settings.save()
                 let allowed = await NativeNotificationService.applySavedSettings()
-                if !allowed {
-                    settings.enabled = false
-                    settings.save()
-                }
                 await MainActor.run {
                     UserDefaults.standard.set(allowed, forKey: notificationKey)
                     updateWebNotificationState(allowed)
@@ -441,8 +438,13 @@ struct GHASLunchWebView: UIViewRepresentable {
         }
 
         private func cancelNotifications() {
+            // The web bell OFF is the explicit "모든 알림 끄기" action: turn every category off,
+            // persist, reconcile (cancels all pending requests) and report the aggregate as OFF.
             Task {
-                await NativeNotificationService.disableNotifications()
+                var settings = NativeNotificationSettings.load()
+                settings.setAllCategories(enabled: false)
+                settings.save()
+                _ = await NativeNotificationService.applySavedSettings()
                 await MainActor.run {
                     UserDefaults.standard.set(false, forKey: notificationKey)
                     updateWebNotificationState(false)

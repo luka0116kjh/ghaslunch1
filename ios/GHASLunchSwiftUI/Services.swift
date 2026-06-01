@@ -74,6 +74,7 @@ struct NativeNotificationSettings {
         static let timetableTime = "native_notifications_timetable_time"
         static let schoolNoticeTime = "native_notifications_school_notice_time"
         static let legacyMigrationCompleted = "native_notifications_legacy_migration_completed_v1"
+        static let masterGateMigrated = "native_notifications_master_gate_migrated_v1"
     }
 
     private enum LegacyKey {
@@ -89,7 +90,6 @@ struct NativeNotificationSettings {
         static let schoolNoticeMinute = "nativeNotificationsSchoolNoticeMinute"
     }
 
-    var enabled: Bool
     var mealEnabled: Bool
     var timetableEnabled: Bool
     var schoolNoticeEnabled: Bool
@@ -97,12 +97,24 @@ struct NativeNotificationSettings {
     var timetableTime: Date
     var schoolNoticeTime: Date
 
+    // Derived aggregate: notifications are "on" when at least one category is enabled.
+    // There is no separate master gate anymore; categories work independently.
+    var enabled: Bool {
+        mealEnabled || timetableEnabled || schoolNoticeEnabled
+    }
+
+    /// Turns every category on or off at once (the "모든 알림 켜기 / 끄기" convenience action).
+    mutating func setAllCategories(enabled: Bool) {
+        mealEnabled = enabled
+        timetableEnabled = enabled
+        schoolNoticeEnabled = enabled
+    }
+
     static func load(defaults: UserDefaults = .standard) -> NativeNotificationSettings {
         NativeNotificationSettings(
-            enabled: defaults.bool(forKey: Key.enabled),
-            mealEnabled: defaults.object(forKey: Key.mealEnabled) as? Bool ?? true,
-            timetableEnabled: defaults.object(forKey: Key.timetableEnabled) as? Bool ?? true,
-            schoolNoticeEnabled: defaults.object(forKey: Key.schoolNoticeEnabled) as? Bool ?? true,
+            mealEnabled: defaults.object(forKey: Key.mealEnabled) as? Bool ?? false,
+            timetableEnabled: defaults.object(forKey: Key.timetableEnabled) as? Bool ?? false,
+            schoolNoticeEnabled: defaults.object(forKey: Key.schoolNoticeEnabled) as? Bool ?? false,
             mealTime: savedTime(forKey: Key.mealTime, defaultHour: 11, minute: 0, defaults: defaults),
             timetableTime: savedTime(forKey: Key.timetableTime, defaultHour: 7, minute: 30, defaults: defaults),
             schoolNoticeTime: savedTime(forKey: Key.schoolNoticeTime, defaultHour: 18, minute: 0, defaults: defaults)
@@ -110,6 +122,7 @@ struct NativeNotificationSettings {
     }
 
     func save(defaults: UserDefaults = .standard) {
+        // `enabled` is derived; persisted only as the aggregate for backward compatibility.
         defaults.set(enabled, forKey: Key.enabled)
         defaults.set(mealEnabled, forKey: Key.mealEnabled)
         defaults.set(timetableEnabled, forKey: Key.timetableEnabled)
@@ -175,6 +188,27 @@ struct NativeNotificationSettings {
 
     static func markLegacyMigrationCompleted(defaults: UserDefaults = .standard) {
         defaults.set(true, forKey: Key.legacyMigrationCompleted)
+    }
+
+    /// One-time migration away from the old master-gate model. Previously a single master flag
+    /// gated every category; now each category is independent. To preserve each user's prior
+    /// effective state we collapse `effectiveCategory = oldMaster && storedCategory` exactly once.
+    /// Run this after `prepareLegacyMigrationIfNeeded()` so legacy values are already in place.
+    @discardableResult
+    static func migrateMasterGateIfNeeded(defaults: UserDefaults = .standard) -> Bool {
+        guard !defaults.bool(forKey: Key.masterGateMigrated) else {
+            return false
+        }
+        let oldMaster = defaults.bool(forKey: Key.enabled)
+        let meal = oldMaster && (defaults.object(forKey: Key.mealEnabled) as? Bool ?? true)
+        let timetable = oldMaster && (defaults.object(forKey: Key.timetableEnabled) as? Bool ?? true)
+        let schoolNotice = oldMaster && (defaults.object(forKey: Key.schoolNoticeEnabled) as? Bool ?? true)
+        defaults.set(meal, forKey: Key.mealEnabled)
+        defaults.set(timetable, forKey: Key.timetableEnabled)
+        defaults.set(schoolNotice, forKey: Key.schoolNoticeEnabled)
+        defaults.set(meal || timetable || schoolNotice, forKey: Key.enabled)
+        defaults.set(true, forKey: Key.masterGateMigrated)
+        return true
     }
 
     private static func savedTime(
@@ -300,24 +334,23 @@ enum NativeNotificationService {
         return true
     }
 
+    /// Runs at launch. Ensures the (idempotent) migrations have applied, then reconciles the
+    /// pending per-category schedules with the stored state without prompting for permission.
+    /// Mirrors Android's launch-time `scheduleSelectedNotifications()` so both stay consistent.
     static func reconcileLegacyMigrationIfNeeded() async {
-        guard NativeNotificationSettings.prepareLegacyMigrationIfNeeded() else {
-            return
-        }
+        // Order matters: legacy copy must run before the master-gate collapse reads the old master.
+        NativeNotificationSettings.prepareLegacyMigrationIfNeeded()
+        NativeNotificationSettings.migrateMasterGateIfNeeded()
+        NativeNotificationSettings.markLegacyMigrationCompleted()
 
         let settings = NativeNotificationSettings.load()
-        guard settings.enabled else {
-            cancelAll()
-            NativeNotificationSettings.markLegacyMigrationCompleted()
-            return
-        }
-
         let authorizationStatus = await UNUserNotificationCenter.current().notificationSettings().authorizationStatus
-        guard authorizationStatus == .authorized ||
-                authorizationStatus == .provisional ||
-                authorizationStatus == .ephemeral else {
+        let canDeliver = authorizationStatus == .authorized ||
+            authorizationStatus == .provisional ||
+            authorizationStatus == .ephemeral
+
+        guard settings.enabled && canDeliver else {
             cancelAll()
-            NativeNotificationSettings.markLegacyMigrationCompleted()
             return
         }
 
@@ -328,7 +361,6 @@ enum NativeNotificationService {
                 cancel(category)
             }
         }
-        NativeNotificationSettings.markLegacyMigrationCompleted()
     }
 
     static func requestAuthorization() async -> Bool {
@@ -338,13 +370,6 @@ enum NativeNotificationService {
         } catch {
             return false
         }
-    }
-
-    static func disableNotifications() async {
-        var settings = NativeNotificationSettings.load()
-        settings.enabled = false
-        settings.save()
-        cancelAll()
     }
 
     private static func schedule(_ category: Category, at time: Date) {
