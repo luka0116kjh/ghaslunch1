@@ -102,12 +102,56 @@
         return DAY_LABELS.filter((label) => weekdays.has(label));
     }
 
+    function createDateFromYmd(ymd) {
+        const [year, month, day] = String(ymd || "").split("-").map(Number);
+        if (!year || !month || !day) return new Date();
+        return new Date(year, month - 1, day);
+    }
+
+    function addDays(date, days) {
+        const nextDate = new Date(date);
+        nextDate.setDate(nextDate.getDate() + days);
+        return nextDate;
+    }
+
+    function getWeekdayDates(baseDate) {
+        const referenceDate = new Date(baseDate);
+        const day = referenceDate.getDay();
+        const mondayOffset = day === 6 ? 2 : day === 0 ? 1 : 1 - day;
+        const monday = addDays(referenceDate, mondayOffset);
+
+        return DAY_LABELS.map((label, index) => {
+            const date = addDays(monday, index);
+            return {
+                label,
+                date,
+                ymd: formatDateHyphen(date)
+            };
+        });
+    }
+
+    function getReferenceDate() {
+        return createDateFromYmd(window.GHAS_AFTER_SCHOOL_REFERENCE_DATE || formatDateHyphen(new Date()));
+    }
+
+    function getScheduleStatusForDate(ymd) {
+        if (!currentSchedule) return "missing";
+
+        const closedDates = Array.isArray(currentSchedule.closedDates) ? currentSchedule.closedDates : [];
+        if (currentSchedule.exceptions?.[ymd] || closedDates.includes(ymd)) {
+            return "closed";
+        }
+
+        return currentSchedule.operatingDates?.includes(ymd) ? "operating" : "closed";
+    }
+
     function getTodayScheduleStatus() {
         if (!currentSchedule) return { type: "missing", label: "정보 없음" };
 
         const today = formatDateHyphen(new Date());
         const exception = currentSchedule.exceptions?.[today];
-        if (exception) {
+        const dateStatus = getScheduleStatusForDate(today);
+        if (dateStatus === "closed" && exception) {
             return {
                 type: "exception",
                 label: "방과후 없음",
@@ -115,7 +159,7 @@
             };
         }
 
-        if (currentSchedule.operatingDates?.includes(today)) {
+        if (dateStatus === "operating") {
             return { type: "operating", label: "방과후 있음" };
         }
 
@@ -166,24 +210,26 @@
     }
 
     function createDayChips(program) {
-        const days = new Set((program?.days || []).map((day) => String(day).trim()));
-        const todayIndex = new Date().getDay() - 1;
-        const todayStatus = getTodayScheduleStatus();
+        const selected = Boolean(program);
+        const referenceDate = getReferenceDate();
+        const referenceYmd = formatDateHyphen(referenceDate);
+        const weekdayDates = getWeekdayDates(referenceDate);
         const wrap = document.createElement("div");
         wrap.id = "after-school-day-chips";
         wrap.className = "after-school-day-chips";
         wrap.setAttribute("aria-label", "방과후 수업 요일");
 
-        DAY_LABELS.forEach((day) => {
+        weekdayDates.forEach(({ label, ymd }) => {
             const chip = document.createElement("span");
-            const isToday = todayIndex >= 0 && DAY_LABELS[todayIndex] === day;
-            const active = days.has(day) && (!isToday || todayStatus.type === "operating");
+            const isReferenceDate = ymd === referenceYmd;
+            const active = selected && getScheduleStatusForDate(ymd) === "operating";
             chip.className = [
                 "after-school-day-chip",
                 active ? "active" : "",
-                isToday && active ? "today" : ""
+                isReferenceDate ? "today" : ""
             ].filter(Boolean).join(" ");
-            chip.textContent = day;
+            chip.textContent = label;
+            chip.dataset.date = ymd;
             wrap.append(chip);
         });
 

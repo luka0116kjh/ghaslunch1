@@ -1773,6 +1773,7 @@ async function updateTimetable() {
     const nextDate = getNextSchoolDate(currentDate);
     const showNext = timetableViewMode === 'next';
     const targetDate = showNext ? nextDate : currentDate;
+    window.GHAS_AFTER_SCHOOL_REFERENCE_DATE = formatDateHyphen(targetDate);
     const currentTitle = getTimetableLabel(today, currentDate, '다음 시간표');
     const nextTitle = getTimetableLabel(
         today,
