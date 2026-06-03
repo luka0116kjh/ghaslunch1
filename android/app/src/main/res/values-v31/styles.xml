@@ -1,0 +1,27 @@
+<resources>
+    <!--
+        Android 12+ (API 31+) draws a MANDATORY system splash before
+        MainActivity.onCreate runs, using these static theme attributes. It cannot
+        read the app's saved theme (SharedPreferences), so following either the
+        system appearance (values-night) or a hard-coded light/dark colour will
+        still flash a wrong frame whenever the saved app theme and the chosen
+        startup colour disagree.
+
+        Fix: paint a NEUTRAL BRANDED splash (brand blue + centred logo) that is
+        deliberately neither the light nor the dark app background. It looks like a
+        launch screen, not an incorrect app theme, for every combination of system
+        appearance and saved app theme. After onCreate, applyNativeStartupTheme()
+        immediately repaints the window in the real saved theme and the WebView
+        stays INVISIBLE until onPageCommitVisible, so nothing else changes.
+    -->
+    <style name="Theme.GHASLunch" parent="@android:style/Theme.Material.Light.NoActionBar">
+        <item name="android:windowDisablePreview">true</item>
+        <item name="android:windowBackground">#F6F6F6</item>
+        <item name="android:forceDarkAllowed">false</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:statusBarColor">#F6F6F6</item>
+        <item name="android:navigationBarColor">#F6F6F6</item>
+        <item name="android:windowSplashScreenBackground">@color/splash_background</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/ic_launcher_foreground</item>
+    </style>
+</resources>

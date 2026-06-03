@@ -70,6 +70,12 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         preferences = getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
+        // TODO(theme-debug): remove ThemeDebug logging once startup theme is verified on-device.
+        Log.d(
+            "ThemeDebug",
+            "onCreate savedTheme='${getSavedTheme()}' systemNight=${isSystemNightMode()} " +
+                "bg=#${Integer.toHexString(resolveWebViewBackgroundColor())}"
+        )
         applyNativeStartupTheme()
         registerActivityResultLaunchers()
         // Migration now runs in NativeNotificationScheduler's init, so it is already done by the
@@ -188,6 +194,8 @@ class MainActivity : ComponentActivity() {
             }
 
             override fun onPageCommitVisible(view: WebView, url: String?) {
+                // TODO(theme-debug): remove ThemeDebug logging once verified on-device.
+                Log.d("ThemeDebug", "onPageCommitVisible -> revealWebView ($url)")
                 revealWebView()
             }
 
@@ -1067,8 +1075,11 @@ class MainActivity : ComponentActivity() {
     }
 
     fun saveTheme(theme: String?) {
+        // TODO(theme-debug): remove ThemeDebug logging once startup theme is verified on-device.
+        Log.d("ThemeDebug", "Native setTheme called with: $theme")
         if (theme == "dark" || theme == "light") {
             preferences.edit { putString(KEY_THEME, theme) }
+            Log.d("ThemeDebug", "SharedPreferences[$KEY_THEME] now = ${getSavedTheme()}")
             runOnUiThread {
                 applyNativeStartupTheme()
                 if (::contentRoot.isInitialized) {

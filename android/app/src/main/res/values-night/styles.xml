@@ -1,0 +1,20 @@
+<resources>
+    <!--
+        Night base theme for API 23-30 (pre-splash-screen-API devices). On these
+        devices android:windowDisablePreview="true" suppresses the starting window,
+        so there is no pre-onCreate flash to colour; these attributes only set the
+        activity-window base, which applyNativeStartupTheme() overrides with the
+        real saved theme before the first app frame.
+
+        The visible Android 12+ splash is handled separately by values-v31 /
+        values-night-v31, which paint a NEUTRAL BRANDED splash (see those files).
+    -->
+    <style name="Theme.GHASLunch" parent="@android:style/Theme.Material.NoActionBar">
+        <item name="android:windowDisablePreview">true</item>
+        <item name="android:windowBackground">#121212</item>
+        <item name="android:forceDarkAllowed">false</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:statusBarColor">#121212</item>
+        <item name="android:navigationBarColor">#121212</item>
+    </style>
+</resources>

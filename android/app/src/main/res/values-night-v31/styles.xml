@@ -1,0 +1,20 @@
+<resources>
+    <!--
+        Night-qualified API 31+ splash theme. The splash background and icon are the
+        SAME neutral brand resources as values-v31 on purpose: the launch surface
+        must be theme-independent, so a device in dark mode shows the identical
+        branded splash and never flashes #121212 before a saved LIGHT app theme.
+        Only the post-splash activity-window base colours differ (dark), and those
+        are overridden by applyNativeStartupTheme() before the first app frame.
+    -->
+    <style name="Theme.GHASLunch" parent="@android:style/Theme.Material.NoActionBar">
+        <item name="android:windowDisablePreview">true</item>
+        <item name="android:windowBackground">#121212</item>
+        <item name="android:forceDarkAllowed">false</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:statusBarColor">#121212</item>
+        <item name="android:navigationBarColor">#121212</item>
+        <item name="android:windowSplashScreenBackground">@color/splash_background</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/ic_launcher_foreground</item>
+    </style>
+</resources>
