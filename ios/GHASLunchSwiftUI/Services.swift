@@ -336,7 +336,15 @@ enum NativeNotificationService {
         }
 
         for category in Category.allCases {
-            if category.isEnabled(in: settings) {
+            if category == .meal {
+                // The meal alarm is content-gated: only days the API actually has a menu for get
+                // a (one-shot) notification, so "no meal" days never fire even when enabled.
+                if category.isEnabled(in: settings) {
+                    await scheduleMealForUpcomingMealDays(at: category.time(in: settings))
+                } else {
+                    await removeAllMealRequests(UNUserNotificationCenter.current())
+                }
+            } else if category.isEnabled(in: settings) {
                 schedule(category, at: category.time(in: settings))
             } else {
                 cancel(category)
@@ -366,7 +374,15 @@ enum NativeNotificationService {
         }
 
         for category in Category.allCases {
-            if category.isEnabled(in: settings) {
+            if category == .meal {
+                // The meal alarm is content-gated: only days the API actually has a menu for get
+                // a (one-shot) notification, so "no meal" days never fire even when enabled.
+                if category.isEnabled(in: settings) {
+                    await scheduleMealForUpcomingMealDays(at: category.time(in: settings))
+                } else {
+                    await removeAllMealRequests(UNUserNotificationCenter.current())
+                }
+            } else if category.isEnabled(in: settings) {
                 schedule(category, at: category.time(in: settings))
             } else {
                 cancel(category)
@@ -419,6 +435,142 @@ enum NativeNotificationService {
         // TODO: Use Firebase Cloud Functions + FCM/APNs scheduled push for server-driven delivery.
         // TODO: Refresh one-shot daily notifications when reliable daily content is available.
         // TODO: Replace generic fallbacks with real daily meal/timetable/notice content safely.
+    }
+
+    // MARK: - Meal: content-gated (only schedule days the API actually has a menu for)
+
+    private static let mealScheduleWindowDays = 14
+    private static let neisMealURL = "https://open.neis.go.kr/hub/mealServiceDietInfo"
+    private static let neisOfficeCode = "J10"
+    private static let neisSchoolCode = "7530908"
+
+    /// Rebuilds the meal notifications: clears previous meal requests and schedules a one-shot
+    /// notification only for upcoming days the NEIS API has a menu for. On a network failure the
+    /// existing schedule is left untouched (so we don't silently drop everything while offline).
+    private static func scheduleMealForUpcomingMealDays(at time: Date) async {
+        guard let menusByDate = await fetchMealMenus(forNextDays: mealScheduleWindowDays) else {
+            return // API unavailable: keep whatever is already scheduled, retry on next launch/foreground.
+        }
+
+        let center = UNUserNotificationCenter.current()
+        await removeAllMealRequests(center)
+        guard !menusByDate.isEmpty else { return } // No meals in the window -> schedule nothing.
+
+        let calendar = Calendar.current
+        let timeComponents = calendar.dateComponents([.hour, .minute], from: time)
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyyMMdd"
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        let now = Date()
+
+        for (ymd, menu) in menusByDate {
+            guard let day = formatter.date(from: ymd) else { continue }
+            var fireComponents = calendar.dateComponents([.year, .month, .day], from: day)
+            fireComponents.hour = timeComponents.hour
+            fireComponents.minute = timeComponents.minute
+            guard let fireDate = calendar.date(from: fireComponents), fireDate > now else { continue }
+
+            let content = UNMutableNotificationContent()
+            content.title = Category.meal.title
+            content.body = menu
+            content.sound = .default
+
+            let request = UNNotificationRequest(
+                identifier: "\(Category.meal.identifier)_\(ymd)",
+                content: content,
+                trigger: UNCalendarNotificationTrigger(dateMatching: fireComponents, repeats: false)
+            )
+            try? await center.add(request)
+        }
+    }
+
+    /// Removes every pending meal request, covering both the legacy repeating weekday ids and the
+    /// dated one-shot ids, by matching the shared `meal_daily_notification` prefix.
+    private static func removeAllMealRequests(_ center: UNUserNotificationCenter) async {
+        let pending = await center.pendingNotificationRequests()
+        let mealIds = pending
+            .map(\.identifier)
+            .filter { $0.hasPrefix(Category.meal.identifier) }
+        if !mealIds.isEmpty {
+            center.removePendingNotificationRequests(withIdentifiers: mealIds)
+        }
+    }
+
+    /// Fetches the menu for each upcoming day from NEIS (same keyless endpoint as the web app).
+    /// Returns a `[yyyyMMdd: menu]` map containing ONLY days that have a meal, or `nil` on failure.
+    private static func fetchMealMenus(forNextDays dayCount: Int) async -> [String: String]? {
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: Date())
+        guard let endDate = calendar.date(byAdding: .day, value: dayCount, to: today) else { return nil }
+
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyyMMdd"
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+
+        guard var components = URLComponents(string: neisMealURL) else { return nil }
+        components.queryItems = [
+            URLQueryItem(name: "Type", value: "json"),
+            URLQueryItem(name: "ATPT_OFCDC_SC_CODE", value: neisOfficeCode),
+            URLQueryItem(name: "SD_SCHUL_CODE", value: neisSchoolCode),
+            URLQueryItem(name: "MLSV_FROM_YMD", value: formatter.string(from: today)),
+            URLQueryItem(name: "MLSV_TO_YMD", value: formatter.string(from: endDate)),
+            URLQueryItem(name: "pSize", value: "300"),
+        ]
+        guard let url = components.url else { return nil }
+
+        do {
+            var request = URLRequest(url: url)
+            request.timeoutInterval = 10
+            let (data, response) = try await URLSession.shared.data(for: request)
+            guard let http = response as? HTTPURLResponse, http.statusCode == 200 else { return nil }
+            return parseMealMenus(data)
+        } catch {
+            return nil
+        }
+    }
+
+    private static func parseMealMenus(_ data: Data) -> [String: String] {
+        guard
+            let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+            let sections = root["mealServiceDietInfo"] as? [Any]
+        else {
+            // No "mealServiceDietInfo" section means the API has no menu for the window (INFO-200).
+            return [:]
+        }
+
+        var rows: [[String: Any]] = []
+        for section in sections {
+            if let dict = section as? [String: Any], let r = dict["row"] as? [[String: Any]] {
+                rows = r
+                break
+            }
+        }
+
+        var menusByDate: [String: String] = [:]
+        var lunchByDate: [String: String] = [:]
+        for row in rows {
+            guard let ymd = row["MLSV_YMD"] as? String else { continue }
+            let menu = cleanMealMenuText(row["DDISH_NM"] as? String)
+            guard !menu.isEmpty else { continue }
+            if menusByDate[ymd] == nil { menusByDate[ymd] = menu }
+            if row["MMEAL_SC_CODE"] as? String == "2" { lunchByDate[ymd] = menu } // 2 = lunch
+        }
+        // Prefer the lunch menu when a day has both lunch and dinner.
+        for (ymd, lunch) in lunchByDate { menusByDate[ymd] = lunch }
+        return menusByDate
+    }
+
+    /// Mirrors the web app's normalizeMenuText: drop allergen brackets and <br> markers.
+    private static func cleanMealMenuText(_ raw: String?) -> String {
+        guard let raw = raw, !raw.isEmpty else { return "" }
+        var text = raw.replacingOccurrences(
+            of: "\\([^)]*\\)", with: "", options: .regularExpression
+        )
+        text = text.replacingOccurrences(
+            of: "<br\\s*/?>", with: " ", options: [.regularExpression, .caseInsensitive]
+        )
+        let parts = text.split(whereSeparator: { $0.isWhitespace }).map(String.init)
+        return parts.joined(separator: ", ")
     }
 
     private static func cancel(_ category: Category) {

@@ -14,7 +14,10 @@ import android.content.pm.PackageManager
 import android.os.Build
 import android.util.Log
 import androidx.core.content.edit
+import org.json.JSONArray
 import org.json.JSONObject
+import java.net.HttpURLConnection
+import java.net.URL
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
@@ -306,11 +309,32 @@ internal class NativeNotificationScheduler(private val context: Context) {
             return
         }
 
-        val body = bodyFor(category)
-        if (shouldSuppressNotification(category, body)) {
-            Log.d(TAG, "Suppressed ${category.key} notification with empty meal content")
-            scheduleCategory(category, current.timeFor(category))
-            return
+        val body: String
+        if (category == NativeNotificationCategory.MEAL) {
+            // Meal notifications are sent ONLY when the NEIS API positively confirms a menu for today.
+            // Every other outcome — no-meal result, request failure, timeout, parse error, or offline —
+            // suppresses today's notification. A false "check today's meal" alert is worse than a missed
+            // one, so NO cached content is consulted for delivery. Future alarms are still rescheduled.
+            val lookup = lookupTodayMeal()
+            if (lookup is MealLookup.Available) {
+                body = lookup.body
+            } else {
+                val reason = if (lookup is MealLookup.Empty) {
+                    "API reports no meal today"
+                } else {
+                    "API request failed/timed out/unparseable or device offline"
+                }
+                Log.d(TAG, "Suppressed meal notification ($reason)")
+                scheduleCategory(category, current.timeFor(category))
+                return
+            }
+        } else {
+            body = bodyFor(category)
+            if (shouldSuppressNotification(category, body)) {
+                Log.d(TAG, "Suppressed ${category.key} notification with empty meal content")
+                scheduleCategory(category, current.timeFor(category))
+                return
+            }
         }
 
         createNotificationChannels()
@@ -320,6 +344,91 @@ internal class NativeNotificationScheduler(private val context: Context) {
             body = body
         )
         scheduleCategory(category, current.timeFor(category))
+    }
+
+    private sealed interface MealLookup {
+        data class Available(val body: String) : MealLookup
+        object Empty : MealLookup
+        object Unknown : MealLookup
+    }
+
+    /**
+     * Fetches today's meal straight from the NEIS open API (the same endpoint the web app uses,
+     * no key required). Returns [MealLookup.Empty] when the API has no menu for today
+     * (no `mealServiceDietInfo` section / `RESULT.CODE = INFO-200`), [MealLookup.Available] with a
+     * cleaned menu string when there is one, or [MealLookup.Unknown] on any network/parse failure.
+     */
+    private fun lookupTodayMeal(): MealLookup {
+        val ymd = todayKey()
+        val urlString = "$NEIS_MEAL_URL?Type=json" +
+            "&ATPT_OFCDC_SC_CODE=$NEIS_OFFICE_CODE" +
+            "&SD_SCHUL_CODE=$NEIS_SCHOOL_CODE" +
+            "&MLSV_YMD=$ymd&pSize=100"
+        return try {
+            val connection = (URL(urlString).openConnection() as HttpURLConnection).apply {
+                requestMethod = "GET"
+                connectTimeout = NEIS_TIMEOUT_MS
+                readTimeout = NEIS_TIMEOUT_MS
+            }
+            try {
+                if (connection.responseCode != HttpURLConnection.HTTP_OK) {
+                    return MealLookup.Unknown
+                }
+                val text = connection.inputStream.bufferedReader().use { it.readText() }
+                parseMealLookup(text)
+            } finally {
+                connection.disconnect()
+            }
+        } catch (error: Exception) {
+            Log.w(TAG, "Meal API lookup failed; will fall back to cache", error)
+            MealLookup.Unknown
+        }
+    }
+
+    private fun parseMealLookup(json: String): MealLookup {
+        return try {
+            val root = JSONObject(json)
+            // No-meal days omit "mealServiceDietInfo" entirely (RESULT.CODE = INFO-200).
+            val sections = root.optJSONArray("mealServiceDietInfo") ?: return MealLookup.Empty
+            var rows: JSONArray? = null
+            for (i in 0 until sections.length()) {
+                val r = sections.optJSONObject(i)?.optJSONArray("row")
+                if (r != null) {
+                    rows = r
+                    break
+                }
+            }
+            if (rows == null || rows.length() == 0) return MealLookup.Empty
+
+            var lunch: String? = null
+            var firstAny: String? = null
+            for (i in 0 until rows.length()) {
+                val row = rows.optJSONObject(i) ?: continue
+                val menu = cleanMenuText(row.optString("DDISH_NM"))
+                if (menu.isEmpty()) continue
+                if (firstAny == null) firstAny = menu
+                if (row.optString("MMEAL_SC_CODE") == "2") { // 2 = lunch
+                    lunch = menu
+                    break
+                }
+            }
+            val body = lunch ?: firstAny ?: return MealLookup.Empty
+            MealLookup.Available(body)
+        } catch (error: Exception) {
+            Log.w(TAG, "Meal API parse failed; will fall back to cache", error)
+            MealLookup.Unknown
+        }
+    }
+
+    /** Mirrors the web app's normalizeMenuText: drop allergen brackets and <br> markers. */
+    private fun cleanMenuText(raw: String?): String {
+        if (raw.isNullOrBlank()) return ""
+        return raw
+            .replace(Regex("\\([^)]*\\)"), "")
+            .replace(Regex("(?i)<br\\s*/?>"), " ")
+            .split(Regex("\\s+"))
+            .filter { it.isNotEmpty() }
+            .joinToString(", ")
     }
 
     fun displayLegacyMealNotification(title: String?, body: String?) {
@@ -567,6 +676,12 @@ internal class NativeNotificationScheduler(private val context: Context) {
         private const val TODAY_MEAL_TITLE = "오늘의 급식"
         private const val TODAY_TIMETABLE_TITLE = "오늘의 시간표"
         private const val MAX_CACHED_BODY_LENGTH = 500
+
+        // NEIS open API (same endpoint/school as the web app; no API key required).
+        private const val NEIS_MEAL_URL = "https://open.neis.go.kr/hub/mealServiceDietInfo"
+        private const val NEIS_OFFICE_CODE = "J10"
+        private const val NEIS_SCHOOL_CODE = "7530908"
+        private const val NEIS_TIMEOUT_MS = 4000
         private val TIME_PATTERN = Regex("""^(?:[01]\d|2[0-3]):[0-5]\d$""")
         private const val TAG = "NativeNotification"
     }
@@ -580,8 +695,17 @@ class NativeNotificationReceiver : BroadcastReceiver() {
         if (intent.action != category.alarmAction) {
             return
         }
-        NativeNotificationScheduler(context.applicationContext)
-            .deliverScheduledNotification(category)
+        // deliverScheduledNotification now queries the meal API for the MEAL category, so it must
+        // not run on the main thread. goAsync keeps the broadcast alive (~10s) for the network call.
+        val appContext = context.applicationContext
+        val pendingResult = goAsync()
+        Thread {
+            try {
+                NativeNotificationScheduler(appContext).deliverScheduledNotification(category)
+            } finally {
+                pendingResult.finish()
+            }
+        }.start()
     }
 }
 
