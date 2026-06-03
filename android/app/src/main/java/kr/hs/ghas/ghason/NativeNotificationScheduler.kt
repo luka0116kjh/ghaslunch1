@@ -300,11 +300,24 @@ internal class NativeNotificationScheduler(private val context: Context) {
             return
         }
 
+        if (shouldSkipScheduledNotification(category)) {
+            Log.d(TAG, "Skipped ${category.key} notification for a non-school meal day")
+            scheduleCategory(category, current.timeFor(category))
+            return
+        }
+
+        val body = bodyFor(category)
+        if (shouldSuppressNotification(category, body)) {
+            Log.d(TAG, "Suppressed ${category.key} notification with empty meal content")
+            scheduleCategory(category, current.timeFor(category))
+            return
+        }
+
         createNotificationChannels()
         showNotification(
             category = category,
             title = context.getString(category.titleResId),
-            body = bodyFor(category)
+            body = body
         )
         scheduleCategory(category, current.timeFor(category))
     }
@@ -316,13 +329,20 @@ internal class NativeNotificationScheduler(private val context: Context) {
             return
         }
 
+        val resolvedTitle = title.normalizedOrNull()
+            ?: context.getString(NativeNotificationCategory.MEAL.titleResId)
+        val resolvedBody = body.normalizedOrNull()
+            ?: context.getString(NativeNotificationCategory.MEAL.fallbackBodyResId)
+        if (shouldSuppressNotification(NativeNotificationCategory.MEAL, resolvedBody)) {
+            Log.d(TAG, "Suppressed legacy meal FCM notification with empty meal content")
+            return
+        }
+
         createNotificationChannels()
         showNotification(
             category = NativeNotificationCategory.MEAL,
-            title = title.normalizedOrNull()
-                ?: context.getString(NativeNotificationCategory.MEAL.titleResId),
-            body = body.normalizedOrNull()
-                ?: context.getString(NativeNotificationCategory.MEAL.fallbackBodyResId)
+            title = resolvedTitle,
+            body = resolvedBody
         )
     }
 
@@ -349,6 +369,27 @@ internal class NativeNotificationScheduler(private val context: Context) {
             NativeNotificationCategory.SCHOOL_NOTICE -> null
         }
         return cached ?: context.getString(category.fallbackBodyResId)
+    }
+
+    private fun shouldSkipScheduledNotification(category: NativeNotificationCategory): Boolean {
+        if (category != NativeNotificationCategory.MEAL) {
+            return false
+        }
+        val dayOfWeek = Calendar.getInstance().get(Calendar.DAY_OF_WEEK)
+        return dayOfWeek == Calendar.SATURDAY || dayOfWeek == Calendar.SUNDAY
+    }
+
+    private fun shouldSuppressNotification(
+        category: NativeNotificationCategory,
+        body: String
+    ): Boolean =
+        category == NativeNotificationCategory.MEAL && isEmptyMealContent(body)
+
+    private fun isEmptyMealContent(body: String): Boolean {
+        val normalized = body.trim()
+        return normalized.contains("급식 정보가 없습니다") ||
+            normalized.contains("주말/휴일") ||
+            normalized.contains("오늘의 급식에서")
     }
 
     @SuppressLint("MissingPermission")

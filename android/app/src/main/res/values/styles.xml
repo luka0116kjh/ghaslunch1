@@ -1,7 +1,10 @@
 <resources>
     <style name="Theme.GHASLunch" parent="@android:style/Theme.Material.Light.NoActionBar">
+        <item name="android:windowDisablePreview">true</item>
+        <item name="android:windowBackground">#F6F6F6</item>
+        <item name="android:forceDarkAllowed">false</item>
         <item name="android:windowLightStatusBar">true</item>
-        <item name="android:statusBarColor">#F7B731</item>
-        <item name="android:navigationBarColor">#FFFFFF</item>
+        <item name="android:statusBarColor">#F6F6F6</item>
+        <item name="android:navigationBarColor">#F6F6F6</item>
     </style>
 </resources>

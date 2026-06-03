@@ -60,6 +60,7 @@ class MainActivity : ComponentActivity() {
     private lateinit var notificationPermissionLauncher: ActivityResultLauncher<String>
     private lateinit var notificationSettingsIcon: ImageView
     private lateinit var shareIcon: ImageView
+    private lateinit var contentRoot: FrameLayout
     private val nativeBridge by lazy { NativeNotificationBridge(this) }
     private val notificationScheduler by lazy { NativeNotificationScheduler(applicationContext) }
     private var fileChooserCallback: ValueCallback<Array<Uri>>? = null
@@ -68,6 +69,8 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        preferences = getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
+        applyNativeStartupTheme()
         registerActivityResultLaunchers()
         // Migration now runs in NativeNotificationScheduler's init, so it is already done by the
         // time this lazy scheduler is first touched here (and on every headless entry point too).
@@ -75,7 +78,6 @@ class MainActivity : ComponentActivity() {
         notificationScheduler.scheduleSelectedNotifications()
         syncLegacyMealTopicSubscription()
 
-        preferences = getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
         webView = WebView(this).apply {
             configureSettings(settings)
             webViewClient = createWebViewClient()
@@ -83,13 +85,15 @@ class MainActivity : ComponentActivity() {
             // Paint the resolved theme background before the URL loads so the page
             // never flashes a light frame on a dark-mode launch (or vice versa).
             setBackgroundColor(resolveWebViewBackgroundColor())
+            visibility = View.INVISIBLE
         }
 
-        val contentView = FrameLayout(this).apply {
+        contentRoot = FrameLayout(this).apply {
+            setBackgroundColor(resolveWebViewBackgroundColor())
             addView(webView)
             addView(createHeaderActionContainer())
         }
-        setContentView(contentView)
+        setContentView(contentRoot)
         registerBackHandler()
         updateNativeBridge(APP_URL)
         webView.loadUrl(APP_URL)
@@ -183,6 +187,10 @@ class MainActivity : ComponentActivity() {
                 hideWebShareButton()
             }
 
+            override fun onPageCommitVisible(view: WebView, url: String?) {
+                revealWebView()
+            }
+
             override fun onReceivedError(
                 view: WebView,
                 request: WebResourceRequest,
@@ -190,6 +198,7 @@ class MainActivity : ComponentActivity() {
             ) {
                 if (request.isForMainFrame) {
                     Log.e(TAG, "WebView error ${error.errorCode}: ${error.description}")
+                    revealWebView()
                 }
             }
 
@@ -200,6 +209,7 @@ class MainActivity : ComponentActivity() {
             ) {
                 if (request.isForMainFrame) {
                     Log.e(TAG, "HTTP ${errorResponse.statusCode} while loading ${request.url}")
+                    revealWebView()
                 }
             }
         }
@@ -805,6 +815,43 @@ class MainActivity : ComponentActivity() {
         if (::shareIcon.isInitialized) shareIcon.setColorFilter(accent)
     }
 
+    private fun applyNativeStartupTheme() {
+        val background = resolveWebViewBackgroundColor()
+        window.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(background))
+        window.decorView.setBackgroundColor(background)
+        window.statusBarColor = background
+        window.navigationBarColor = background
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            val lightBars = getSavedTheme() != "dark" &&
+                (getSavedTheme() == "light" || !isSystemNightMode())
+            var flags = window.decorView.systemUiVisibility
+            flags = if (lightBars) {
+                flags or View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR
+            } else {
+                flags and View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR.inv()
+            }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                flags = if (lightBars) {
+                    flags or View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR
+                } else {
+                    flags and View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR.inv()
+                }
+            }
+            window.decorView.systemUiVisibility = flags
+        }
+    }
+
+    private fun revealWebView() {
+        if (!::webView.isInitialized) return
+        webView.setBackgroundColor(resolveWebViewBackgroundColor())
+        if (::contentRoot.isInitialized) {
+            contentRoot.setBackgroundColor(resolveWebViewBackgroundColor())
+        }
+        if (webView.visibility != View.VISIBLE) {
+            webView.visibility = View.VISIBLE
+        }
+    }
+
     private fun isSystemNightMode(): Boolean =
         (resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) ==
             Configuration.UI_MODE_NIGHT_YES
@@ -1022,7 +1069,16 @@ class MainActivity : ComponentActivity() {
     fun saveTheme(theme: String?) {
         if (theme == "dark" || theme == "light") {
             preferences.edit { putString(KEY_THEME, theme) }
-            runOnUiThread { applyNativeThemeToCard() }
+            runOnUiThread {
+                applyNativeStartupTheme()
+                if (::contentRoot.isInitialized) {
+                    contentRoot.setBackgroundColor(resolveWebViewBackgroundColor())
+                }
+                if (::webView.isInitialized) {
+                    webView.setBackgroundColor(resolveWebViewBackgroundColor())
+                }
+                applyNativeThemeToCard()
+            }
         }
     }
 

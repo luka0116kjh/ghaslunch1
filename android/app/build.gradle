@@ -45,8 +45,8 @@ android {
         applicationId "kr.hs.ghas.ghason"
         minSdk 23
         targetSdk 36
-        versionCode 13
-        versionName "3.2.4"
+        versionCode 14
+        versionName "3.2.5"
     }
 
     signingConfigs {

@@ -51,7 +51,7 @@
 - 위치: `android/`
 - 앱 이름: `GHAS 알리미`
 - applicationId: `kr.hs.ghas.ghason`
-- 버전: `versionName 3.2.3`, `versionCode 13`
+- 버전: `versionName 3.2.5`, `versionCode 14`
 - WebView URL: `https://ghaslunch1.web.app/`
 - 신뢰 host: `ghaslunch1.web.app`, `ghaslunch1.firebaseapp.com`
 - WebView 설정: JavaScript, DOM Storage, wide viewport, overview mode가 켜져 있고 확대 컨트롤은 꺼져 있습니다.
@@ -88,7 +88,7 @@ Release 빌드는 `android/local.properties`, Gradle properties 또는 환경 �
 - 보조/이전 SwiftUI 소스와 체크리스트: `ios/`
 - Bundle ID: `kr.hs.ghas.lunch`
 - Deployment Target: iOS 16.0
-- 버전: `MARKETING_VERSION 3.2.3`, `CURRENT_PROJECT_VERSION 13`
+- 버전: `MARKETING_VERSION 3.2.5`, `CURRENT_PROJECT_VERSION 14`
 - WebView URL: `https://ghaslunch1.web.app/?v=20260522-holiday-timetable-fix`
 - 구조: SwiftUI 앱에서 `WKWebView`를 표시하고 FirebaseCore를 초기화합니다.
 - 테마: 웹 bridge의 `setTheme/getTheme`을 `UserDefaults`와 SwiftUI `@AppStorage`에 동기화합니다.

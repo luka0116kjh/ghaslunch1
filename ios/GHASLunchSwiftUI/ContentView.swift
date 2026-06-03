@@ -163,6 +163,7 @@ struct GHASLunchWebView: UIViewRepresentable {
         webView.isOpaque = false
         webView.backgroundColor = .clear
         webView.scrollView.backgroundColor = .clear
+        webView.alpha = 0
         // Honour an explicit saved theme, otherwise follow the system appearance so the
         // very first frame matches the page background.
         let initialTheme = UserDefaults.standard.string(forKey: themeKey) ?? ""
@@ -256,6 +257,21 @@ struct GHASLunchWebView: UIViewRepresentable {
                     post('disableBarcodeScanMode', null);
                 }
             };
+            if (savedTheme === 'dark' || savedTheme === 'light') {
+                try { localStorage.setItem('theme', savedTheme); } catch (error) {}
+                document.documentElement.classList.toggle('dark-theme', savedTheme === 'dark');
+                document.documentElement.classList.toggle('light-theme', savedTheme === 'light');
+                var applyBodyTheme = function() {
+                    if (!document.body) return;
+                    document.body.classList.toggle('dark-theme', savedTheme === 'dark');
+                    document.body.classList.toggle('light-theme', savedTheme === 'light');
+                };
+                if (document.readyState === 'loading') {
+                    document.addEventListener('DOMContentLoaded', applyBodyTheme, { once: true });
+                } else {
+                    applyBodyTheme();
+                }
+            }
             window.GHASAndroidApp = bridge;
             window.GHASAndroidNotifications = bridge;
         }());
@@ -370,6 +386,22 @@ struct GHASLunchWebView: UIViewRepresentable {
             disableBarcodeScanMode()
         }
 
+        func webView(_ webView: WKWebView, didCommit navigation: WKNavigation!) {
+            revealWebView(webView)
+        }
+
+        func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
+            revealWebView(webView)
+        }
+
+        func webView(
+            _ webView: WKWebView,
+            didFailProvisionalNavigation navigation: WKNavigation!,
+            withError error: Error
+        ) {
+            revealWebView(webView)
+        }
+
         func webView(
             _ webView: WKWebView,
             decidePolicyFor navigationAction: WKNavigationAction,
@@ -403,6 +435,7 @@ struct GHASLunchWebView: UIViewRepresentable {
             let enabled = NativeNotificationSettings.load().enabled
             UserDefaults.standard.set(enabled, forKey: notificationKey)
             updateWebNotificationState(enabled)
+            revealWebView(webView)
         }
 
         func webView(
@@ -524,6 +557,11 @@ struct GHASLunchWebView: UIViewRepresentable {
             webView?.underPageBackgroundColor = theme == "dark"
                 ? UIColor(hex: 0x121212)
                 : UIColor(hex: 0xF6F6F6)
+            webView?.backgroundColor = .clear
+            webView?.scrollView.backgroundColor = .clear
+            UIWindow.appearance().backgroundColor = theme == "dark"
+                ? UIColor(hex: 0x121212)
+                : UIColor(hex: 0xF6F6F6)
         }
 
         private func applySavedTheme() {
@@ -545,6 +583,13 @@ struct GHASLunchWebView: UIViewRepresentable {
             }());
             """
             webView?.evaluateJavaScript(script)
+        }
+
+        private func revealWebView(_ webView: WKWebView) {
+            guard webView.alpha == 0 else { return }
+            UIView.performWithoutAnimation {
+                webView.alpha = 1
+            }
         }
 
         private func applyPadLayoutIfNeeded() {

@@ -260,6 +260,8 @@ struct NativeNotificationSettings {
 }
 
 enum NativeNotificationService {
+    private static let schoolDayWeekdays = [2, 3, 4, 5, 6]
+
     private enum Category: CaseIterable {
         case meal
         case timetable
@@ -270,6 +272,15 @@ enum NativeNotificationService {
             case .meal: return "meal_daily_notification"
             case .timetable: return "timetable_daily_notification"
             case .schoolNotice: return "school_notice_daily_notification"
+            }
+        }
+
+        var identifiers: [String] {
+            switch self {
+            case .meal:
+                return [identifier] + NativeNotificationService.schoolDayWeekdays.map { "\(identifier)_\($0)" }
+            case .timetable, .schoolNotice:
+                return [identifier]
             }
         }
 
@@ -374,7 +385,7 @@ enum NativeNotificationService {
 
     private static func schedule(_ category: Category, at time: Date) {
         let center = UNUserNotificationCenter.current()
-        center.removePendingNotificationRequests(withIdentifiers: [category.identifier])
+        center.removePendingNotificationRequests(withIdentifiers: category.identifiers)
 
         let content = UNMutableNotificationContent()
         content.title = category.title
@@ -382,13 +393,28 @@ enum NativeNotificationService {
         content.sound = .default
 
         let components = Calendar.current.dateComponents([.hour, .minute], from: time)
-        let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: true)
-        let request = UNNotificationRequest(
-            identifier: category.identifier,
-            content: content,
-            trigger: trigger
-        )
-        center.add(request)
+        switch category {
+        case .meal:
+            for weekday in schoolDayWeekdays {
+                var weekdayComponents = components
+                weekdayComponents.weekday = weekday
+                let trigger = UNCalendarNotificationTrigger(dateMatching: weekdayComponents, repeats: true)
+                let request = UNNotificationRequest(
+                    identifier: "\(category.identifier)_\(weekday)",
+                    content: content,
+                    trigger: trigger
+                )
+                center.add(request)
+            }
+        case .timetable, .schoolNotice:
+            let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: true)
+            let request = UNNotificationRequest(
+                identifier: category.identifier,
+                content: content,
+                trigger: trigger
+            )
+            center.add(request)
+        }
 
         // TODO: Use Firebase Cloud Functions + FCM/APNs scheduled push for server-driven delivery.
         // TODO: Refresh one-shot daily notifications when reliable daily content is available.
@@ -397,7 +423,7 @@ enum NativeNotificationService {
 
     private static func cancel(_ category: Category) {
         UNUserNotificationCenter.current()
-            .removePendingNotificationRequests(withIdentifiers: [category.identifier])
+            .removePendingNotificationRequests(withIdentifiers: category.identifiers)
     }
 
     private static func cancelAll() {
