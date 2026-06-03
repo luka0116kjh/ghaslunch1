@@ -285,8 +285,7 @@ function getAfterschoolScheduleEvents() {
 
 function getAllScheduleEvents() {
     return [
-        ...SCHEDULE_EVENTS,
-        ...getAfterschoolScheduleEvents()
+        ...SCHEDULE_EVENTS
     ].sort((a, b) => a.startDate - b.startDate || a.endDate - b.endDate || getScheduleEventName(a).localeCompare(getScheduleEventName(b), 'ko'));
 }
 
