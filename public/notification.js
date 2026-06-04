@@ -225,7 +225,7 @@
             }
 
             const registration = await navigator.serviceWorker.ready;
-            registration.showNotification('GHAS 오늘의 급식', {
+            registration.showNotification('GHAS알리미', {
                 body: bodyText,
                 icon: 'icon1.png',
                 badge: 'icon1.png',

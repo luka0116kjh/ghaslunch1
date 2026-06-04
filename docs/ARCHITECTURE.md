@@ -1,6 +1,6 @@
 # 아키텍처
 
-GHAS 오늘의 급식은 하나의 웹 앱을 중심으로 PWA, Android WebView, iOS WKWebView 앱을 함께 운영하는 구조입니다.
+GHAS알리미는 하나의 웹 앱을 중심으로 PWA, Android WebView, iOS WKWebView 앱을 함께 운영하는 구조입니다.
 
 ## 구성 개요
 

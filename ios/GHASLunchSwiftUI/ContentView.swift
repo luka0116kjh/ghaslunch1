@@ -63,7 +63,7 @@ struct ContentView: View {
 
         let message = "경기자동차과학고등학교 급식 및 시간표 확인 앱!"
         let activityController = UIActivityViewController(activityItems: [message, url], applicationActivities: nil)
-        activityController.setValue("GHAS 오늘의 급식", forKey: "subject")
+        activityController.setValue("GHAS알리미", forKey: "subject")
 
         if let popover = activityController.popoverPresentationController,
            let sourceView = presenter.view {

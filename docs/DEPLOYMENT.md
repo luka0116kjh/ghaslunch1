@@ -1,6 +1,6 @@
 # 배포와 운영
 
-이 문서는 GHAS 오늘의 급식의 웹, Firebase, Android, iOS 배포 절차를 정리합니다.
+이 문서는 GHAS알리미의 웹, Firebase, Android, iOS 배포 절차를 정리합니다.
 
 ## 사전 준비
 

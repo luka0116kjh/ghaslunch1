@@ -400,7 +400,7 @@ class MainActivity : ComponentActivity() {
         val shareText = "경기자동차과학고등학교 급식 및 시간표 확인 앱!\n$shareUrl"
         val shareIntent = Intent(Intent.ACTION_SEND).apply {
             type = "text/plain"
-            putExtra(Intent.EXTRA_SUBJECT, "GHAS 오늘의 급식")
+            putExtra(Intent.EXTRA_SUBJECT, "GHAS알리미")
             putExtra(Intent.EXTRA_TEXT, shareText)
         }
 

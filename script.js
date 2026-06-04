@@ -737,7 +737,7 @@ async function showWeeklyMeals(baseDate) {
 async function shareApp() {
     const storeUrl = 'https://ghaslunch1.web.app'; // 나중에 구글 플레이 스토어 주소로 변경하세요.
     const shareData = {
-        title: 'GHAS 오늘의 급식',
+        title: 'GHAS알리미',
         text: '경기자동차과학고등학교 급식 및 시간표 확인 앱!',
         url: storeUrl
     };
