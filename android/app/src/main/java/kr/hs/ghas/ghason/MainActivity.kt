@@ -93,6 +93,7 @@ class MainActivity : ComponentActivity() {
             setBackgroundColor(resolveWebViewBackgroundColor())
             visibility = View.INVISIBLE
         }
+        applyWebCacheMigrationIfNeeded()
 
         contentRoot = FrameLayout(this).apply {
             setBackgroundColor(resolveWebViewBackgroundColor())
@@ -103,6 +104,22 @@ class MainActivity : ComponentActivity() {
         registerBackHandler()
         updateNativeBridge(APP_URL)
         webView.loadUrl(APP_URL)
+    }
+
+    private fun applyWebCacheMigrationIfNeeded() {
+        val lastAppliedVersion = preferences.getString(KEY_WEB_CACHE_VERSION, null)
+        if (lastAppliedVersion == WEB_CACHE_VERSION) {
+            return
+        }
+
+        Log.i(
+            TAG,
+            "Applying WebView cache migration $WEB_CACHE_VERSION (previous=$lastAppliedVersion)"
+        )
+        webView.clearCache(true)
+        preferences.edit {
+            putString(KEY_WEB_CACHE_VERSION, WEB_CACHE_VERSION)
+        }
     }
 
     private fun registerBackHandler() {
@@ -1204,6 +1221,8 @@ class MainActivity : ComponentActivity() {
         private const val WEB_BACKGROUND_LIGHT = "#F6F6F6"
         private const val PREFS_NAME = "ghas_lunch_preferences"
         private const val KEY_THEME = "theme"
+        private const val KEY_WEB_CACHE_VERSION = "web_cache_version"
+        private const val WEB_CACHE_VERSION = "20260604-1"
         private const val TAG = "GHASLunch"
         private const val NOTIFICATION_ICON_TOUCH_SIZE_DP = 44
         private const val NOTIFICATION_ICON_PADDING_DP = 11

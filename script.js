@@ -1986,6 +1986,16 @@ function initTheme() {
 }
 
 // Realtime Database 기반 누적 방문자 카운터 초기화
+function showVisitorCounterUnavailable() {
+    const counterEl = document.getElementById('visitor-counter');
+    const countEl = document.getElementById('visit-count');
+    const labelEl = document.getElementById('visitor-label');
+
+    if (counterEl) counterEl.style.display = 'block';
+    if (labelEl) labelEl.textContent = '누적 방문자: ';
+    if (countEl) countEl.textContent = '확인 불가';
+}
+
 function initVisitorCounter() {
     // 같은 로드 안에서 중복 호출 시 두 번 증가하지 않도록 인메모리 가드로 막는다.
     // 새로고침·새 WebView/탭 로드에서는 이 플래그가 초기화되므로 매 로드마다 1회 집계된다.
@@ -2010,9 +2020,7 @@ function initVisitorCounter() {
 
     const showUnavailable = () => {
         if (hasRenderedCount) return;
-        if (counterEl) counterEl.style.display = 'block';
-        if (labelEl) labelEl.textContent = '누적 방문자: ';
-        if (countEl) countEl.textContent = '확인 불가';
+        showVisitorCounterUnavailable();
     };
 
     if (typeof firebase === 'undefined' || !firebase.database) {
@@ -2057,8 +2065,19 @@ function initVisitorCounter() {
 }
 
 // 초기화 호출
-registerServiceWorker();
-registerAppEventHandlers();
-initTheme();
-showMeals('today');
-initVisitorCounter();
+function runStartupStep(name, step, fallback) {
+    try {
+        step();
+    } catch (error) {
+        console.error(`${name} initialization failed:`, error);
+        if (typeof fallback === 'function') {
+            fallback();
+        }
+    }
+}
+
+runStartupStep('Service worker', registerServiceWorker);
+runStartupStep('App event handlers', registerAppEventHandlers);
+runStartupStep('Theme', initTheme);
+runStartupStep('Visitor counter', initVisitorCounter, showVisitorCounterUnavailable);
+runStartupStep('Meals', () => showMeals('today'));
