@@ -57,14 +57,7 @@ const CLASS_TIMETABLE_VERSION = '20260520';
 const CLASS_TIMETABLE_RUNTIME_PATH = './src/data/classTimetable2026.js';
 const TIMETABLE_DAYS = ['일', '월', '화', '수', '목', '금', '토'];
 const TIMETABLE_PERIODS = [1, 2, 3, 4, 5, 6, 7];
-const APPRENTICESHIP_TIMETABLE_DAYS = {
-    '2-1': [4],
-    '2-2': [4],
-    '2-7': [2],
-    '3-1': [2, 3],
-    '3-2': [2, 3],
-    '3-7': [3, 4]
-};
+const APPRENTICESHIP_TIMETABLE_DAYS = {};
 let mealViewMode = 'today';
 let scheduleViewMode = 'current';
 let classTimetable2026Promise = null;
@@ -1519,6 +1512,15 @@ function renderTimetableSection(title, targetDate, rows) {
 }
 
 let timetableViewMode = 'current';
+let timetableScopeMode = 'daily';
+
+const WEEKLY_TIMETABLE_DAYS = [
+    { dayIndex: 1, label: '월요일' },
+    { dayIndex: 2, label: '화요일' },
+    { dayIndex: 3, label: '수요일' },
+    { dayIndex: 4, label: '목요일' },
+    { dayIndex: 5, label: '금요일' }
+];
 
 function ensureTimetableControls() {
     const list = document.getElementById('timetable-list');
@@ -1601,6 +1603,8 @@ function registerAppEventHandlers() {
         }],
         ['btn-meal-switch', toggleMealView],
         ['btn-schedule-switch', toggleScheduleView],
+        ['btn-tt-daily', () => setTimetableScope('daily')],
+        ['btn-tt-weekly', () => setTimetableScope('weekly')],
         ['btn-close-student-code', closeStudentCodeModal],
         ['btn-cancel-student-code-edit', closeStudentCodeEditor],
         ['btn-save-student-code-crop', saveStudentCodeCrop],
@@ -1777,6 +1781,50 @@ function logTimetableMergeSummary(neisRows, fallbackRows, displayRows) {
     });
 }
 
+// 특정 날짜의 표시용 시간표 행을 계산한다. NEIS + 보정 시간표 병합, 공휴일 처리를
+// 한 곳에서 처리하여 일간/주간 보기가 동일한 보정 로직을 공유하도록 한다.
+async function buildTimetableForDate(grade, classNum, targetDate, classTimetable2026) {
+    const rows = await fetchTimetable(grade, classNum, targetDate);
+    const holidayTitle = getTimetableHolidayTitle(targetDate, rows);
+    const fallbackRows = holidayTitle
+        ? []
+        : getFallbackTimetableRows(classTimetable2026, grade, classNum, targetDate);
+    const displayRows = holidayTitle
+        ? [{ subject: holidayTitle, source: 'holiday' }]
+        : fallbackRows.length > 0
+        ? mergeTimetableWithFallback(rows, fallbackRows)
+        : rows;
+
+    return { rows, fallbackRows, holidayTitle, displayRows };
+}
+
+function applyTimetableScopeUI() {
+    const dailyCard = document.getElementById('timetable-daily-card');
+    const weekContainer = document.getElementById('timetable-week');
+    const btnDaily = document.getElementById('btn-tt-daily');
+    const btnWeekly = document.getElementById('btn-tt-weekly');
+    const isWeekly = timetableScopeMode === 'weekly';
+
+    if (dailyCard) dailyCard.hidden = isWeekly;
+    if (weekContainer) weekContainer.hidden = !isWeekly;
+    if (btnDaily) {
+        btnDaily.classList.toggle('active', !isWeekly);
+        btnDaily.setAttribute('aria-selected', String(!isWeekly));
+    }
+    if (btnWeekly) {
+        btnWeekly.classList.toggle('active', isWeekly);
+        btnWeekly.setAttribute('aria-selected', String(isWeekly));
+    }
+}
+
+function setTimetableScope(mode) {
+    if (mode !== 'daily' && mode !== 'weekly') return;
+    if (mode === timetableScopeMode) return;
+    timetableScopeMode = mode;
+    applyTimetableScopeUI();
+    updateTimetable();
+}
+
 async function updateTimetable() {
     const grade = document.getElementById('grade-select').value;
     const classNum = document.getElementById('class-select').value;
@@ -1786,6 +1834,13 @@ async function updateTimetable() {
     localStorage.setItem('ghas-class', classNum);
 
     ensureTimetableControls();
+    applyTimetableScopeUI();
+
+    if (timetableScopeMode === 'weekly') {
+        await renderWeeklyTimetable(grade, classNum);
+        return;
+    }
+
     container.innerHTML = '시간표를 불러오는 중...';
 
     const today = new Date();
@@ -1809,19 +1864,9 @@ async function updateTimetable() {
         return;
     }
 
-    const [rows, classTimetable2026] = await Promise.all([
-        fetchTimetable(grade, classNum, targetDate),
-        loadClassTimetable2026()
-    ]);
-    const holidayTitle = getTimetableHolidayTitle(targetDate, rows);
-    const fallbackRows = holidayTitle
-        ? []
-        : getFallbackTimetableRows(classTimetable2026, grade, classNum, targetDate);
-    const displayRows = holidayTitle
-        ? [{ subject: holidayTitle, source: 'holiday' }]
-        : fallbackRows.length > 0
-        ? mergeTimetableWithFallback(rows, fallbackRows)
-        : rows;
+    const classTimetable2026 = await loadClassTimetable2026();
+    const { rows, fallbackRows, holidayTitle, displayRows } =
+        await buildTimetableForDate(grade, classNum, targetDate, classTimetable2026);
     console.debug('Timetable render rows', {
         grade,
         classNum,
@@ -1841,6 +1886,217 @@ async function updateTimetable() {
 
     container.innerHTML = renderTimetableRows(displayRows, targetDate, titleText);
     return;
+}
+
+// "이번 주" = 오늘이 속한 ISO 주(월~일)의 월요일을 기준으로 월~금 날짜 배열을 만든다.
+function getCurrentWeekWeekdays(baseDate = new Date()) {
+    const monday = new Date(baseDate);
+    monday.setHours(0, 0, 0, 0);
+    const day = monday.getDay(); // 0(일) ~ 6(토)
+    const diffToMonday = day === 0 ? -6 : 1 - day;
+    monday.setDate(monday.getDate() + diffToMonday);
+
+    return WEEKLY_TIMETABLE_DAYS.map((meta, index) => {
+        const date = new Date(monday);
+        date.setDate(monday.getDate() + index);
+        return { ...meta, date };
+    });
+}
+
+function isSameCalendarDay(a, b) {
+    return a.getFullYear() === b.getFullYear()
+        && a.getMonth() === b.getMonth()
+        && a.getDate() === b.getDate();
+}
+
+// '공강'(빈 교시)과 빈 문자열은 시간표 그리드에서 실제 과목으로 취급하지 않는다.
+function isRealTimetableSubject(subject) {
+    return Boolean(subject) && subject !== '공강';
+}
+
+// 하루치 표시 행을 그리드용 구조로 변환한다.
+// type: 'normal' | 'special'(공휴일/도제/로딩실패 등 한 칸 라벨)
+function buildWeekdayColumn(label, date, isCurrent, displayRows, specialLabel) {
+    if (specialLabel) {
+        return { label, date, isCurrent, type: 'special', specialLabel };
+    }
+    if (displayRows === null) {
+        return { label, date, isCurrent, type: 'special', specialLabel: '불러오기 실패' };
+    }
+    if (Array.isArray(displayRows) && displayRows[0]?.source === 'holiday') {
+        return { label, date, isCurrent, type: 'special', specialLabel: displayRows[0].subject };
+    }
+
+    const periodMap = new Map();
+    (Array.isArray(displayRows) ? displayRows : []).forEach((row) => {
+        const period = Number(row?.period);
+        if (period) periodMap.set(period, row);
+    });
+    return { label, date, isCurrent, type: 'normal', periodMap };
+}
+
+function renderWeeklyGrid(columns) {
+    // 실제 과목이 존재하는 가장 높은 교시까지만 행을 만든다(불필요한 빈 행 방지).
+    let maxPeriod = 0;
+    columns.forEach((col) => {
+        if (col.type !== 'normal') return;
+        col.periodMap.forEach((row, period) => {
+            if (isRealTimetableSubject(row?.subject) && period > maxPeriod) {
+                maxPeriod = period;
+            }
+        });
+    });
+    // 6~7교시처럼 비어 있어도 정규 교시(1~7)는 항상 표시한다.
+    const periodCount = Math.max(maxPeriod, TIMETABLE_PERIODS.length);
+    const periods = Array.from({ length: periodCount }, (_, i) => i + 1);
+
+    const headCells = columns.map((col) => `
+        <th class="tt-day-head${col.isCurrent ? ' is-current-weekday' : ''}" scope="col">
+            <span class="tt-day-name">${escapeHTML(col.label.charAt(0))}</span>
+            <span class="tt-day-date">${col.date.getMonth() + 1}/${col.date.getDate()}</span>
+        </th>
+    `).join('');
+
+    const bodyRows = periods.map((period, rowIndex) => {
+        const cells = columns.map((col) => {
+            if (col.type === 'special') {
+                if (rowIndex !== 0) return ''; // 첫 행의 rowspan 셀이 전체를 덮는다.
+                return `
+                    <td class="tt-cell tt-cell-special${col.isCurrent ? ' is-current-weekday' : ''}" rowspan="${periodCount}">
+                        <span class="tt-special-label">${escapeHTML(col.specialLabel)}</span>
+                    </td>
+                `;
+            }
+
+            const row = col.periodMap.get(period);
+            const subject = isRealTimetableSubject(row?.subject) ? row.subject : '';
+            if (!subject) {
+                return `<td class="tt-cell is-empty${col.isCurrent ? ' is-current-weekday' : ''}"><span class="tt-empty" aria-hidden="true">-</span></td>`;
+            }
+            return `<td class="tt-cell${col.isCurrent ? ' is-current-weekday' : ''}"><span class="tt-subject">${escapeHTML(subject)}</span></td>`;
+        }).join('');
+
+        return `<tr><th class="tt-period-cell" scope="row">${period}</th>${cells}</tr>`;
+    }).join('');
+
+    return `
+        <article class="meal-card timetable-week-grid-card">
+            <div class="timetable-week-title">이번 주 시간표</div>
+            <div class="timetable-week-scroll-wrap">
+                <div class="timetable-week-grid-scroll">
+                    <table class="timetable-week-grid">
+                        <thead>
+                            <tr>
+                                <th class="tt-period-head" scope="col">교시</th>
+                                ${headCells}
+                            </tr>
+                        </thead>
+                        <tbody>${bodyRows}</tbody>
+                    </table>
+                </div>
+                <div class="timetable-week-fade" aria-hidden="true"></div>
+            </div>
+            <div class="timetable-week-hint"><span class="tt-hint-icon" aria-hidden="true">↔</span>좌우로 밀어서 전체 시간표 보기</div>
+        </article>
+    `;
+}
+
+// 렌더 직후 현재 요일 열이 보이도록 가로 스크롤을 한 번만 맞춘다.
+// 교시 sticky 열 너비만큼 보정하고, 가능한 한 현재 열을 가운데에 둔다.
+function scrollWeeklyToCurrentDay(scroller) {
+    const currentHead = scroller.querySelector('.tt-day-head.is-current-weekday');
+    if (!currentHead) return; // 오늘이 평일이 아니면 월요일부터 표시.
+
+    const stickyCol = scroller.querySelector('.tt-period-head');
+    const stickyWidth = stickyCol ? stickyCol.getBoundingClientRect().width : 0;
+    const scrollerRect = scroller.getBoundingClientRect();
+    const cellRect = currentHead.getBoundingClientRect();
+
+    const cellLeftInContent = (cellRect.left - scrollerRect.left) + scroller.scrollLeft;
+    const visibleWidth = scroller.clientWidth - stickyWidth;
+    let target = cellLeftInContent - stickyWidth - (visibleWidth - cellRect.width) / 2;
+
+    const maxScroll = scroller.scrollWidth - scroller.clientWidth;
+    target = Math.max(0, Math.min(target, maxScroll));
+    scroller.scrollLeft = target;
+}
+
+// 자동 스크롤 + 스크롤 안내(우측 페이드, 힌트 텍스트)를 설정한다.
+// 자동 스크롤은 렌더 직후 1회만 실행되며 이후에는 사용자의 스와이프를 다시 덮어쓰지 않는다.
+function setupWeeklyScrollAffordance(weekContainer) {
+    const wrap = weekContainer.querySelector('.timetable-week-scroll-wrap');
+    const scroller = wrap ? wrap.querySelector('.timetable-week-grid-scroll') : null;
+    if (!wrap || !scroller) return;
+
+    const updateScrollState = () => {
+        const maxScroll = scroller.scrollWidth - scroller.clientWidth;
+        wrap.classList.toggle('is-scrollable', maxScroll > 2);
+        wrap.classList.toggle('is-at-end', scroller.scrollLeft >= maxScroll - 2);
+    };
+
+    requestAnimationFrame(() => {
+        // 자동 스크롤이 만든 scroll 이벤트는 힌트를 숨기지 않도록 잠시 무시한다.
+        let suppressHintHide = true;
+
+        scrollWeeklyToCurrentDay(scroller);
+        updateScrollState();
+
+        scroller.addEventListener('scroll', () => {
+            if (!suppressHintHide) wrap.classList.add('has-scrolled');
+            updateScrollState();
+        }, { passive: true });
+
+        setTimeout(() => { suppressHintHide = false; }, 250);
+    });
+}
+
+// 주간 보기는 NEIS API 대신 보정(정적) 시간표만 사용한다.
+// API를 합치면 교시별 표기가 길어져 좁은 그리드가 과밀해지므로, 일관된 보정표를 그대로 쓴다.
+// 공휴일은 일정 데이터 기준으로만 판단하고, 도제 수업일은 호출부에서 별도 처리한다.
+function getWeeklyDisplayRows(grade, classNum, targetDate, classTimetable2026) {
+    const holidayTitle = getTimetableHolidayTitle(targetDate, null);
+    if (holidayTitle) {
+        return [{ subject: holidayTitle, source: 'holiday' }];
+    }
+    return getFallbackTimetableRows(classTimetable2026, grade, classNum, targetDate);
+}
+
+async function renderWeeklyTimetable(grade, classNum) {
+    const weekContainer = document.getElementById('timetable-week');
+    if (!weekContainer) return;
+
+    weekContainer.innerHTML = '<div class="meal-card"><div class="timetable-empty">시간표를 불러오는 중...</div></div>';
+
+    const today = new Date();
+    window.GHAS_AFTER_SCHOOL_REFERENCE_DATE = formatDateHyphen(getCurrentSchoolDate(today));
+    if (typeof window.renderAfterSchoolSection === 'function') {
+        window.renderAfterSchoolSection();
+    }
+
+    const weekdays = getCurrentWeekWeekdays(today);
+    const classTimetable2026 = await loadClassTimetable2026();
+
+    const columns = weekdays.map(({ label, date }) => {
+        const isCurrent = isSameCalendarDay(date, today);
+
+        if (isApprenticeshipTimetableDay(grade, classNum, date)) {
+            return buildWeekdayColumn(label, date, isCurrent, null, '도제 수업');
+        }
+
+        const displayRows = getWeeklyDisplayRows(grade, classNum, date, classTimetable2026);
+        return buildWeekdayColumn(label, date, isCurrent, displayRows);
+    });
+
+    // await 중에 학년/반 또는 보기가 바뀌었으면 이번 렌더 결과는 폐기한다.
+    const stillWeekly = timetableScopeMode === 'weekly';
+    const sameGrade = document.getElementById('grade-select')?.value === grade;
+    const sameClass = document.getElementById('class-select')?.value === classNum;
+    if (!stillWeekly || !sameGrade || !sameClass) {
+        return;
+    }
+
+    weekContainer.innerHTML = renderWeeklyGrid(columns);
+    setupWeeklyScrollAffordance(weekContainer);
 }
 
 function applyFridayFreePeriods(rows, targetDate) {

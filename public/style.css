@@ -538,6 +538,281 @@ body {
     color: var(--text-sub);
 }
 
+/* 시간표 보기 선택 (오늘 / 이번 주) — 세그먼트 컨트롤 */
+.timetable-scope {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 16px;
+    background-color: var(--pill-inactive);
+    padding: 6px;
+    border-radius: 16px;
+}
+
+.timetable-scope-btn {
+    flex: 1;
+    appearance: none;
+    -webkit-appearance: none;
+    -webkit-tap-highlight-color: transparent;
+    font: inherit;
+    font-size: 14px;
+    font-weight: 700;
+    line-height: 1.2;
+    border: none;
+    border-radius: 12px;
+    background: transparent;
+    color: var(--text-sub);
+    padding: 10px 8px;
+    cursor: pointer;
+    transition: background-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.timetable-scope-btn.active {
+    background-color: var(--primary-color);
+    color: var(--primary-text);
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.22);
+}
+
+/* 주간 시간표 — 단일 그리드 카드 */
+.timetable-week-grid-card {
+    padding: 18px;
+}
+
+.timetable-week-title {
+    font-size: 15px;
+    font-weight: 800;
+    color: var(--text-main);
+    margin-bottom: 14px;
+}
+
+/* 좁은 화면에서는 카드 안에서 가로 스와이프로 전체 요일을 본다 */
+.timetable-week-grid-scroll {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+}
+
+.timetable-week-grid-scroll::-webkit-scrollbar {
+    display: none;
+}
+
+.timetable-week-grid {
+    width: 100%;
+    min-width: 0;
+    table-layout: fixed;
+    border-collapse: separate;
+    border-spacing: 0;
+}
+
+.timetable-week-grid th,
+.timetable-week-grid td {
+    border-bottom: 1px solid var(--border-color);
+    border-right: 1px solid var(--border-color);
+    padding: 4px 2px;
+    height: 38px;
+    text-align: center;
+    vertical-align: middle;
+}
+
+/* 요일/날짜 헤더는 세로로 조금 더 타이트하게 */
+.tt-period-head,
+.tt-day-head {
+    padding-top: 3px;
+    padding-bottom: 3px;
+}
+
+.timetable-week-grid thead th {
+    border-top: 1px solid var(--border-color);
+}
+
+.timetable-week-grid th:first-child,
+.timetable-week-grid td:first-child {
+    border-left: 1px solid var(--border-color);
+}
+
+.timetable-week-grid thead th:first-child {
+    border-top-left-radius: 12px;
+}
+
+.timetable-week-grid thead th:last-child {
+    border-top-right-radius: 12px;
+}
+
+.timetable-week-grid tbody tr:last-child th:first-child {
+    border-bottom-left-radius: 12px;
+}
+
+.timetable-week-grid tbody tr:last-child td:last-child {
+    border-bottom-right-radius: 12px;
+}
+
+/* 요일 과목 열: 5일이 한 화면에 들어가도록 동일 폭으로 분배(table-layout: fixed) */
+.tt-day-head,
+.tt-cell {
+    min-width: 0;
+}
+
+/* 교시 열: 좁게 + 가로 스크롤 시 왼쪽 고정 */
+.tt-period-head,
+.tt-period-cell {
+    position: sticky;
+    left: 0;
+    width: 32px;
+    min-width: 32px;
+    padding-left: 2px;
+    padding-right: 2px;
+    background-color: var(--pill-inactive);
+    color: var(--text-sub);
+    font-size: 12px;
+    font-weight: 700;
+    white-space: nowrap;
+    z-index: 2;
+}
+
+.tt-period-head {
+    z-index: 4;
+    font-weight: 800;
+}
+
+.tt-day-head {
+    background-color: var(--pill-inactive);
+    color: var(--text-sub);
+    font-weight: 800;
+    white-space: nowrap;
+}
+
+.tt-day-head .tt-day-name {
+    display: block;
+    font-size: 13px;
+    font-weight: 800;
+    color: var(--text-main);
+    white-space: nowrap;
+}
+
+.tt-day-head .tt-day-date {
+    display: block;
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--text-sub);
+    margin-top: 2px;
+    white-space: nowrap;
+}
+
+.tt-cell {
+    color: var(--text-main);
+}
+
+.tt-subject {
+    display: -webkit-box;
+    -webkit-line-clamp: 4;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 1.2;
+    word-break: keep-all;
+    overflow-wrap: break-word;
+}
+
+.tt-cell.is-empty .tt-empty {
+    color: var(--text-sub);
+    opacity: 0.45;
+    font-size: 12px;
+}
+
+.tt-cell-special {
+    vertical-align: middle;
+}
+
+.tt-special-label {
+    display: inline-block;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text-sub);
+    line-height: 1.3;
+    word-break: keep-all;
+    overflow-wrap: break-word;
+}
+
+/* 오늘 요일 강조: 헤더는 파란 배경, 본문 칸은 은은한 틴트 */
+.tt-day-head.is-current-weekday {
+    background-color: var(--primary-color);
+    color: var(--primary-text);
+}
+
+.tt-day-head.is-current-weekday .tt-day-name,
+.tt-day-head.is-current-weekday .tt-day-date {
+    color: var(--primary-text);
+}
+
+.tt-cell.is-current-weekday {
+    background-color: rgba(37, 99, 235, 0.08);
+}
+
+:root.dark-theme .tt-cell.is-current-weekday,
+body.dark-theme .tt-cell.is-current-weekday {
+    background-color: rgba(37, 99, 235, 0.2);
+}
+
+@media (prefers-color-scheme: dark) {
+    :root:not(.light-theme) .tt-cell.is-current-weekday,
+    body:not(.light-theme) .tt-cell.is-current-weekday {
+        background-color: rgba(37, 99, 235, 0.2);
+    }
+}
+
+/* 가로 스크롤 안내: 우측 페이드 + 힌트 텍스트 (스크롤 가능할 때만) */
+.timetable-week-scroll-wrap {
+    position: relative;
+}
+
+.timetable-week-fade {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 28px;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+    background-image: linear-gradient(to right, rgba(255, 255, 255, 0), rgba(255, 255, 255, 0.96));
+}
+
+.timetable-week-scroll-wrap.is-scrollable:not(.is-at-end) .timetable-week-fade {
+    opacity: 1;
+}
+
+.timetable-week-hint {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    margin-top: 10px;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-sub);
+}
+
+.timetable-week-hint .tt-hint-icon {
+    font-size: 13px;
+    opacity: 0.8;
+}
+
+.timetable-week-scroll-wrap.is-scrollable:not(.has-scrolled) ~ .timetable-week-hint {
+    display: flex;
+}
+
+:root.dark-theme .timetable-week-fade,
+body.dark-theme .timetable-week-fade {
+    background-image: linear-gradient(to right, rgba(30, 30, 30, 0), rgba(30, 30, 30, 0.96));
+}
+
+@media (prefers-color-scheme: dark) {
+    :root:not(.light-theme) .timetable-week-fade,
+    body:not(.light-theme) .timetable-week-fade {
+        background-image: linear-gradient(to right, rgba(30, 30, 30, 0), rgba(30, 30, 30, 0.96));
+    }
+}
+
 .after-school-selector {
     margin-bottom: 8px;
 }

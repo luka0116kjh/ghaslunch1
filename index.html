@@ -162,10 +162,15 @@
                     <option value="8">8반</option>
                 </select>
             </div>
-            <div class="meal-card">
+            <div class="timetable-scope" role="tablist" aria-label="시간표 보기 선택">
+                <button id="btn-tt-daily" class="timetable-scope-btn active" type="button" role="tab" aria-selected="true">오늘</button>
+                <button id="btn-tt-weekly" class="timetable-scope-btn" type="button" role="tab" aria-selected="false">이번 주</button>
+            </div>
+            <div class="meal-card" id="timetable-daily-card">
                 <div class="meal-type">시간표</div>
                 <div id="timetable-list" class="meal-list">시간표를 불러오는 중...</div>
             </div>
+            <div id="timetable-week" hidden></div>
         </section>
 
         <section id="offline-container" class="offline-card">
