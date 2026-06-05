@@ -1,7 +1,13 @@
 # API keys/secrets
 .env
+.env.*
+.secret.local
 config.js
 iosver/GHASLunchConfig.swift
+*service-account*.json
+*firebase-admin*.json
+*credentials*.json
+*secret*.json
 
 # Firebase
 .firebase/
