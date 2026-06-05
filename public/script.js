@@ -5,6 +5,11 @@ function formatDate(date) {
     return `${y}${m}${d}`;
 }
 
+function formatMealVoteDate(date) {
+    const ymd = formatDate(date);
+    return `${ymd.slice(0, 4)}-${ymd.slice(4, 6)}-${ymd.slice(6, 8)}`;
+}
+
 function setText(id, value) {
     const el = document.getElementById(id);
     if (!el) return;
@@ -517,6 +522,73 @@ function renderMealMenuHtml(menuText, calorieText = '') {
     return lines.join('<br>');
 }
 
+function getMealVoteKey(date, mealType) {
+    return `mealVote_${formatMealVoteDate(date)}_${mealType}`;
+}
+
+function getMealVote(date, mealType) {
+    try {
+        const vote = localStorage.getItem(getMealVoteKey(date, mealType));
+        return vote === 'like' || vote === 'dislike' ? vote : '';
+    } catch (error) {
+        console.warn('Meal vote read failed:', error);
+        return '';
+    }
+}
+
+function renderMealVoteControls(date, mealType) {
+    const dateValue = formatMealVoteDate(date);
+    const vote = getMealVote(date, mealType);
+    return `
+        <div class="meal-vote" data-meal-date="${dateValue}" data-meal-type="${mealType}">
+            <div class="meal-vote-actions">
+                <button class="meal-vote-button${vote === 'like' ? ' active' : ''}" type="button"
+                    data-vote="like" aria-pressed="${vote === 'like'}">👍 좋아요</button>
+                <button class="meal-vote-button${vote === 'dislike' ? ' active' : ''}" type="button"
+                    data-vote="dislike" aria-pressed="${vote === 'dislike'}">👎 싫어요</button>
+            </div>
+        </div>
+    `;
+}
+
+function renderDailyMealVotes(targetDate) {
+    const lunchVote = document.getElementById('lunch-vote');
+    const dinnerVote = document.getElementById('dinner-vote');
+    if (lunchVote) lunchVote.innerHTML = renderMealVoteControls(targetDate, 'lunch');
+    if (dinnerVote) dinnerVote.innerHTML = renderMealVoteControls(targetDate, 'dinner');
+}
+
+function handleMealVoteClick(event) {
+    const button = event.target.closest('.meal-vote-button');
+    if (!button) return;
+
+    const controls = button.closest('.meal-vote');
+    const date = controls?.dataset.mealDate;
+    const mealType = controls?.dataset.mealType;
+    const vote = button.dataset.vote;
+    if (!date || !mealType || (vote !== 'like' && vote !== 'dislike')) return;
+
+    const key = `mealVote_${date}_${mealType}`;
+    let nextVote = vote;
+    try {
+        if (localStorage.getItem(key) === vote) {
+            localStorage.removeItem(key);
+            nextVote = '';
+        } else {
+            localStorage.setItem(key, vote);
+        }
+    } catch (error) {
+        console.warn('Meal vote save failed:', error);
+        return;
+    }
+
+    controls.querySelectorAll('.meal-vote-button').forEach((voteButton) => {
+        const isActive = voteButton.dataset.vote === nextVote;
+        voteButton.classList.toggle('active', isActive);
+        voteButton.setAttribute('aria-pressed', String(isActive));
+    });
+}
+
 function extractMealRows(data) {
     const mealInfo = Array.isArray(data.mealServiceDietInfo)
         ? data.mealServiceDietInfo.find(section => Array.isArray(section.row))
@@ -669,6 +741,8 @@ async function showWeeklyMeals(baseDate) {
     setText('dinner-menu', '데이터를 불러오는 중...');
     setText('lunch-cal', '');
     setText('dinner-cal', '');
+    setText('lunch-vote', '');
+    setText('dinner-vote', '');
 
     const fromYmd = formatDate(monday);
     const toYmd = formatDate(friday);
@@ -1259,6 +1333,7 @@ function showMeals(type) {
         setText('lunch-title', `중식`);
         setText('dinner-title', `석식`);
 
+        renderDailyMealVotes(targetDate);
         fetchMeals(targetDate);
     }
 }
@@ -1616,6 +1691,9 @@ function registerAppEventHandlers() {
         const element = document.getElementById(id);
         if (element) element.addEventListener('click', handler);
     });
+
+    const mealContainer = document.getElementById('meal-container');
+    if (mealContainer) mealContainer.addEventListener('click', handleMealVoteClick);
 
     ['grade-select', 'class-select'].forEach((id) => {
         const element = document.getElementById(id);

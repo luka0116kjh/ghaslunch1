@@ -384,6 +384,41 @@ body {
     font-size: 15px;
 }
 
+.meal-vote {
+    margin-top: 16px;
+}
+
+.meal-vote-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.meal-vote-button {
+    min-width: 0;
+    padding: 7px 11px;
+    border: 1px solid var(--border-color);
+    border-radius: 999px;
+    color: var(--text-sub);
+    background-color: var(--pill-inactive);
+    font: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 1.2;
+    cursor: pointer;
+    transition: color 0.2s ease, background-color 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+}
+
+.meal-vote-button:active {
+    transform: scale(0.97);
+}
+
+.meal-vote-button.active {
+    border-color: var(--primary-color);
+    color: var(--primary-text);
+    background-color: var(--primary-color);
+}
+
 .calorie {
     margin-top: 20px;
     font-size: 13px;
