@@ -78,6 +78,11 @@ android {
 
 dependencies {
     implementation "androidx.activity:activity:1.12.1"
+    constraints {
+        implementation("androidx.fragment:fragment:1.8.9") {
+            because "Avoid outdated transitive Fragment 1.1.0 from Google Play services dependencies."
+        }
+    }
     implementation platform("com.google.firebase:firebase-bom:34.7.0")
     implementation "com.google.firebase:firebase-messaging"
 }
