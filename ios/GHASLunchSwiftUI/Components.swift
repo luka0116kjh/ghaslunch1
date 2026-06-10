@@ -350,25 +350,17 @@ struct NotificationSettingsSheet: View {
         .padding(.vertical, 3)
     }
 
-    private var allCategoriesOn: Bool {
-        settings.mealEnabled && settings.timetableEnabled && settings.schoolNoticeEnabled
-    }
-
-    // Explicit, clearly-labeled bulk actions (not a master gate): each flips every category at once
-    // and immediately persists + reconciles. Saved times are left untouched either way.
+    // Single master toggle (not a separate gate): label and action follow the current aggregate
+    // state. ON (any category enabled) -> "모든 알림 끄기"; OFF -> "모든 알림 켜기". It flips every
+    // category at once and immediately persists + reconciles. Saved times are left untouched.
     private var bulkActionButtons: some View {
-        HStack(spacing: 10) {
-            bulkButton(title: "모든 알림 켜기", systemImage: "bell.fill", filled: true) {
-                applyAllCategories(enabled: true)
-            }
-            .disabled(allCategoriesOn)
-            .opacity(allCategoriesOn ? 0.5 : 1)
-
-            bulkButton(title: "모든 알림 끄기", systemImage: "bell.slash.fill", filled: false) {
-                applyAllCategories(enabled: false)
-            }
-            .disabled(!settings.enabled)
-            .opacity(settings.enabled ? 1 : 0.5)
+        let isOn = settings.enabled
+        return bulkButton(
+            title: isOn ? "모든 알림 끄기" : "모든 알림 켜기",
+            systemImage: isOn ? "bell.slash.fill" : "bell.fill",
+            filled: !isOn
+        ) {
+            applyAllCategories(enabled: !isOn)
         }
     }
 

@@ -1540,6 +1540,20 @@ function getNextSchoolDate(baseDate) {
     return nextDate;
 }
 
+// 토요일(6)/일요일(0)은 항상 수업이 없는 날로 본다.
+// 학사일정(SCHEDULE_EVENTS)상의 휴일/방학은 buildTimetableForDate가 기존처럼
+// 구체적인 휴일명("개교기념일입니다." 등)으로 표시하므로 여기서는 주말만 처리한다.
+// TODO: 별도의 공휴일/단축수업 데이터 소스가 추가되면 휴일 판정에 함께 반영한다.
+function isWeekendDate(date) {
+    const day = date.getDay();
+    return day === 0 || day === 6;
+}
+
+// 주말에 "오늘" 시간표 자리에 보여줄 안내. 기존 휴일 스타일을 그대로 사용한다.
+function renderDayOffTimetable() {
+    return '<div class="timetable-empty timetable-holiday">주말 및 휴일입니다.</div>';
+}
+
 function isNextCalendarDay(baseDate, targetDate) {
     const start = new Date(baseDate);
     const end = new Date(targetDate);
@@ -1922,21 +1936,27 @@ async function updateTimetable() {
     container.innerHTML = '시간표를 불러오는 중...';
 
     const today = new Date();
-    const currentDate = getCurrentSchoolDate(today);
-    const nextDate = getNextSchoolDate(currentDate);
     const showNext = timetableViewMode === 'next';
-    const targetDate = showNext ? nextDate : currentDate;
+    // "오늘" 보기는 실제 달력 날짜를 기준으로 삼는다. 예전에는 주말이면 월요일로 당겨서
+    // 토/일에 월요일 시간표가 노출됐는데, 이제 주말·휴일은 그대로 휴일 안내로 보여준다.
+    // "다음" 보기는 언제나 다가오는 수업일(평일)을 가리킨다.
+    const nextDate = getNextSchoolDate(today);
+    const targetDate = showNext ? nextDate : today;
     window.GHAS_AFTER_SCHOOL_REFERENCE_DATE = formatDateHyphen(targetDate);
-    const currentTitle = getTimetableLabel(today, currentDate, '다음 시간표');
-    const nextTitle = getTimetableLabel(
-        today,
-        nextDate,
-        currentTitle === '다음 시간표' ? '그다음 시간표' : '다음 시간표'
-    );
-    const titleText = showNext ? nextTitle : currentTitle;
-    const buttonText = showNext ? currentTitle : nextTitle;
+    const nextTitle = getTimetableLabel(today, nextDate, '다음 시간표');
+    const titleText = showNext ? nextTitle : '오늘 시간표';
+    const buttonText = showNext ? '오늘 시간표' : nextTitle;
 
     updateTimetableHeader(titleText, targetDate, buttonText);
+
+    // 주말이면 "오늘" 보기에서 시간표 대신 휴일 안내를 표시한다. (학사일정상 휴일은
+    // 아래 buildTimetableForDate가 기존처럼 구체적인 휴일명으로 처리한다.)
+    // "다음" 보기는 항상 수업일을 가리키므로 영향을 받지 않는다.
+    if (!showNext && isWeekendDate(today)) {
+        container.innerHTML = renderDayOffTimetable();
+        return;
+    }
+
     if (isApprenticeshipTimetableDay(grade, classNum, targetDate)) {
         container.innerHTML = renderApprenticeshipTimetableEmpty(grade, classNum);
         return;

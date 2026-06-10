@@ -489,43 +489,33 @@ class MainActivity : ComponentActivity() {
             palette
         )
 
-        val enableAllButton = createDialogActionButton(
-            R.string.notification_enable_all,
+        // Single master toggle (not a separate gate): its label and action follow the current
+        // aggregate state. ON (any category enabled) -> "모든 알림 끄기"; OFF -> "모든 알림 켜기".
+        // It flips every category at once and persists + reconciles immediately; the individual
+        // saved times are left untouched by setAllCategoriesEnabled.
+        var allEnabled = current.enabled
+        val toggleAllButton = createDialogActionButton(
+            bulkToggleLabelResId(allEnabled),
             palette
         ).apply {
             setOnClickListener {
-                mealSwitch.isChecked = true
-                timetableSwitch.isChecked = true
-                schoolNoticeSwitch.isChecked = true
-                // Explicit bulk action: persist + reconcile immediately (saved times untouched).
-                setNativeNotificationsEnabled(true)
-            }
-        }
-        val disableAllButton = createDialogActionButton(
-            R.string.notification_disable_all,
-            palette
-        ).apply {
-            setOnClickListener {
-                mealSwitch.isChecked = false
-                timetableSwitch.isChecked = false
-                schoolNoticeSwitch.isChecked = false
-                // Explicit "turn every category off": persist OFF, cancel all, report aggregate OFF.
-                setNativeNotificationsEnabled(false)
+                allEnabled = !allEnabled
+                mealSwitch.isChecked = allEnabled
+                timetableSwitch.isChecked = allEnabled
+                schoolNoticeSwitch.isChecked = allEnabled
+                // Update the button text immediately, then persist + reconcile.
+                text = getString(bulkToggleLabelResId(allEnabled))
+                setNativeNotificationsEnabled(allEnabled)
             }
         }
         val bulkActionRow = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             addView(
-                enableAllButton,
-                LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply {
-                    marginEnd = dp(5)
-                }
-            )
-            addView(
-                disableAllButton,
-                LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply {
-                    marginStart = dp(5)
-                }
+                toggleAllButton,
+                LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+                )
             )
         }
 
@@ -651,6 +641,10 @@ class MainActivity : ComponentActivity() {
             displayTime(time)
         )
     }
+
+    // Label for the single master toggle: ON -> "모든 알림 끄기", OFF -> "모든 알림 켜기".
+    private fun bulkToggleLabelResId(enabled: Boolean): Int =
+        if (enabled) R.string.notification_disable_all else R.string.notification_enable_all
 
     private fun createDialogActionButton(labelResId: Int, palette: NativePalette): Button =
         Button(this).apply {

@@ -277,9 +277,11 @@ enum NativeNotificationService {
 
         var identifiers: [String] {
             switch self {
-            case .meal:
+            case .meal, .timetable:
+                // Both are scheduled per school-day weekday, so cancellation must cover the
+                // legacy single id plus every `<identifier>_<weekday>` request.
                 return [identifier] + NativeNotificationService.schoolDayWeekdays.map { "\(identifier)_\($0)" }
-            case .timetable, .schoolNotice:
+            case .schoolNotice:
                 return [identifier]
             }
         }
@@ -410,7 +412,11 @@ enum NativeNotificationService {
 
         let components = Calendar.current.dateComponents([.hour, .minute], from: time)
         switch category {
-        case .meal:
+        case .meal, .timetable:
+            // Timetable (like meal) is school-day only: schedule a per-weekday repeating trigger
+            // for Mon–Fri so it never fires on Saturday/Sunday.
+            // TODO: also suppress registered school holidays/breaks once a native holiday data
+            // source exists (the web app derives these from SCHEDULE_EVENTS).
             for weekday in schoolDayWeekdays {
                 var weekdayComponents = components
                 weekdayComponents.weekday = weekday
@@ -422,7 +428,8 @@ enum NativeNotificationService {
                 )
                 center.add(request)
             }
-        case .timetable, .schoolNotice:
+        case .schoolNotice:
+            // School notices are not tied to the timetable, so they keep firing every day.
             let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: true)
             let request = UNNotificationRequest(
                 identifier: category.identifier,

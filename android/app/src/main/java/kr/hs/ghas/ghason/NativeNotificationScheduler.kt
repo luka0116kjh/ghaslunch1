@@ -481,7 +481,12 @@ internal class NativeNotificationScheduler(private val context: Context) {
     }
 
     private fun shouldSkipScheduledNotification(category: NativeNotificationCategory): Boolean {
-        if (category != NativeNotificationCategory.MEAL) {
+        // Meal and timetable notifications are school-day only: they never fire on weekends.
+        // (Meal is additionally content-gated by the NEIS lookup above.) School-notice alerts
+        // are not tied to the school timetable, so they keep firing every day.
+        // TODO: also skip registered school holidays/breaks once the native side has a holiday
+        // data source (the web app already derives these from SCHEDULE_EVENTS).
+        if (category == NativeNotificationCategory.SCHOOL_NOTICE) {
             return false
         }
         val dayOfWeek = Calendar.getInstance().get(Calendar.DAY_OF_WEEK)
