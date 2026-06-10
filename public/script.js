@@ -2413,5 +2413,4 @@ function runStartupStep(name, step, fallback) {
 runStartupStep('Service worker', registerServiceWorker);
 runStartupStep('App event handlers', registerAppEventHandlers);
 runStartupStep('Theme', initTheme);
-runStartupStep('Visitor counter', initVisitorCounter, showVisitorCounterUnavailable);
 runStartupStep('Meals', () => showMeals('today'));

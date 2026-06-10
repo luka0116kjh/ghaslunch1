@@ -1095,13 +1095,6 @@ body.dark-theme .timetable-week-fade {
     opacity: 0.5;
 }
 
-.visitor-counter {
-    margin-bottom: 8px;
-    font-size: 11px;
-    color: var(--text-sub);
-    opacity: 0.8;
-}
-
 .footer-link {
     text-decoration: none;
     color: #c9d1d9;

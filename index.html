@@ -61,16 +61,13 @@
         }());
     </script>
 
-    <!-- Firebase SDKs -->
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
     <!-- Web FCM/Web Push is temporarily disabled in Android WebView.
          Notification delivery will be reconnected later through Android native FCM
          with FirebaseMessagingService. -->
 
     <link rel="stylesheet" as="style" crossorigin
         href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css" />
-<link rel="stylesheet" href="style.css?v=14">
+<link rel="stylesheet" href="style.css?v=15">
 </head>
 
 <body>
@@ -228,9 +225,6 @@
         </section>
 
         <footer class="footer">
-            <div id="visitor-counter" class="visitor-counter">
-                <span id="visitor-label">방문자 수: </span><span id="visit-count">...</span>
-            </div>
             <p class="footer-note">이 앱은 학교 공식 앱이 아닌 학생 제작 정보 제공 앱입니다.</p>
             <p class="footer-note">© 2026 Kim Jin-hyeong. All rights reserved.</p>
             <div class="footer-links">
@@ -243,7 +237,7 @@
 
     <script src="schedule.js?v=3"></script>
     <script src="afterschoolScheduleData.js?v=20260601-4th"></script>
-    <script src="script.js?v=68"></script>
+    <script src="script.js?v=69"></script>
     <script src="afterschool.js?v=20260522-afterschool-file-ready"></script>
     <!-- notification.js is intentionally unused while Web FCM/Web Push is disabled.
          Keep the file for future Android native FCM migration reference. -->

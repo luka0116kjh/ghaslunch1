@@ -1,5 +1,5 @@
 <resources>
-    <color name="icon_background">#0B73FF</color>
+    <color name="icon_background">#FFFFFF</color>
     <color name="notification_color">#0B73FF</color>
     <!-- Neutral branded splash background. Brand blue is intentionally NOT the light
          (#F6F6F6) or dark (#121212) app background, so the pre-onCreate splash never
