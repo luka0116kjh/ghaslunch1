@@ -45,11 +45,16 @@ import android.webkit.WebViewClient
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.OnBackPressedCallback
+import androidx.activity.SystemBarStyle
+import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.edit
 import androidx.core.graphics.toColorInt
 import androidx.core.net.toUri
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import com.google.firebase.messaging.FirebaseMessaging
 import java.util.Locale
 
@@ -70,6 +75,10 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         preferences = getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
+        enableEdgeToEdge(
+            statusBarStyle = SystemBarStyle.auto(Color.TRANSPARENT, Color.TRANSPARENT),
+            navigationBarStyle = SystemBarStyle.auto(Color.TRANSPARENT, Color.TRANSPARENT)
+        )
         // TODO(theme-debug): remove ThemeDebug logging once startup theme is verified on-device.
         Log.d(
             "ThemeDebug",
@@ -99,6 +108,18 @@ class MainActivity : ComponentActivity() {
             setBackgroundColor(resolveWebViewBackgroundColor())
             addView(webView)
             addView(createHeaderActionContainer())
+        }
+        ViewCompat.setOnApplyWindowInsetsListener(contentRoot) { view, windowInsets ->
+            val systemBars = windowInsets.getInsets(
+                WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout()
+            )
+            view.setPadding(
+                systemBars.left,
+                systemBars.top,
+                systemBars.right,
+                systemBars.bottom
+            )
+            windowInsets
         }
         setContentView(contentRoot)
         registerBackHandler()
@@ -844,25 +865,11 @@ class MainActivity : ComponentActivity() {
         val background = resolveWebViewBackgroundColor()
         window.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(background))
         window.decorView.setBackgroundColor(background)
-        window.statusBarColor = background
-        window.navigationBarColor = background
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            val lightBars = getSavedTheme() != "dark" &&
-                (getSavedTheme() == "light" || !isSystemNightMode())
-            var flags = window.decorView.systemUiVisibility
-            flags = if (lightBars) {
-                flags or View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR
-            } else {
-                flags and View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR.inv()
-            }
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                flags = if (lightBars) {
-                    flags or View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR
-                } else {
-                    flags and View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR.inv()
-                }
-            }
-            window.decorView.systemUiVisibility = flags
+        val lightBars = getSavedTheme() != "dark" &&
+            (getSavedTheme() == "light" || !isSystemNightMode())
+        WindowInsetsControllerCompat(window, window.decorView).apply {
+            isAppearanceLightStatusBars = lightBars
+            isAppearanceLightNavigationBars = lightBars
         }
     }
 

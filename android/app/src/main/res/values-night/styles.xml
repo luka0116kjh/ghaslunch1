@@ -12,9 +12,6 @@
     <style name="Theme.GHASLunch" parent="@android:style/Theme.Material.NoActionBar">
         <item name="android:windowDisablePreview">true</item>
         <item name="android:windowBackground">#121212</item>
-        <item name="android:forceDarkAllowed">false</item>
         <item name="android:windowLightStatusBar">false</item>
-        <item name="android:statusBarColor">#121212</item>
-        <item name="android:navigationBarColor">#121212</item>
     </style>
 </resources>

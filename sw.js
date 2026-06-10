@@ -3,7 +3,7 @@
 // Keep this service worker focused on app shell caching only.
 
 const CACHE_PREFIX = 'ghas-lunch-';
-const CACHE_NAME = 'ghas-lunch-v42';
+const CACHE_NAME = 'ghas-lunch-v43';
 const ASSETS = [
     './',
     './index.html',
@@ -15,7 +15,8 @@ const ASSETS = [
     './src/data/classTimetable2026.js',
     './icon-192.png',
     './icon1.png',
-    './logo.svg',
+    './favicon.png',
+    './apple-touch-icon.png',
     './manifest.json'
 ];
 const NETWORK_FIRST_PATHS = [
