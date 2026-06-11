@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#F6F6F6" media="(prefers-color-scheme: light)">
+    <meta name="theme-color" content="#121212" media="(prefers-color-scheme: dark)">
+    <title>GHAS알리미 Flex Window</title>
+    <script>
+        (function () {
+            try {
+                var theme = localStorage.getItem("theme");
+                if (theme === "dark" || theme === "light") {
+                    document.documentElement.dataset.theme = theme;
+                }
+            } catch (error) {
+                /* Storage can be unavailable in restricted cover-screen webviews. */
+            }
+        }());
+    </script>
+    <link rel="stylesheet" href="flex.css?v=6">
+</head>
+
+<body>
+    <div class="flex-app">
+        <header class="status-header">
+            <div class="brand">
+                <img src="logo.svg" alt="" class="brand-logo">
+                <div>
+                    <h1>GHAS알리미</h1>
+                    <p class="eyebrow">경기자동차과학고</p>
+                </div>
+            </div>
+            <div class="status-meta">
+                <time id="today-date">오늘</time>
+                <span id="class-status" hidden></span>
+            </div>
+        </header>
+
+        <main class="content" id="main-content">
+            <section class="panel is-active" id="meal-panel" data-panel="meal" aria-labelledby="meal-tab">
+                <div class="section-heading">
+                    <div>
+                        <h2>오늘의 급식</h2>
+                    </div>
+                    <button class="icon-button" id="refresh-meal" type="button" aria-label="급식 새로고침">
+                        <svg aria-hidden="true" viewBox="0 0 24 24">
+                            <path d="M20 6v5h-5M4 18v-5h5M6.1 9A7 7 0 0 1 18.5 6.5L20 8M4 16l1.5 1.5A7 7 0 0 0 17.9 15" />
+                        </svg>
+                    </button>
+                </div>
+
+                <div class="meal-grid">
+                    <article class="card meal-card">
+                        <div class="card-label">중식</div>
+                        <p class="meal-summary" id="lunch-menu">급식을 불러오는 중...</p>
+                        <span class="meal-calorie" id="lunch-calorie"></span>
+                    </article>
+                    <article class="card meal-card" id="dinner-card">
+                        <div class="card-label">석식</div>
+                        <p class="meal-summary" id="dinner-menu">급식을 불러오는 중...</p>
+                        <span class="meal-calorie" id="dinner-calorie"></span>
+                    </article>
+                </div>
+                <p class="data-note" id="meal-note" role="status"></p>
+            </section>
+
+            <section class="panel" id="timetable-panel" data-panel="timetable" aria-labelledby="timetable-tab" hidden>
+                <div class="section-heading">
+                    <div>
+                        <h2>오늘의 시간표</h2>
+                    </div>
+                    <span class="date-chip" id="timetable-date"></span>
+                </div>
+
+                <article class="card now-card" id="now-class-card">
+                    <div>
+                        <p class="now-label" id="now-label">수업 정보</p>
+                        <strong id="now-subject">학년과 반을 선택해 주세요</strong>
+                    </div>
+                    <span class="period-badge" id="now-period">--</span>
+                </article>
+
+                <article class="card timetable-card">
+                    <div class="timetable-list" id="timetable-list">
+                        <p class="empty-state">메인 앱에서 학년과 반을 선택하면 표시됩니다.</p>
+                    </div>
+                </article>
+                <p class="data-note" id="timetable-note" role="status"></p>
+            </section>
+
+            <section class="panel" id="barcode-panel" data-panel="barcode" aria-labelledby="barcode-tab" hidden>
+                <div class="section-heading">
+                    <div>
+                        <h2>내 바코드</h2>
+                    </div>
+                </div>
+
+                <button class="card barcode-card" id="open-barcode" type="button" disabled>
+                    <span class="barcode-frame" id="barcode-frame" hidden>
+                        <img id="barcode-image" alt="저장된 학생 바코드">
+                    </span>
+                    <span class="barcode-empty" id="barcode-empty">
+                        <svg aria-hidden="true" viewBox="0 0 24 24">
+                            <path d="M4 5v14M7 5v14M11 5v14M14 5v14M18 5v14M20 5v14" />
+                        </svg>
+                        <strong>저장된 바코드가 없어요</strong>
+                        <small>메인 앱에서 바코드를 먼저 등록해 주세요.</small>
+                    </span>
+                </button>
+                <p class="barcode-hint" id="barcode-hint" hidden>바코드를 누르면 크게 볼 수 있어요.</p>
+            </section>
+        </main>
+
+        <nav class="bottom-nav" aria-label="Flex Window 메뉴">
+            <button class="nav-item is-active" id="meal-tab" type="button" data-tab="meal" aria-selected="true">
+                <svg aria-hidden="true" viewBox="0 0 24 24">
+                    <path d="M6 3v8M9 3v8M6 7h3M7.5 11v10M16 3c2 2 2 7 0 9v9" />
+                </svg>
+                <span>급식</span>
+            </button>
+            <button class="nav-item" id="timetable-tab" type="button" data-tab="timetable" aria-selected="false">
+                <svg aria-hidden="true" viewBox="0 0 24 24">
+                    <rect x="3" y="5" width="18" height="16" rx="3" />
+                    <path d="M8 3v4M16 3v4M3 10h18" />
+                </svg>
+                <span>시간표</span>
+            </button>
+            <button class="nav-item" id="barcode-tab" type="button" data-tab="barcode" aria-selected="false">
+                <svg aria-hidden="true" viewBox="0 0 24 24">
+                    <path d="M4 5v14M7 5v14M11 5v14M14 5v14M18 5v14M20 5v14" />
+                </svg>
+                <span>바코드</span>
+            </button>
+        </nav>
+    </div>
+
+    <section class="barcode-focus" id="barcode-focus" aria-hidden="true">
+        <button class="focus-back" id="close-barcode" type="button" aria-label="바코드 화면 닫기">
+            <svg aria-hidden="true" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6" /></svg>
+            <span>뒤로</span>
+        </button>
+        <div class="focus-image-wrap">
+            <img id="barcode-focus-image" alt="확대된 학생 바코드">
+        </div>
+        <p>스캐너에 화면을 보여 주세요</p>
+    </section>
+
+    <script defer src="flex.js?v=6"></script>
+</body>
+
+</html>
