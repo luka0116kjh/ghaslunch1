@@ -35,7 +35,8 @@ const BYPASS_CACHE_PATHS = [
     '/sw.js',
     '/firebase-messaging-sw.js',
     '/notification.js',
-    '/app-update.json'
+    '/app-update-android.json',
+    '/app-update-ios.json'
 ];
 
 function cacheSuccessfulResponse(request, response) {

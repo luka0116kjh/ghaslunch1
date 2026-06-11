@@ -192,7 +192,16 @@
         ]
       },
       {
-        "source": "/app-update.json",
+        "source": "/app-update-android.json",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "no-cache, no-store, must-revalidate"
+          }
+        ]
+      },
+      {
+        "source": "/app-update-ios.json",
         "headers": [
           {
             "key": "Cache-Control",

@@ -2304,11 +2304,13 @@ async function initNativeAppUpdateBanner() {
     if (!nativeApp || !banner) return;
 
     try {
-        const response = await fetch(`app-update.json?t=${Date.now()}`, { cache: 'no-store' });
+        const configUrl = nativeApp.platform === 'ios'
+            ? 'app-update-ios.json'
+            : 'app-update-android.json';
+        const response = await fetch(`${configUrl}?t=${Date.now()}`, { cache: 'no-store' });
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
-        const config = await response.json();
-        const platformConfig = config?.[nativeApp.platform];
+        const platformConfig = await response.json();
         if (!platformConfig?.enabled ||
             !platformConfig.latestVersion ||
             !platformConfig.storeUrl ||
@@ -2321,8 +2323,10 @@ async function initNativeAppUpdateBanner() {
         if (title) title.textContent = platformConfig.title || '새 버전이 있습니다.';
         if (message) {
             message.textContent = platformConfig.message ||
-                '원활한 사용을 위해 Google Play에서 GHAS 알리미를 업데이트해 주세요.';
+                '원활한 사용을 위해 GHAS 알리미를 최신 버전으로 업데이트해 주세요.';
         }
+        const action = banner.querySelector('.app-update-action');
+        if (action) action.textContent = platformConfig.actionText || '업데이트 진행해주세요';
         banner.dataset.updateUrl = platformConfig.storeUrl;
         banner.hidden = false;
     } catch (error) {
