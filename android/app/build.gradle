@@ -41,12 +41,16 @@ android {
     namespace "kr.hs.ghas.ghason"
     compileSdk 36
 
+    buildFeatures {
+        buildConfig true
+    }
+
     defaultConfig {
         applicationId "kr.hs.ghas.ghason"
         minSdk 23
         targetSdk 36
-        versionCode 22
-        versionName "3.5.4"
+        versionCode 23
+        versionName "3.5.5"
     }
 
     signingConfigs {
