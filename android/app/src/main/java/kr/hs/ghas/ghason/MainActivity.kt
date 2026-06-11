@@ -311,10 +311,15 @@ class MainActivity : ComponentActivity() {
 
         return when (uri.scheme?.lowercase()) {
             "http", "https" -> {
-                updateNativeBridge(uri.toString())
-                false
+                if (isTrustedAppUri(uri)) {
+                    updateNativeBridge(uri.toString())
+                    false
+                } else {
+                    openExternally(uri)
+                    true
+                }
             }
-            "mailto", "tel", "sms", "geo" -> {
+            "market", "mailto", "tel", "sms", "geo" -> {
                 openExternally(uri)
                 true
             }
@@ -331,12 +336,14 @@ class MainActivity : ComponentActivity() {
             webView.addJavascriptInterface(nativeBridge, "GHASAndroidApp")
             webView.addJavascriptInterface(nativeBridge, "GHASAndroidNotifications")
             webView.addJavascriptInterface(nativeBridge, "AndroidBridge")
+            webView.addJavascriptInterface(nativeBridge, "Android")
             bridgeAttached = true
         } else if (!trusted && bridgeAttached) {
             disableBarcodeScanMode()
             webView.removeJavascriptInterface("GHASAndroidApp")
             webView.removeJavascriptInterface("GHASAndroidNotifications")
             webView.removeJavascriptInterface("AndroidBridge")
+            webView.removeJavascriptInterface("Android")
             bridgeAttached = false
         }
     }
@@ -356,6 +363,46 @@ class MainActivity : ComponentActivity() {
         } catch (error: ActivityNotFoundException) {
             Log.e(TAG, "No activity can open $uri", error)
             Toast.makeText(this, R.string.external_link_error, Toast.LENGTH_SHORT).show()
+        } catch (error: SecurityException) {
+            Log.e(TAG, "External intent was blocked for $uri", error)
+            Toast.makeText(this, R.string.external_link_error, Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    fun openExternalUrl(url: String?) {
+        val webUri = url?.let { Uri.parse(it) } ?: return
+        if (webUri.scheme?.lowercase() != "https") {
+            Log.w(TAG, "Blocked non-HTTPS external URL: $webUri")
+            return
+        }
+
+        runOnUiThread {
+            val packageId = webUri.getQueryParameter("id")
+            if (webUri.host.equals("play.google.com", ignoreCase = true) &&
+                packageId == PLAY_STORE_PACKAGE_ID) {
+                val marketUri = Uri.parse("market://details?id=$PLAY_STORE_PACKAGE_ID")
+                val playStoreIntent = Intent(Intent.ACTION_VIEW, marketUri).apply {
+                    setPackage("com.android.vending")
+                }
+                try {
+                    startActivity(playStoreIntent)
+                    return@runOnUiThread
+                } catch (error: ActivityNotFoundException) {
+                    Log.i(TAG, "Play Store app unavailable; opening web store", error)
+                } catch (error: SecurityException) {
+                    Log.w(TAG, "Play Store intent was blocked; opening web store", error)
+                }
+            }
+
+            try {
+                startActivity(Intent(Intent.ACTION_VIEW, webUri))
+            } catch (error: ActivityNotFoundException) {
+                Log.e(TAG, "No activity can open $webUri", error)
+                Toast.makeText(this, R.string.external_link_error, Toast.LENGTH_SHORT).show()
+            } catch (error: SecurityException) {
+                Log.e(TAG, "External URL intent was blocked for $webUri", error)
+                Toast.makeText(this, R.string.external_link_error, Toast.LENGTH_SHORT).show()
+            }
         }
     }
 
@@ -1217,6 +1264,7 @@ class MainActivity : ComponentActivity() {
         const val NOTIFICATION_TOPIC = "meal"
 
         private const val APP_URL = "https://ghaslunch1.web.app/"
+        private const val PLAY_STORE_PACKAGE_ID = "kr.hs.ghas.ghason"
         // Match the web page's --bg-color so the WebView's first frame blends in (no theme flash).
         private const val WEB_BACKGROUND_DARK = "#121212"
         private const val WEB_BACKGROUND_LIGHT = "#F6F6F6"

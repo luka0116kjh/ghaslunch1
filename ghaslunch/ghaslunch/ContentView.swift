@@ -477,10 +477,12 @@ struct GHASLunchWebView: UIViewRepresentable {
         let escapedTheme = savedTheme
             .replacingOccurrences(of: "\\", with: "\\\\")
             .replacingOccurrences(of: "'", with: "\\'")
+        let appVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "0"
 
         return """
         (function() {
             var savedTheme = '\(escapedTheme)';
+            var appVersion = '\(appVersion)';
             var post = function(action, value) {
                 try {
                     window.webkit.messageHandlers.\(Coordinator.messageHandlerName).postMessage({
@@ -507,6 +509,15 @@ struct GHASLunchWebView: UIViewRepresentable {
                 },
                 getTheme: function() {
                     return savedTheme;
+                },
+                getPlatform: function() {
+                    return 'ios';
+                },
+                getAppVersion: function() {
+                    return appVersion;
+                },
+                openExternalUrl: function(url) {
+                    post('openExternalUrl', url || '');
                 },
                 enableBarcodeScanMode: function() {
                     post('enableBarcodeScanMode', null);
@@ -664,6 +675,8 @@ struct GHASLunchWebView: UIViewRepresentable {
                 enableBarcodeScanMode()
             case "disableBarcodeScanMode":
                 disableBarcodeScanMode()
+            case "openExternalUrl":
+                openExternalURL(body["value"] as? String)
             default:
                 break
             }
@@ -697,6 +710,17 @@ struct GHASLunchWebView: UIViewRepresentable {
             }
 
             decisionHandler(.cancel)
+        }
+
+        private func openExternalURL(_ value: String?) {
+            guard
+                let value,
+                let url = URL(string: value),
+                url.scheme == "https"
+            else {
+                return
+            }
+            UIApplication.shared.open(url)
         }
 
         func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {

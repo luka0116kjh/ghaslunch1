@@ -107,6 +107,17 @@ class NativeNotificationBridge(private val activity: MainActivity) {
     @JavascriptInterface
     fun getTheme(): String = activity.getSavedTheme()
 
+    @JavascriptInterface
+    fun getPlatform(): String = "android"
+
+    @JavascriptInterface
+    fun getAppVersion(): String = BuildConfig.VERSION_NAME
+
+    @JavascriptInterface
+    fun openExternalUrl(url: String?) {
+        activity.openExternalUrl(url)
+    }
+
     private fun setCategoryEnabled(category: String, enabled: Boolean) {
         activity.runOnUiThread {
             activity.setNativeNotificationCategoryEnabled(category, enabled)

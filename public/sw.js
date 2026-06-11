@@ -31,7 +31,12 @@ const NETWORK_FIRST_PATHS = [
     '/manifest.json',
     '/src/data/classTimetable2026.js'
 ];
-const BYPASS_CACHE_PATHS = ['/sw.js', '/firebase-messaging-sw.js', '/notification.js'];
+const BYPASS_CACHE_PATHS = [
+    '/sw.js',
+    '/firebase-messaging-sw.js',
+    '/notification.js',
+    '/app-update.json'
+];
 
 function cacheSuccessfulResponse(request, response) {
     if (response && response.status === 200 && response.type === 'basic') {

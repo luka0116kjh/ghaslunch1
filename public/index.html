@@ -67,7 +67,7 @@
 
     <link rel="stylesheet" as="style" crossorigin
         href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css" />
-<link rel="stylesheet" href="style.css?v=15">
+<link rel="stylesheet" href="style.css?v=16">
 </head>
 
 <body>
@@ -92,6 +92,14 @@
             <div class="header-info">
                 <span id="today-date">0000.00.00</span>
             </div>
+            <button id="app-update-banner" class="app-update-banner" type="button" hidden>
+                <span class="app-update-icon" aria-hidden="true">↑</span>
+                <span class="app-update-copy">
+                    <strong id="app-update-title">새 버전이 있습니다.</strong>
+                    <span id="app-update-message">원활한 사용을 위해 Google Play에서 GHAS 알리미를 업데이트해 주세요.</span>
+                </span>
+                <span class="app-update-action">업데이트 진행해주세요</span>
+            </button>
         </header>
 
         <nav class="btn-group">

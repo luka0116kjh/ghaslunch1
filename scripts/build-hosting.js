@@ -20,6 +20,7 @@ const files = [
   "firebase-messaging-sw.js",
   "notification.js",
   "manifest.json",
+  "app-update.json",
   "logo.svg",
   "icon-192.png",
   "icon1.png",

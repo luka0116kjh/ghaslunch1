@@ -1697,6 +1697,7 @@ function registerAppEventHandlers() {
         ['btn-close-student-code', closeStudentCodeModal],
         ['btn-cancel-student-code-edit', closeStudentCodeEditor],
         ['btn-save-student-code-crop', saveStudentCodeCrop],
+        ['app-update-banner', openAppUpdateLink],
         ['btn-theme', toggleTheme],
         ['btn-retry', () => window.location.reload()]
     ];
@@ -2245,7 +2246,88 @@ function showTimetable() {
 }
 
 function getAndroidAppBridge() {
-    return window.GHASAndroidApp || window.GHASAndroidNotifications;
+    return window.Android ||
+        window.GHASAndroidApp ||
+        window.AndroidBridge ||
+        window.GHASAndroidNotifications;
+}
+
+function compareAppVersions(left, right) {
+    const leftParts = String(left || '').split('.').map((part) => Number.parseInt(part, 10) || 0);
+    const rightParts = String(right || '').split('.').map((part) => Number.parseInt(part, 10) || 0);
+    const length = Math.max(leftParts.length, rightParts.length);
+
+    for (let index = 0; index < length; index += 1) {
+        const difference = (leftParts[index] || 0) - (rightParts[index] || 0);
+        if (difference !== 0) return difference;
+    }
+    return 0;
+}
+
+function getNativeAppInfo() {
+    const bridge = getAndroidAppBridge();
+    if (!bridge) return null;
+
+    try {
+        const platform = bridge.getPlatform
+            ? String(bridge.getPlatform() || '').toLowerCase()
+            : (bridge.__iosBridge ? 'ios' : 'android');
+        const version = bridge.getAppVersion
+            ? String(bridge.getAppVersion() || '')
+            : (platform === 'ios' ? '3.2.6' : '3.5.3');
+        return platform && version ? { bridge, platform, version } : null;
+    } catch (error) {
+        console.warn('Native app version read failed:', error);
+        return null;
+    }
+}
+
+function openAppUpdateLink() {
+    const banner = document.getElementById('app-update-banner');
+    const url = banner?.dataset.updateUrl;
+    if (!url) return;
+
+    const androidBridge = window.Android || window.AndroidBridge || window.GHASAndroidApp;
+    try {
+        if (androidBridge?.openExternalUrl) {
+            androidBridge.openExternalUrl(url);
+            return;
+        }
+    } catch (error) {
+        console.warn('Native store link open failed:', error);
+    }
+}
+
+async function initNativeAppUpdateBanner() {
+    const nativeApp = getNativeAppInfo();
+    const banner = document.getElementById('app-update-banner');
+    if (!nativeApp || !banner) return;
+
+    try {
+        const response = await fetch(`app-update.json?t=${Date.now()}`, { cache: 'no-store' });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+        const config = await response.json();
+        const platformConfig = config?.[nativeApp.platform];
+        if (!platformConfig?.enabled ||
+            !platformConfig.latestVersion ||
+            !platformConfig.storeUrl ||
+            compareAppVersions(nativeApp.version, platformConfig.latestVersion) >= 0) {
+            return;
+        }
+
+        const title = document.getElementById('app-update-title');
+        const message = document.getElementById('app-update-message');
+        if (title) title.textContent = platformConfig.title || '새 버전이 있습니다.';
+        if (message) {
+            message.textContent = platformConfig.message ||
+                '원활한 사용을 위해 Google Play에서 GHAS 알리미를 업데이트해 주세요.';
+        }
+        banner.dataset.updateUrl = platformConfig.storeUrl;
+        banner.hidden = false;
+    } catch (error) {
+        console.warn('App update configuration load failed:', error);
+    }
 }
 
 function getThemeCookie() {
@@ -2274,7 +2356,7 @@ function getSavedThemePreference() {
     return cookieTheme === 'dark' || cookieTheme === 'light' ? cookieTheme : null;
 }
 
-function saveThemePreference(theme) {
+function saveThemePreference(theme, syncNative = true) {
     try {
         localStorage.setItem('theme', theme);
     } catch (error) {
@@ -2283,6 +2365,12 @@ function saveThemePreference(theme) {
 
     document.cookie = `theme=${theme}; Max-Age=31536000; Path=/; SameSite=Lax; Secure`;
 
+    if (syncNative) {
+        syncNativeThemePreference(theme);
+    }
+}
+
+function syncNativeThemePreference(theme) {
     try {
         getAndroidAppBridge()?.setTheme?.(theme);
     } catch (error) {
@@ -2319,10 +2407,30 @@ function toggleTheme() {
     const isDark = body.classList.contains('dark-theme') ||
         (!body.classList.contains('light-theme') && window.matchMedia('(prefers-color-scheme: dark)').matches);
     const nextTheme = isDark ? 'light' : 'dark';
+    const root = document.documentElement;
 
     animateThemeButton();
+    saveThemePreference(nextTheme, false);
+    root.classList.add('theme-switching');
+
+    if (typeof document.startViewTransition === 'function') {
+        try {
+            const transition = document.startViewTransition(() => {
+                applyThemePreference(nextTheme);
+            });
+            syncNativeThemePreference(nextTheme);
+            transition.ready
+                .catch(() => {})
+                .finally(() => root.classList.remove('theme-switching'));
+            return;
+        } catch (error) {
+            console.warn('Theme view transition failed:', error);
+        }
+    }
+
     applyThemePreference(nextTheme);
-    saveThemePreference(nextTheme);
+    syncNativeThemePreference(nextTheme);
+    window.requestAnimationFrame(() => root.classList.remove('theme-switching'));
 }
 
 function initTheme() {
@@ -2433,4 +2541,7 @@ function runStartupStep(name, step, fallback) {
 runStartupStep('Service worker', registerServiceWorker);
 runStartupStep('App event handlers', registerAppEventHandlers);
 runStartupStep('Theme', initTheme);
+runStartupStep('Native app update', () => {
+    void initNativeAppUpdateBanner();
+});
 runStartupStep('Meals', () => showMeals('today'));
