@@ -52,6 +52,7 @@ let visitorCountIncrementStarted = false;
 const STUDENT_NAME_KEY = 'ghas-student-name';
 const STUDENT_ID_KEY = 'ghas-student-id';
 const STUDENT_CODE_IMAGE_KEY = 'ghas-student-code-image';
+const TEST_CONSENT_POPUP_KEY = 'ghas_test_consent_popup_agreed_v1';
 const SCHEDULE_YEAR = window.GHAS_SCHEDULE_YEAR || 2026;
 const SCHEDULE_SOURCE = window.GHAS_SCHEDULE_SOURCE || '';
 const AFTER_SCHOOL_SCHEDULES = Array.isArray(window.GHAS_AFTER_SCHOOL_SCHEDULES)
@@ -65,9 +66,15 @@ const TIMETABLE_PERIODS = [1, 2, 3, 4, 5, 6, 7];
 const APPRENTICESHIP_TIMETABLE_DAYS = {};
 let mealViewMode = 'today';
 let scheduleViewMode = 'current';
+let scheduleDisplayMode = 'list';
+let scheduleCalendarMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+let selectedScheduleDate = formatDateHyphen(new Date());
 let classTimetable2026Promise = null;
 let classTimetable2026ImportStatus = 'not-started';
 let barcodeScanModeActive = false;
+const CALENDAR_MARKS_STORAGE_KEY = 'ghas_calendar_user_marks';
+const CALENDAR_MARK_CATEGORIES = ['시험', '수행평가', '준비물', '개인일정', '기타'];
+const CALENDAR_MARK_COLORS = ['yellow', 'red', 'blue', 'green', 'purple'];
 const STUDENT_CODE_CROP_ASPECT = 3;
 const STUDENT_CODE_CROP_OUTPUT_WIDTH = 1200;
 const STUDENT_CODE_CROP_OUTPUT_HEIGHT = Math.round(STUDENT_CODE_CROP_OUTPUT_WIDTH / STUDENT_CODE_CROP_ASPECT);
@@ -375,6 +382,419 @@ function renderScheduleList() {
     `).join('');
 }
 
+function getCalendarStorage() {
+    try {
+        const testKey = '__ghas_calendar_storage_test__';
+        localStorage.setItem(testKey, '1');
+        localStorage.removeItem(testKey);
+        return localStorage;
+    } catch (error) {
+        console.warn('Calendar localStorage is unavailable:', error);
+        return null;
+    }
+}
+
+function normalizeCalendarMarks(rawValue) {
+    if (!rawValue || typeof rawValue !== 'object' || Array.isArray(rawValue)) {
+        return {};
+    }
+
+    const normalized = Object.entries(rawValue).reduce((acc, [dateKey, marks]) => {
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(dateKey) || !Array.isArray(marks)) {
+            return acc;
+        }
+
+        const safeMarks = marks
+            .filter((mark) => mark && typeof mark === 'object')
+            .map((mark) => {
+                const startDate = /^\d{4}-\d{2}-\d{2}$/.test(mark.startDate || '')
+                    ? mark.startDate
+                    : dateKey;
+                const endDate = /^\d{4}-\d{2}-\d{2}$/.test(mark.endDate || '')
+                    ? mark.endDate
+                    : startDate;
+                return {
+                    id: String(mark.id || `mark_${Date.now()}`),
+                    title: String(mark.title || '').trim().slice(0, 40),
+                    memo: String(mark.memo || '').trim().slice(0, 160),
+                    category: CALENDAR_MARK_CATEGORIES.includes(mark.category) ? mark.category : '기타',
+                    color: CALENDAR_MARK_COLORS.includes(mark.color) ? mark.color : 'yellow',
+                    startDate,
+                    endDate,
+                    createdAt: String(mark.createdAt || new Date().toISOString()),
+                    updatedAt: String(mark.updatedAt || mark.createdAt || new Date().toISOString())
+                };
+            })
+            .filter((mark) => mark.title);
+
+        if (safeMarks.length > 0) {
+            acc[dateKey] = safeMarks;
+        }
+        return acc;
+    }, {});
+
+    return expandCalendarMarksByRange(normalized);
+}
+
+function getCalendarDateRange(startDateKey, endDateKey) {
+    const start = createDateFromYmd(startDateKey);
+    const end = createDateFromYmd(endDateKey);
+    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+        return [];
+    }
+
+    const first = start <= end ? start : end;
+    const last = start <= end ? end : start;
+    const dates = [];
+    const current = new Date(first);
+    while (current <= last) {
+        dates.push(formatDateHyphen(current));
+        current.setDate(current.getDate() + 1);
+    }
+    return dates;
+}
+
+function removeCalendarMarkById(marksByDate, markId) {
+    Object.keys(marksByDate).forEach((dateKey) => {
+        marksByDate[dateKey] = (marksByDate[dateKey] || []).filter((mark) => mark.id !== markId);
+        if (marksByDate[dateKey].length === 0) {
+            delete marksByDate[dateKey];
+        }
+    });
+}
+
+function addCalendarMarkToRange(marksByDate, mark) {
+    getCalendarDateRange(mark.startDate, mark.endDate).forEach((dateKey) => {
+        marksByDate[dateKey] = [
+            mark,
+            ...(marksByDate[dateKey] || []).filter((existing) => existing.id !== mark.id)
+        ];
+    });
+}
+
+function expandCalendarMarksByRange(marksByDate) {
+    const nextMarksByDate = {};
+    const seen = new Set();
+    Object.values(marksByDate).flat().forEach((mark) => {
+        if (!mark || seen.has(mark.id)) return;
+        seen.add(mark.id);
+        addCalendarMarkToRange(nextMarksByDate, mark);
+    });
+    return nextMarksByDate;
+}
+
+function getUniqueCalendarMarksForDate(marksByDate, dateKey) {
+    const seen = new Set();
+    return (marksByDate[dateKey] || []).filter((mark) => {
+        if (seen.has(mark.id)) return false;
+        seen.add(mark.id);
+        return true;
+    });
+}
+
+function formatCalendarMarkRange(mark) {
+    const start = mark.startDate || selectedScheduleDate;
+    const end = mark.endDate || start;
+    if (start === end) return start;
+    return `${start} ~ ${end}`;
+}
+
+function getCalendarMarkRangePosition(mark, dateKey) {
+    const range = getCalendarDateRange(mark.startDate || dateKey, mark.endDate || mark.startDate || dateKey);
+    const index = range.indexOf(dateKey);
+    if (index < 0) return 'single';
+    if (range.length === 1) return 'single';
+    if (index === 0) return 'start';
+    if (index === range.length - 1) return 'end';
+    return 'middle';
+}
+
+function loadCalendarUserMarks() {
+    const storage = getCalendarStorage();
+    if (!storage) return {};
+
+    try {
+        const raw = storage.getItem(CALENDAR_MARKS_STORAGE_KEY);
+        if (!raw) return {};
+        return normalizeCalendarMarks(JSON.parse(raw));
+    } catch (error) {
+        console.warn('Calendar marks were corrupted and have been reset:', error);
+        try {
+            storage.removeItem(CALENDAR_MARKS_STORAGE_KEY);
+        } catch (removeError) {
+            console.warn('Calendar marks reset failed:', removeError);
+        }
+        return {};
+    }
+}
+
+function saveCalendarUserMarks(marksByDate) {
+    const storage = getCalendarStorage();
+    if (!storage) return false;
+
+    try {
+        storage.setItem(CALENDAR_MARKS_STORAGE_KEY, JSON.stringify(normalizeCalendarMarks(marksByDate)));
+        return true;
+    } catch (error) {
+        console.warn('Calendar marks save failed:', error);
+        return false;
+    }
+}
+
+function getOfficialEventsForDate(date) {
+    const day = startOfDay(date);
+    return SCHEDULE_EVENTS.filter((event) => {
+        const start = startOfDay(event.startDate);
+        const end = startOfDay(event.endDate);
+        return day >= start && day <= end;
+    });
+}
+
+function getSelectedCalendarDate() {
+    return createDateFromYmd(selectedScheduleDate);
+}
+
+function getCalendarDateLabel(date) {
+    return date.toLocaleDateString('ko-KR', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        weekday: 'long'
+    });
+}
+
+function buildCalendarMonthCells(monthDate) {
+    const year = monthDate.getFullYear();
+    const month = monthDate.getMonth();
+    const firstDate = new Date(year, month, 1);
+    const lastDate = new Date(year, month + 1, 0);
+    const cells = [];
+
+    for (let index = 0; index < firstDate.getDay(); index += 1) {
+        cells.push(null);
+    }
+
+    for (let day = 1; day <= lastDate.getDate(); day += 1) {
+        cells.push(new Date(year, month, day));
+    }
+
+    while (cells.length % 7 !== 0) {
+        cells.push(null);
+    }
+
+    return cells;
+}
+
+function renderCalendarGrid() {
+    const grid = document.getElementById('schedule-calendar-grid');
+    const title = document.getElementById('calendar-month-title');
+    const dateInput = document.getElementById('calendar-date-input');
+    if (!grid || !title) return;
+
+    const marksByDate = loadCalendarUserMarks();
+    const todayKey = formatDateHyphen(new Date());
+    const cells = buildCalendarMonthCells(scheduleCalendarMonth);
+    title.textContent = `${scheduleCalendarMonth.getFullYear()}년 ${scheduleCalendarMonth.getMonth() + 1}월`;
+    if (dateInput) dateInput.value = selectedScheduleDate;
+
+    const weekdayHtml = TIMETABLE_DAYS.map((day) => (
+        `<div class="calendar-weekday">${escapeHTML(day)}</div>`
+    )).join('');
+
+    const cellHtml = cells.map((date) => {
+        if (!date) return '<div class="calendar-day is-empty" aria-hidden="true"></div>';
+
+        const dateKey = formatDateHyphen(date);
+        const officialEvents = getOfficialEventsForDate(date);
+        const userMarks = getUniqueCalendarMarksForDate(marksByDate, dateKey);
+        const firstMark = userMarks[0];
+        const visibleMarks = userMarks.slice(0, 2);
+        const classes = [
+            'calendar-day',
+            dateKey === todayKey ? 'is-today' : '',
+            dateKey === selectedScheduleDate ? 'is-selected' : '',
+            officialEvents.length ? 'has-official' : '',
+            userMarks.length ? `has-user-mark mark-${firstMark.color}` : ''
+        ].filter(Boolean).join(' ');
+        const label = `${getCalendarDateLabel(date)}${officialEvents.length ? `, 공식 일정 ${officialEvents.length}개` : ''}${userMarks.length ? ', 내 강조 있음' : ''}`;
+
+        return `
+            <button class="${classes}" type="button" data-calendar-date="${dateKey}" aria-label="${escapeHTML(label)}">
+                <span class="calendar-day-number">${date.getDate()}</span>
+                <span class="calendar-range-stack">
+                    ${visibleMarks.map((mark) => {
+                        const position = getCalendarMarkRangePosition(mark, dateKey);
+                        const showText = position === 'single' || position === 'start';
+                        const weekEdge = [
+                            date.getDay() === 0 ? 'week-start' : '',
+                            date.getDay() === 6 ? 'week-end' : ''
+                        ].filter(Boolean).join(' ');
+                        return `
+                            <span class="calendar-user-bar mark-${escapeHTML(mark.color)} range-${position} ${weekEdge}">
+                                ${showText ? escapeHTML(mark.title) : ''}
+                            </span>
+                        `;
+                    }).join('')}
+                    ${userMarks.length > visibleMarks.length ? `<span class="calendar-more-marks">+${userMarks.length - visibleMarks.length}</span>` : ''}
+                </span>
+                ${officialEvents[0] ? `
+                    <span class="calendar-official-line">
+                        <span class="calendar-official-dot" title="공식 일정"></span>
+                        <span>${escapeHTML(getScheduleEventName(officialEvents[0]))}</span>
+                    </span>
+                ` : ''}
+            </button>
+        `;
+    }).join('');
+
+    grid.innerHTML = weekdayHtml + cellHtml;
+}
+
+function renderSelectedDateDetails(editingMarkId = null) {
+    const details = document.getElementById('schedule-date-details');
+    if (!details) return;
+
+    const selectedDate = getSelectedCalendarDate();
+    const marksByDate = loadCalendarUserMarks();
+    const userMarks = getUniqueCalendarMarksForDate(marksByDate, selectedScheduleDate);
+    const officialEvents = getOfficialEventsForDate(selectedDate);
+    const editingMark = editingMarkId
+        ? userMarks.find((mark) => mark.id === editingMarkId) || null
+        : null;
+
+    const officialHtml = officialEvents.length
+        ? officialEvents.map((event) => `
+            <li>
+                <strong>${escapeHTML(getScheduleEventName(event))}</strong>
+                <span>${escapeHTML(formatScheduleRange(event))}</span>
+            </li>
+        `).join('')
+        : '<li class="calendar-empty-line">등록된 공식 일정이 없습니다.</li>';
+
+    const marksHtml = userMarks.length
+        ? userMarks.map((mark) => `
+            <li class="calendar-user-mark-detail mark-${escapeHTML(mark.color)}">
+                <strong>${escapeHTML(mark.title)}</strong>
+                <span>${escapeHTML(mark.category)} · ${escapeHTML(formatCalendarMarkRange(mark))}</span>
+                ${mark.memo ? `<p>${escapeHTML(mark.memo)}</p>` : ''}
+                <div class="calendar-mark-actions">
+                    <button class="secondary-action calendar-mark-edit" type="button" data-mark-id="${escapeHTML(mark.id)}">수정</button>
+                    <button class="secondary-action calendar-mark-delete" type="button" data-mark-id="${escapeHTML(mark.id)}">삭제</button>
+                </div>
+            </li>
+        `).join('')
+        : '<li class="calendar-empty-line">추가된 강조가 없습니다.</li>';
+
+    const formHtml = editingMarkId ? renderCalendarMarkForm(editingMark) : '';
+    const addButtonHtml = !editingMarkId
+        ? '<button id="btn-calendar-add-mark" class="upload-button calendar-add-button" type="button">강조 추가</button>'
+        : '';
+
+    details.innerHTML = `
+        <div class="calendar-selected-date">선택한 날짜: ${escapeHTML(getCalendarDateLabel(selectedDate))}</div>
+        <section class="calendar-detail-section">
+            <h3>공식 일정</h3>
+            <ul class="calendar-detail-list official">${officialHtml}</ul>
+        </section>
+        <section class="calendar-detail-section">
+            <h3>내 날짜 강조</h3>
+            <ul class="calendar-detail-list">${marksHtml}</ul>
+            ${addButtonHtml}
+        </section>
+        ${formHtml}
+    `;
+}
+
+function renderCalendarMarkForm(mark) {
+    const isEditing = Boolean(mark);
+    const selectedCategory = mark?.category || '수행평가';
+    const selectedColor = mark?.color || 'yellow';
+    const startDate = mark?.startDate || selectedScheduleDate;
+    const endDate = mark?.endDate || startDate;
+
+    return `
+        <form id="calendar-mark-form" class="calendar-mark-form" data-editing-id="${escapeHTML(mark?.id || '')}">
+            <div class="calendar-form-title">${isEditing ? '강조 수정' : '강조 추가'}</div>
+            <div class="calendar-form-row">
+                <label>
+                    <span>시작일</span>
+                    <input name="startDate" type="date" value="${escapeHTML(startDate)}" required>
+                </label>
+                <label>
+                    <span>종료일</span>
+                    <input name="endDate" type="date" value="${escapeHTML(endDate)}" required>
+                </label>
+            </div>
+            <label>
+                <span>제목</span>
+                <input name="title" type="text" maxlength="40" value="${escapeHTML(mark?.title || '')}" placeholder="예: 수행평가" required>
+            </label>
+            <label>
+                <span>메모</span>
+                <textarea name="memo" maxlength="160" rows="3" placeholder="예: 웹프로그래밍 제출">${escapeHTML(mark?.memo || '')}</textarea>
+            </label>
+            <div class="calendar-form-row">
+                <label>
+                    <span>분류</span>
+                    <select name="category">
+                        ${CALENDAR_MARK_CATEGORIES.map((category) => (
+                            `<option value="${escapeHTML(category)}"${category === selectedCategory ? ' selected' : ''}>${escapeHTML(category)}</option>`
+                        )).join('')}
+                    </select>
+                </label>
+                <label>
+                    <span>색상</span>
+                    <select name="color">
+                        <option value="yellow"${selectedColor === 'yellow' ? ' selected' : ''}>노랑</option>
+                        <option value="red"${selectedColor === 'red' ? ' selected' : ''}>빨강</option>
+                        <option value="blue"${selectedColor === 'blue' ? ' selected' : ''}>파랑</option>
+                        <option value="green"${selectedColor === 'green' ? ' selected' : ''}>초록</option>
+                        <option value="purple"${selectedColor === 'purple' ? ' selected' : ''}>보라</option>
+                    </select>
+                </label>
+            </div>
+            <div class="calendar-form-actions">
+                <button class="secondary-action" id="btn-calendar-cancel-form" type="button">취소</button>
+                <button class="upload-button" type="submit">${isEditing ? '수정 저장' : '저장'}</button>
+            </div>
+        </form>
+    `;
+}
+
+function renderScheduleCalendar(editingMarkId = null) {
+    renderCalendarGrid();
+    renderSelectedDateDetails(editingMarkId);
+}
+
+function setScheduleDisplayMode(mode) {
+    scheduleDisplayMode = mode === 'calendar' ? 'calendar' : 'list';
+
+    const listPanel = document.getElementById('schedule-list-panel');
+    const calendarPanel = document.getElementById('schedule-calendar-panel');
+    const listTab = document.getElementById('btn-schedule-list-view');
+    const calendarTab = document.getElementById('btn-schedule-calendar-view');
+    const switchButton = document.getElementById('btn-schedule-switch');
+
+    if (listPanel) listPanel.hidden = scheduleDisplayMode !== 'list';
+    if (calendarPanel) calendarPanel.hidden = scheduleDisplayMode !== 'calendar';
+    if (switchButton) switchButton.hidden = scheduleDisplayMode !== 'list';
+    if (listTab) {
+        listTab.classList.toggle('active', scheduleDisplayMode === 'list');
+        listTab.setAttribute('aria-selected', String(scheduleDisplayMode === 'list'));
+    }
+    if (calendarTab) {
+        calendarTab.classList.toggle('active', scheduleDisplayMode === 'calendar');
+        calendarTab.setAttribute('aria-selected', String(scheduleDisplayMode === 'calendar'));
+    }
+
+    updateScheduleHeader();
+    if (scheduleDisplayMode === 'calendar') {
+        renderScheduleCalendar();
+    } else {
+        renderScheduleList();
+    }
+}
+
 function updateScheduleHeader() {
     const baseMonth = getScheduleBaseMonth();
     const label = `${baseMonth.getMonth() + 1}월 일정표`;
@@ -382,14 +802,171 @@ function updateScheduleHeader() {
     const buttonText = scheduleViewMode === 'next' ? '이번달 일정표' : '다음달 일정표';
     const button = document.getElementById('btn-schedule-switch');
 
-    setText('schedule-view-title', `${titlePrefix} 일정표`);
-    setText('today-date', `${SCHEDULE_YEAR}년 ${label}`);
+    if (scheduleDisplayMode === 'calendar') {
+        setText('schedule-view-title', '달력형 일정');
+        setText('today-date', `${scheduleCalendarMonth.getFullYear()}년 ${scheduleCalendarMonth.getMonth() + 1}월 일정표`);
+    } else {
+        setText('schedule-view-title', `${titlePrefix} 일정표`);
+        setText('today-date', `${SCHEDULE_YEAR}년 ${label}`);
+    }
     if (button) button.textContent = buttonText;
 }
 
 function toggleScheduleView() {
     scheduleViewMode = scheduleViewMode === 'current' ? 'next' : 'current';
     showSchedule();
+}
+
+function moveScheduleCalendarMonth(delta) {
+    scheduleCalendarMonth = new Date(
+        scheduleCalendarMonth.getFullYear(),
+        scheduleCalendarMonth.getMonth() + delta,
+        1
+    );
+
+    const selectedDate = getSelectedCalendarDate();
+    if (
+        selectedDate.getFullYear() !== scheduleCalendarMonth.getFullYear() ||
+        selectedDate.getMonth() !== scheduleCalendarMonth.getMonth()
+    ) {
+        selectedScheduleDate = formatDateHyphen(new Date(
+            scheduleCalendarMonth.getFullYear(),
+            scheduleCalendarMonth.getMonth(),
+            1
+        ));
+    }
+
+    updateScheduleHeader();
+    renderScheduleCalendar();
+}
+
+function selectScheduleCalendarDate(dateKey) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) return;
+
+    const nextDate = createDateFromYmd(dateKey);
+    if (Number.isNaN(nextDate.getTime())) return;
+
+    selectedScheduleDate = dateKey;
+    scheduleCalendarMonth = new Date(nextDate.getFullYear(), nextDate.getMonth(), 1);
+    updateScheduleHeader();
+    renderScheduleCalendar();
+}
+
+function showCalendarMarkForm(markId = null) {
+    renderSelectedDateDetails(markId || 'new');
+    const titleInput = document.querySelector('#calendar-mark-form input[name="title"]');
+    if (titleInput) titleInput.focus();
+}
+
+function saveCalendarMarkFromForm(form) {
+    const formData = new FormData(form);
+    const title = String(formData.get('title') || '').trim();
+    const memo = String(formData.get('memo') || '').trim();
+    const category = String(formData.get('category') || '기타');
+    const color = String(formData.get('color') || 'yellow');
+    const submittedStartDate = String(formData.get('startDate') || selectedScheduleDate);
+    const submittedEndDate = String(formData.get('endDate') || submittedStartDate);
+    const editingId = form.dataset.editingId || '';
+
+    if (!title) {
+        const input = form.querySelector('input[name="title"]');
+        if (input) input.focus();
+        return;
+    }
+
+    const rangeKeys = getCalendarDateRange(submittedStartDate, submittedEndDate);
+    if (rangeKeys.length === 0) {
+        const input = form.querySelector('input[name="startDate"]');
+        if (input) input.focus();
+        return;
+    }
+
+    const marksByDate = loadCalendarUserMarks();
+    const now = new Date().toISOString();
+    const startDate = rangeKeys[0];
+    const endDate = rangeKeys[rangeKeys.length - 1];
+    const existingMark = editingId
+        ? Object.values(marksByDate).flat().find((mark) => mark.id === editingId)
+        : null;
+    const nextMark = {
+        id: editingId || `mark_${Date.now()}`,
+        title: title.slice(0, 40),
+        memo: memo.slice(0, 160),
+        category: CALENDAR_MARK_CATEGORIES.includes(category) ? category : '기타',
+        color: CALENDAR_MARK_COLORS.includes(color) ? color : 'yellow',
+        startDate,
+        endDate,
+        createdAt: existingMark?.createdAt || now,
+        updatedAt: now
+    };
+
+    if (editingId) {
+        removeCalendarMarkById(marksByDate, editingId);
+    }
+    addCalendarMarkToRange(marksByDate, nextMark);
+    selectedScheduleDate = startDate;
+    scheduleCalendarMonth = new Date(createDateFromYmd(startDate).getFullYear(), createDateFromYmd(startDate).getMonth(), 1);
+
+    if (saveCalendarUserMarks(marksByDate)) {
+        updateScheduleHeader();
+        renderScheduleCalendar();
+    }
+}
+
+function deleteCalendarMark(markId) {
+    const marksByDate = loadCalendarUserMarks();
+    const marks = getUniqueCalendarMarksForDate(marksByDate, selectedScheduleDate);
+    const target = marks.find((mark) => mark.id === markId);
+    if (!target) return;
+
+    if (!window.confirm(`'${target.title}' 강조를 전체 기간에서 삭제할까요?`)) {
+        return;
+    }
+
+    removeCalendarMarkById(marksByDate, markId);
+
+    if (saveCalendarUserMarks(marksByDate)) {
+        renderScheduleCalendar();
+    }
+}
+
+function handleCalendarClick(event) {
+    const dayButton = event.target.closest('[data-calendar-date]');
+    if (dayButton) {
+        selectScheduleCalendarDate(dayButton.dataset.calendarDate);
+        return;
+    }
+
+    const editButton = event.target.closest('.calendar-mark-edit');
+    if (editButton) {
+        showCalendarMarkForm(editButton.dataset.markId);
+        return;
+    }
+
+    const deleteButton = event.target.closest('.calendar-mark-delete');
+    if (deleteButton) {
+        deleteCalendarMark(deleteButton.dataset.markId);
+        return;
+    }
+
+    if (event.target.closest('#btn-calendar-add-mark')) {
+        showCalendarMarkForm();
+        return;
+    }
+
+    if (event.target.closest('#btn-calendar-cancel-form')) {
+        renderSelectedDateDetails();
+    }
+}
+
+function handleCalendarSubmit(event) {
+    if (event.target?.id !== 'calendar-mark-form') return;
+    event.preventDefault();
+    saveCalendarMarkFromForm(event.target);
+}
+
+function handleCalendarDateInputChange(event) {
+    selectScheduleCalendarDate(event.target.value);
 }
 
 function ensureAfterschoolTodayCard() {
@@ -1289,7 +1866,11 @@ function showSchedule() {
     });
 
     updateScheduleHeader();
-    renderScheduleList();
+    if (scheduleDisplayMode === 'calendar') {
+        renderScheduleCalendar();
+    } else {
+        renderScheduleList();
+    }
 }
 
 function showMeals(type) {
@@ -1692,6 +2273,10 @@ function registerAppEventHandlers() {
         }],
         ['btn-meal-switch', toggleMealView],
         ['btn-schedule-switch', toggleScheduleView],
+        ['btn-schedule-list-view', () => setScheduleDisplayMode('list')],
+        ['btn-schedule-calendar-view', () => setScheduleDisplayMode('calendar')],
+        ['btn-calendar-prev', () => moveScheduleCalendarMonth(-1)],
+        ['btn-calendar-next', () => moveScheduleCalendarMonth(1)],
         ['btn-tt-daily', () => setTimetableScope('daily')],
         ['btn-tt-weekly', () => setTimetableScope('weekly')],
         ['btn-close-student-code', closeStudentCodeModal],
@@ -1709,6 +2294,17 @@ function registerAppEventHandlers() {
 
     const mealContainer = document.getElementById('meal-container');
     if (mealContainer) mealContainer.addEventListener('click', handleMealVoteClick);
+
+    const calendarPanel = document.getElementById('schedule-calendar-panel');
+    if (calendarPanel) {
+        calendarPanel.addEventListener('click', handleCalendarClick);
+        calendarPanel.addEventListener('submit', handleCalendarSubmit);
+    }
+
+    const calendarDateInput = document.getElementById('calendar-date-input');
+    if (calendarDateInput) {
+        calendarDateInput.addEventListener('change', handleCalendarDateInputChange);
+    }
 
     ['grade-select', 'class-select'].forEach((id) => {
         const element = document.getElementById(id);
@@ -2530,6 +3126,43 @@ function initVisitorCounter() {
     );
 }
 
+function hasAgreedTestConsentPopup() {
+    try {
+        return localStorage.getItem(TEST_CONSENT_POPUP_KEY) === 'true';
+    } catch (error) {
+        console.warn('Test consent popup storage read failed:', error);
+        return false;
+    }
+}
+
+function closeTestConsentPopup() {
+    const modal = document.getElementById('test-consent-modal');
+    if (!modal) return;
+    modal.classList.remove('open');
+    modal.setAttribute('aria-hidden', 'true');
+}
+
+function agreeTestConsentPopup() {
+    try {
+        localStorage.setItem(TEST_CONSENT_POPUP_KEY, 'true');
+    } catch (error) {
+        console.warn('Test consent popup storage save failed:', error);
+    }
+    closeTestConsentPopup();
+}
+
+function initTestConsentPopup() {
+    if (hasAgreedTestConsentPopup()) return;
+
+    const modal = document.getElementById('test-consent-modal');
+    const agreeButton = document.getElementById('btn-test-consent-agree');
+    if (!modal || !agreeButton) return;
+
+    agreeButton.addEventListener('click', agreeTestConsentPopup);
+    modal.classList.add('open');
+    modal.setAttribute('aria-hidden', 'false');
+}
+
 // 초기화 호출
 function runStartupStep(name, step, fallback) {
     try {
@@ -2549,3 +3182,4 @@ runStartupStep('Native app update', () => {
     void initNativeAppUpdateBanner();
 });
 runStartupStep('Meals', () => showMeals('today'));
+runStartupStep('Test consent popup', initTestConsentPopup);

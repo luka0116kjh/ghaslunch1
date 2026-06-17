@@ -157,7 +157,27 @@
                     <div id="schedule-view-title" class="meal-type">이번달 일정표</div>
                     <button id="btn-schedule-switch" class="timetable-switch-btn" type="button">다음달 일정표</button>
                 </div>
-                <div id="schedule-list" aria-live="polite"></div>
+                <div class="schedule-view-tabs" role="tablist" aria-label="일정표 보기 선택">
+                    <button id="btn-schedule-list-view" class="schedule-view-tab active" type="button" role="tab" aria-selected="true">목록형 일정</button>
+                    <button id="btn-schedule-calendar-view" class="schedule-view-tab" type="button" role="tab" aria-selected="false">달력형 일정</button>
+                </div>
+                <div id="schedule-list-panel">
+                    <div id="schedule-list" aria-live="polite"></div>
+                </div>
+                <div id="schedule-calendar-panel" hidden>
+                    <div class="calendar-toolbar">
+                        <button id="btn-calendar-prev" class="calendar-nav-btn" type="button" aria-label="이전 달">‹</button>
+                        <div id="calendar-month-title" class="calendar-month-title">0000년 0월</div>
+                        <button id="btn-calendar-next" class="calendar-nav-btn" type="button" aria-label="다음 달">›</button>
+                    </div>
+                    <label class="calendar-date-picker">
+                        <span>날짜 선택</span>
+                        <input id="calendar-date-input" type="date">
+                    </label>
+                    <p class="calendar-storage-guide">강조한 날짜는 이 기기에만 저장됩니다.</p>
+                    <div id="schedule-calendar-grid" class="schedule-calendar-grid" aria-live="polite"></div>
+                    <div id="schedule-date-details" class="schedule-date-details" aria-live="polite"></div>
+                </div>
             </article>
         </section>
 
@@ -228,6 +248,32 @@
                     <p class="upload-help">사진을 올린 뒤 바코드 영역만 맞춰 저장합니다.</p>
                     <input id="student-code-image-input" class="file-input" type="file" accept="image/*">
                     <p id="student-code-upload-status" class="upload-status" aria-live="polite"></p>
+                </div>
+            </div>
+        </section>
+
+        <section id="test-consent-modal" class="modal-overlay" aria-hidden="true">
+            <div class="modal-card test-consent-card" role="dialog" aria-modal="true" aria-labelledby="test-consent-title">
+                <div class="modal-header">
+                    <h2 id="test-consent-title" class="modal-title">데이터 출처 및 안내</h2>
+                </div>
+                <div class="test-consent-copy">
+                    <p>본 서비스는 NEIS 교육정보 개방포털의 Open API를 활용하여 급식 및 시간표 정보를 제공합니다.</p>
+                    <p>
+                        급식 및 시간표 정보는 학교 또는 교육청에서 제공한 원본 데이터를 기반으로 하며,
+                        데이터 등록 지연·누락·변경 등에 따라 실제 정보와 다르게 표시될 수 있습니다.
+                    </p>
+                    <p>
+                        일부 날짜에는 원본 시간표 데이터가 4~5교시까지만 제공되어 실제 6·7교시 수업 정보가 표시되지 않을 수 있습니다.
+                        이러한 경우 보정시간표로 통해서 실제 학교 운영 상황에 맞는 시간표 정보를 제공하기 위해 노력하고 있습니다.
+                    </p>
+                    <p>
+                        다만 보정 정보 역시 실제 학교 운영 상황과 다를 수 있으므로, 중요한 일정은 학교의 공식 안내를 함께 확인해야 합니다.
+                        또한 갑잡스럽게 바꾼 시간표는 방영을 못할수도 있습니다.
+                    </p>
+                </div>
+                <div class="test-consent-actions">
+                    <button id="btn-test-consent-agree" class="upload-button" type="button">동의</button>
                 </div>
             </div>
         </section>
