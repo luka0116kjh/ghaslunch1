@@ -34,8 +34,8 @@
 
     async function requestNoti() {
         // Android WebView APK: native bridge subscribes the app to the FCM topic.
-        if (window.GHASAndroidNotifications?.requestNotifications) {
-            window.GHASAndroidNotifications.requestNotifications();
+        if (window.GHASAndroidApp?.requestNotifications) {
+            window.GHASAndroidApp.requestNotifications();
             alert('앱 알림 설정을 요청했습니다. 권한을 허용하면 앱 알림을 받을 수 있습니다.');
             return;
         }
@@ -115,8 +115,8 @@
 
     async function cancelNoti() {
         // Android WebView APK: native bridge unsubscribes from the FCM topic.
-        if (window.GHASAndroidNotifications?.cancelNotifications) {
-            window.GHASAndroidNotifications.cancelNotifications();
+        if (window.GHASAndroidApp?.cancelNotifications) {
+            window.GHASAndroidApp.cancelNotifications();
             alert('앱 알림 취소를 요청했습니다.');
             return;
         }

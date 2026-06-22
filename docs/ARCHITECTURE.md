@@ -69,7 +69,7 @@ Android 앱은 현재 운영 URL의 웹 앱을 WebView로 표시하는 래퍼입
 - 알림: Firebase Messaging, Android 13+ `POST_NOTIFICATIONS`
 - WebView URL: `https://ghaslunch1.web.app/`
 
-웹의 알림 버튼은 `GHASAndroidNotifications` 브리지를 호출합니다. Android 앱은 권한 허용 후 FCM topic `meal` 구독 방식으로 앱 알림을 처리합니다.
+웹의 알림 버튼은 `GHASAndroidApp` 브리지를 호출합니다. Android 앱은 권한 허용 후 FCM topic `meal` 구독 방식으로 앱 알림을 처리합니다.
 
 ## iOS 앱
 
@@ -82,7 +82,7 @@ iOS 앱은 SwiftUI 앱 안에서 `WKWebView`를 표시합니다.
 - 허용 host: `ghaslunch1.web.app`, `ghaslunch1.firebaseapp.com`
 - 의존성: FirebaseCore
 
-iOS 네이티브 브리지는 `window.GHASAndroidApp`, `window.GHASAndroidNotifications` 이름으로 웹 호환 객체를 주입합니다. 현재 iOS 알림 권한 요청과 토큰 저장은 비활성화되어 있으며, 테마 저장과 iPad 레이아웃 보정만 활성 상태입니다.
+iOS 네이티브 브리지는 `window.GHASAndroidApp` 이름으로 웹 호환 객체를 주입합니다. 현재 iOS 알림 권한 요청과 토큰 저장은 비활성화되어 있으며, 테마 저장과 iPad 레이아웃 보정만 활성 상태입니다.
 
 ## 테마 동기화
 

@@ -59,7 +59,7 @@ To watch app and WebView logs:
 
 ## Notification behavior
 
-- The website notification button calls the native bridge `GHASAndroidNotifications`.
+- The website notification button calls the native bridge `GHASAndroidApp`.
 - The app requests Android notification permission on Android 13+.
 - When allowed, the app subscribes to the FCM topic `meal`.
 - Send app notifications to topic `meal` from Firebase Console or a server using FCM.

@@ -12,7 +12,8 @@
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
-        android:theme="@style/Theme.GHASLunch">
+        android:theme="@style/Theme.GHASLunch"
+        android:usesCleartextTraffic="false">
 
         <meta-data
             android:name="com.google.firebase.messaging.default_notification_icon"
@@ -55,6 +56,18 @@
                 <action android:name="android.intent.action.TIME_SET" />
                 <action android:name="android.intent.action.TIMEZONE_CHANGED" />
             </intent-filter>
+        </receiver>
+
+        <receiver
+            android:name=".TodayMealWidgetProvider"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+                <action android:name="kr.hs.ghas.ghason.action.REFRESH_TODAY_MEAL_WIDGET" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/today_meal_widget_info" />
         </receiver>
 
     </application>

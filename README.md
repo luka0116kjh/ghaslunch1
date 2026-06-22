@@ -76,7 +76,7 @@ python3 -m http.server 8000
 
 주요 네이티브 기능:
 
-- `GHASAndroidApp`, `GHASAndroidNotifications`, `AndroidBridge` JavaScript interface
+- `GHASAndroidApp` JavaScript interface
 - 이미지 파일 선택기
 - 바코드 모달 중 화면 밝기 최대화 및 화면 꺼짐 방지
 - 급식/시간표/학교 공지 로컬 알림 설정

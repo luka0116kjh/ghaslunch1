@@ -200,6 +200,13 @@ class MainActivity : ComponentActivity() {
     private fun configureSettings(settings: WebSettings) {
         settings.javaScriptEnabled = true
         settings.domStorageEnabled = true
+        settings.allowFileAccess = false
+        settings.allowContentAccess = false
+        settings.javaScriptCanOpenWindowsAutomatically = false
+        settings.mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            settings.safeBrowsingEnabled = true
+        }
         settings.useWideViewPort = true
         settings.loadWithOverviewMode = true
         settings.builtInZoomControls = false
@@ -334,16 +341,10 @@ class MainActivity : ComponentActivity() {
         val trusted = url?.let { isTrustedAppUri(it.toUri()) } ?: false
         if (trusted && !bridgeAttached) {
             webView.addJavascriptInterface(nativeBridge, "GHASAndroidApp")
-            webView.addJavascriptInterface(nativeBridge, "GHASAndroidNotifications")
-            webView.addJavascriptInterface(nativeBridge, "AndroidBridge")
-            webView.addJavascriptInterface(nativeBridge, "Android")
             bridgeAttached = true
         } else if (!trusted && bridgeAttached) {
             disableBarcodeScanMode()
             webView.removeJavascriptInterface("GHASAndroidApp")
-            webView.removeJavascriptInterface("GHASAndroidNotifications")
-            webView.removeJavascriptInterface("AndroidBridge")
-            webView.removeJavascriptInterface("Android")
             bridgeAttached = false
         }
     }
@@ -375,23 +376,27 @@ class MainActivity : ComponentActivity() {
             Log.w(TAG, "Blocked non-HTTPS external URL: $webUri")
             return
         }
+        val packageId = webUri.getQueryParameter("id")
+        val isAllowedPlayStoreUrl = webUri.host.equals("play.google.com", ignoreCase = true) &&
+            webUri.path.equals("/store/apps/details", ignoreCase = true) &&
+            packageId == PLAY_STORE_PACKAGE_ID
+        if (!isAllowedPlayStoreUrl) {
+            Log.w(TAG, "Blocked untrusted external URL from WebView bridge: $webUri")
+            return
+        }
 
         runOnUiThread {
-            val packageId = webUri.getQueryParameter("id")
-            if (webUri.host.equals("play.google.com", ignoreCase = true) &&
-                packageId == PLAY_STORE_PACKAGE_ID) {
-                val marketUri = Uri.parse("market://details?id=$PLAY_STORE_PACKAGE_ID")
-                val playStoreIntent = Intent(Intent.ACTION_VIEW, marketUri).apply {
-                    setPackage("com.android.vending")
-                }
-                try {
-                    startActivity(playStoreIntent)
-                    return@runOnUiThread
-                } catch (error: ActivityNotFoundException) {
-                    Log.i(TAG, "Play Store app unavailable; opening web store", error)
-                } catch (error: SecurityException) {
-                    Log.w(TAG, "Play Store intent was blocked; opening web store", error)
-                }
+            val marketUri = Uri.parse("market://details?id=$PLAY_STORE_PACKAGE_ID")
+            val playStoreIntent = Intent(Intent.ACTION_VIEW, marketUri).apply {
+                setPackage("com.android.vending")
+            }
+            try {
+                startActivity(playStoreIntent)
+                return@runOnUiThread
+            } catch (error: ActivityNotFoundException) {
+                Log.i(TAG, "Play Store app unavailable; opening web store", error)
+            } catch (error: SecurityException) {
+                Log.w(TAG, "Play Store intent was blocked; opening web store", error)
             }
 
             try {

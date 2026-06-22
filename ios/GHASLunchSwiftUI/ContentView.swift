@@ -273,7 +273,6 @@ struct GHASLunchWebView: UIViewRepresentable {
                 }
             }
             window.GHASAndroidApp = bridge;
-            window.GHASAndroidNotifications = bridge;
         }());
         """
     }

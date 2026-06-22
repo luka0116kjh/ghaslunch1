@@ -31,7 +31,7 @@
 
             function getNativeTheme() {
                 try {
-                    var bridge = window.GHASAndroidApp || window.GHASAndroidNotifications;
+                    var bridge = window.GHASAndroidApp;
                     return bridge?.getTheme?.();
                 } catch (error) {
                     return null;

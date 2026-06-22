@@ -4,7 +4,7 @@
             .split('; ')
             .find((row) => row.startsWith('theme='))
             ?.split('=')[1];
-        const nativeTheme = (window.GHASAndroidApp || window.GHASAndroidNotifications)?.getTheme?.();
+        const nativeTheme = window.GHASAndroidApp?.getTheme?.();
         const savedTheme = localStorage.getItem('theme') || nativeTheme || getThemeCookie();
 
         if (savedTheme === 'dark') {

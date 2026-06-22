@@ -276,10 +276,11 @@
 
     function getNoticeText() {
         const todayStatus = getTodayScheduleStatus();
+        if (todayStatus.type === "missing") return "오늘 방과후가 없거나 혹은 데이터가 없을 것 같습니다.";
         if (todayStatus.type === "exception") return todayStatus.message;
         if (todayStatus.type === "closed") return "오늘은 방과후 운영일이 아닙니다.";
         if (currentSchedule) return `${currentSchedule.title} · 수업 ${currentSchedule.classTime}`;
-        return UPDATE_NOTICE_TEXT;
+        return "오늘 방과후가 없거나 혹은 데이터가 없을 것 같습니다.";
     }
 
     function renderAfterSchoolSection() {

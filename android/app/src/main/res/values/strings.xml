@@ -43,4 +43,10 @@
     <string name="notification_settings_cancel">취소</string>
     <string name="external_link_error">이 링크를 열 수 없습니다.</string>
     <string name="share_action">공유하기</string>
+    <string name="widget_today_meal_title">오늘 급식</string>
+    <string name="widget_today_meal_description">오늘 중식을 홈 화면에서 바로 확인합니다.</string>
+    <string name="widget_today_meal_loading">급식을 불러오는 중...</string>
+    <string name="widget_today_meal_empty">오늘 등록된 급식이 없어요</string>
+    <string name="widget_today_meal_error">급식을 불러오지 못했어요</string>
+    <string name="widget_today_meal_refresh">↻</string>
 </resources>

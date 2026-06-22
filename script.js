@@ -995,8 +995,12 @@ function renderAfterschoolTodayCard(targetDate, mode) {
 
     const dayInfo = getAfterschoolDayInfo(targetDate);
     if (!dayInfo) {
-        card.hidden = true;
-        card.innerHTML = '';
+        card.hidden = false;
+        card.classList.add('is-exception');
+        card.innerHTML = `
+            <div class="meal-type">방과후 수업</div>
+            <div class="afterschool-today-message">오늘 방과후가 없거나 혹은 데이터가 없을 것 같습니다.</div>
+        `;
         return;
     }
 
@@ -1482,7 +1486,7 @@ function setStudentCodeUploadStatus(message) {
 }
 
 function getNativeBarcodeBridge() {
-    return window.AndroidBridge || window.GHASAndroidApp || null;
+    return window.GHASAndroidApp || null;
 }
 
 function enableBarcodeScanMode() {
@@ -2842,10 +2846,7 @@ function showTimetable() {
 }
 
 function getAndroidAppBridge() {
-    return window.Android ||
-        window.GHASAndroidApp ||
-        window.AndroidBridge ||
-        window.GHASAndroidNotifications;
+    return window.GHASAndroidApp || null;
 }
 
 function compareAppVersions(left, right) {
@@ -2883,7 +2884,7 @@ function openAppUpdateLink() {
     const url = banner?.dataset.updateUrl;
     if (!url) return;
 
-    const androidBridge = window.Android || window.AndroidBridge || window.GHASAndroidApp;
+    const androidBridge = window.GHASAndroidApp;
     try {
         if (androidBridge?.openExternalUrl) {
             androidBridge.openExternalUrl(url);

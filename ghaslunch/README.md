@@ -38,7 +38,6 @@ ghaslunch/
 iOS 앱은 웹 호환성을 위해 다음 객체를 주입합니다.
 
 - `window.GHASAndroidApp`
-- `window.GHASAndroidNotifications`
 
 지원 동작:
 

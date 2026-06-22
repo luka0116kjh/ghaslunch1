@@ -294,7 +294,7 @@ function setupBarcode() {
 
 function setNativeBarcodeMode(enabled) {
     try {
-        const bridge = window.AndroidBridge || window.GHASAndroidApp;
+        const bridge = window.GHASAndroidApp;
         const method = enabled ? "enableBarcodeScanMode" : "disableBarcodeScanMode";
         bridge?.[method]?.();
     } catch (error) {
