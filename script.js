@@ -190,6 +190,10 @@ function isHolidayScheduleTitle(title) {
     return /공휴일|대체공유일|노동절|현충일|추석|개천절|재량휴업일|지방선거|선거/.test(normalizeScheduleTitle(title));
 }
 
+function isRegularExamScheduleTitle(title) {
+    return /정기시험/.test(normalizeScheduleTitle(title));
+}
+
 function getScheduleEventName(event) {
     return normalizeScheduleTitle(event.title) || '행사 일정';
 }
@@ -356,6 +360,16 @@ function getHolidayEventForDate(targetDate) {
         const start = startOfDay(event.startDate);
         const end = startOfDay(event.endDate);
         return day >= start && day <= end && isHolidayScheduleTitle(event.title);
+    }) || null;
+}
+
+function getRegularExamEventForDate(targetDate) {
+    const day = startOfDay(targetDate);
+
+    return SCHEDULE_EVENTS.find((event) => {
+        const start = startOfDay(event.startDate);
+        const end = startOfDay(event.endDate);
+        return day >= start && day <= end && isRegularExamScheduleTitle(event.title);
     }) || null;
 }
 
@@ -2244,6 +2258,9 @@ function renderTimetableRows(rows, targetDate, titleText = '오늘 시간표') {
         if (row.source === 'holiday') {
             return `<div class="timetable-empty timetable-holiday">${escapeHTML(row.subject)}입니다.</div>`;
         }
+        if (row.source === 'regular-exam') {
+            return `<div class="timetable-empty timetable-holiday">${escapeHTML(row.subject)} 기간입니다.</div>`;
+        }
 
         return `
             <div class="timetable-row ${row.source === 'fallback' ? 'is-fallback' : ''}">
@@ -2450,6 +2467,11 @@ function getTimetableHolidayTitle(targetDate, neisRows) {
     return scheduleHolidayEvent ? getScheduleEventName(scheduleHolidayEvent) : '';
 }
 
+function getRegularExamTitle(targetDate) {
+    const regularExamEvent = getRegularExamEventForDate(targetDate);
+    return regularExamEvent ? getScheduleEventName(regularExamEvent) : '';
+}
+
 function logTimetableMergeSummary(neisRows, fallbackRows, displayRows) {
     const neisPeriodsCount = (Array.isArray(neisRows) ? neisRows : [])
         .filter(row => row?.period && row?.subject && row.subject !== '공강')
@@ -2479,16 +2501,19 @@ function logTimetableMergeSummary(neisRows, fallbackRows, displayRows) {
 async function buildTimetableForDate(grade, classNum, targetDate, classTimetable2026) {
     const rows = await fetchTimetable(grade, classNum, targetDate);
     const holidayTitle = getTimetableHolidayTitle(targetDate, rows);
-    const fallbackRows = holidayTitle
+    const regularExamTitle = holidayTitle ? '' : getRegularExamTitle(targetDate);
+    const fallbackRows = holidayTitle || regularExamTitle
         ? []
         : getFallbackTimetableRows(classTimetable2026, grade, classNum, targetDate);
     const displayRows = holidayTitle
         ? [{ subject: holidayTitle, source: 'holiday' }]
+        : regularExamTitle
+        ? [{ subject: regularExamTitle, source: 'regular-exam' }]
         : fallbackRows.length > 0
         ? mergeTimetableWithFallback(rows, fallbackRows)
         : rows;
 
-    return { rows, fallbackRows, holidayTitle, displayRows };
+    return { rows, fallbackRows, holidayTitle, regularExamTitle, displayRows };
 }
 
 function applyTimetableScopeUI() {
@@ -2558,13 +2583,23 @@ async function updateTimetable() {
         return;
     }
 
+    const regularExamTitle = getRegularExamTitle(targetDate);
+    if (regularExamTitle) {
+        container.innerHTML = renderTimetableRows(
+            [{ subject: regularExamTitle, source: 'regular-exam' }],
+            targetDate,
+            titleText
+        );
+        return;
+    }
+
     if (isApprenticeshipTimetableDay(grade, classNum, targetDate)) {
         container.innerHTML = renderApprenticeshipTimetableEmpty(grade, classNum);
         return;
     }
 
     const classTimetable2026 = await loadClassTimetable2026();
-    const { rows, fallbackRows, holidayTitle, displayRows } =
+    const { rows, fallbackRows, holidayTitle, regularExamTitle: buildRegularExamTitle, displayRows } =
         await buildTimetableForDate(grade, classNum, targetDate, classTimetable2026);
     console.debug('Timetable render rows', {
         grade,
@@ -2576,6 +2611,7 @@ async function updateTimetable() {
         rawNeisRows: rows,
         rawFallbackRows: fallbackRows,
         holidayTitle,
+        regularExamTitle: buildRegularExamTitle,
         finalDisplayRows: displayRows,
         apiRowsVisibleCount: (Array.isArray(displayRows) ? displayRows : [])
             .filter(row => row?.source === 'neis')
@@ -2623,6 +2659,9 @@ function buildWeekdayColumn(label, date, isCurrent, displayRows, specialLabel) {
         return { label, date, isCurrent, type: 'special', specialLabel: '불러오기 실패' };
     }
     if (Array.isArray(displayRows) && displayRows[0]?.source === 'holiday') {
+        return { label, date, isCurrent, type: 'special', specialLabel: displayRows[0].subject };
+    }
+    if (Array.isArray(displayRows) && displayRows[0]?.source === 'regular-exam') {
         return { label, date, isCurrent, type: 'special', specialLabel: displayRows[0].subject };
     }
 
@@ -2757,6 +2796,10 @@ function getWeeklyDisplayRows(grade, classNum, targetDate, classTimetable2026) {
     if (holidayTitle) {
         return [{ subject: holidayTitle, source: 'holiday' }];
     }
+    const regularExamTitle = getRegularExamTitle(targetDate);
+    if (regularExamTitle) {
+        return [{ subject: regularExamTitle, source: 'regular-exam' }];
+    }
     return getFallbackTimetableRows(classTimetable2026, grade, classNum, targetDate);
 }
 
@@ -2777,6 +2820,11 @@ async function renderWeeklyTimetable(grade, classNum) {
 
     const columns = weekdays.map(({ label, date }) => {
         const isCurrent = isSameCalendarDay(date, today);
+        const regularExamTitle = getRegularExamTitle(date);
+
+        if (regularExamTitle) {
+            return buildWeekdayColumn(label, date, isCurrent, null, regularExamTitle);
+        }
 
         if (isApprenticeshipTimetableDay(grade, classNum, date)) {
             return buildWeekdayColumn(label, date, isCurrent, null, '도제 수업');
