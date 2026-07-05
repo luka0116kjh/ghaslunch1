@@ -92,7 +92,7 @@ python3 -m http.server 8000
 
 - Google Sheets API로 시트 데이터를 읽습니다.
 - 인증은 `.env`의 `GOOGLE_API_KEY`를 사용합니다(`dotenv`로 로드).
-- API Key는 코드에 하드코딩하지 않고 `.env`에서만 관리하며, `.env`는 `.gitignore`에 포함되어 GitHub에 올리지 않습니다.
+- Google Sheets API Key는 코드에 하드코딩하지 않고 `.env`에서만 관리하며, `.env`는 `.gitignore`에 포함되어 GitHub에 올리지 않습니다.
 
 ### 생성 및 배포 순서
 

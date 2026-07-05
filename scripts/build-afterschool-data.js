@@ -110,10 +110,7 @@ function parseSchedule(rows) {
       .map(([iso]) => iso)
       .sort();
   } else {
-    console.warn(`⚠️ 기준 강좌 "${MASTER_COURSE}" 행을 찾지 못했습니다. 모든 날짜 컬럼을 운영일로 처리합니다.`);
-    const all = new Set();
-    for (const { cells } of courseCells.values()) for (const iso of cells.keys()) all.add(iso);
-    masterDates = Array.from(all).sort();
+    throw new Error(`기준 강좌 "${MASTER_COURSE}" 행을 찾지 못했습니다. 시트 강좌명을 확인하세요.`);
   }
 
   // 4) 강좌별 운영일 = 전체 운영일 중, 해당 강좌 셀이 개별 휴강(없음/휴강/X/x)이 아닌 날.

@@ -256,6 +256,7 @@ function getAfterschoolDayInfo(targetDate) {
                 type: 'operating',
                 schedule,
                 date: ymd,
+                courseRooms: getAfterschoolCourseRoomsForDate(schedule, ymd),
                 message: '오늘 방과후 있음'
             };
         }
@@ -264,26 +265,38 @@ function getAfterschoolDayInfo(targetDate) {
     return null;
 }
 
+function getAfterschoolCourseRoomsForDate(schedule, ymd) {
+    if (!Array.isArray(schedule?.courseRooms)) return [];
+    return schedule.courseRooms.filter((course) => {
+        return Array.isArray(course.operatingDates) && course.operatingDates.includes(ymd);
+    });
+}
+
 function getAfterschoolScheduleEvents() {
     return AFTER_SCHOOL_SCHEDULES.flatMap((schedule) => {
         if (!Array.isArray(schedule.operatingDates)) return [];
 
-        return schedule.operatingDates.map((ymd) => ({
-            id: `${schedule.id}-${ymd}`,
-            startDate: createDateFromYmd(ymd),
-            endDate: createDateFromYmd(ymd),
-            title: schedule.scheduleTitle || schedule.title,
-            category: '방과후',
-            timeText: schedule.classTime,
-            detailTitle: schedule.title,
-            courseRooms: Array.isArray(schedule.courseRooms) ? schedule.courseRooms : []
-        }));
+        return schedule.operatingDates.map((ymd) => {
+            const courseRooms = getAfterschoolCourseRoomsForDate(schedule, ymd);
+
+            return {
+                id: `${schedule.id}-${ymd}`,
+                startDate: createDateFromYmd(ymd),
+                endDate: createDateFromYmd(ymd),
+                title: schedule.scheduleTitle || schedule.title,
+                category: '방과후',
+                timeText: schedule.classTime,
+                detailTitle: schedule.title,
+                courseRooms
+            };
+        });
     });
 }
 
 function getAllScheduleEvents() {
     return [
-        ...SCHEDULE_EVENTS
+        ...SCHEDULE_EVENTS,
+        ...getAfterschoolScheduleEvents()
     ].sort((a, b) => a.startDate - b.startDate || a.endDate - b.endDate || getScheduleEventName(a).localeCompare(getScheduleEventName(b), 'ko'));
 }
 
@@ -546,7 +559,7 @@ function saveCalendarUserMarks(marksByDate) {
 
 function getOfficialEventsForDate(date) {
     const day = startOfDay(date);
-    return SCHEDULE_EVENTS.filter((event) => {
+    return getAllScheduleEvents().filter((event) => {
         const start = startOfDay(event.startDate);
         const end = startOfDay(event.endDate);
         return day >= start && day <= end;
@@ -670,6 +683,7 @@ function renderSelectedDateDetails(editingMarkId = null) {
             <li>
                 <strong>${escapeHTML(getScheduleEventName(event))}</strong>
                 <span>${escapeHTML(formatScheduleRange(event))}</span>
+                ${renderScheduleDetail(event)}
             </li>
         `).join('')
         : '<li class="calendar-empty-line">등록된 공식 일정이 없습니다.</li>';

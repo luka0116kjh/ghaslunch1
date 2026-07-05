@@ -1,6 +1,6 @@
 // 자동 생성 파일 — 직접 수정하지 마세요.
 // 생성: node scripts/build-afterschool-data.js (구글 "방과후" 시트에서 생성)
-// 생성 시각: 2026-07-05T07:34:49.692Z
+// 생성 시각: 2026-07-05T10:32:12.358Z
 (function () {
     const courseRooms = [
         {

@@ -3,7 +3,8 @@
   "version": "1.0.0",
   "description": "경기자동차과학고 급식 및 시간표 PWA",
   "scripts": {
-    "build": "npm run build:hosting",
+    "build": "npm run build:afterschool && npm run build:hosting",
+    "build:afterschool": "node scripts/build-afterschool-data.js",
     "build:hosting": "node scripts/build-hosting.js",
     "deploy": "npx --yes firebase-tools@15.15.0 deploy",
     "deploy:hosting": "npx --yes firebase-tools@15.15.0 deploy --only hosting",
