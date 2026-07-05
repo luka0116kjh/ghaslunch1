@@ -40,17 +40,21 @@
 
     function buildAfterSchoolData() {
         const courseRooms = Array.isArray(currentSchedule?.courseRooms) ? currentSchedule.courseRooms : [];
-        const days = getOperatingWeekdays(currentSchedule?.operatingDates || []);
 
         return {
             version: DATA_VERSION,
             status: currentSchedule ? "ready" : "missing",
             schedule: currentSchedule,
-            programs: courseRooms.map((course) => ({
-                name: course.name,
-                classroom: course.room,
-                days
-            }))
+            programs: courseRooms.map((course) => {
+                // 강좌별 운영일 (공학리더반 기준 캘린더에서 개별 휴강 제외한 날짜)
+                const operatingDates = Array.isArray(course.operatingDates) ? course.operatingDates : [];
+                return {
+                    name: course.name,
+                    classroom: course.room,
+                    operatingDates,
+                    days: getOperatingWeekdays(operatingDates)
+                };
+            })
         };
     }
 
@@ -134,35 +138,25 @@
         return createDateFromYmd(window.GHAS_AFTER_SCHOOL_REFERENCE_DATE || formatDateHyphen(new Date()));
     }
 
-    function getScheduleStatusForDate(ymd) {
-        if (!currentSchedule) return "missing";
-
-        const closedDates = Array.isArray(currentSchedule.closedDates) ? currentSchedule.closedDates : [];
-        if (currentSchedule.exceptions?.[ymd] || closedDates.includes(ymd)) {
-            return "closed";
-        }
-
-        return currentSchedule.operatingDates?.includes(ymd) ? "operating" : "closed";
+    // 선택된 강좌의 운영일. 미선택 시 스케줄 전체(합집합)로 폴백.
+    function getProgramOperatingDates(program) {
+        if (program && Array.isArray(program.operatingDates)) return program.operatingDates;
+        return Array.isArray(currentSchedule?.operatingDates) ? currentSchedule.operatingDates : [];
     }
 
-    function getTodayScheduleStatus() {
+    function getScheduleStatusForDate(ymd, program) {
+        if (!currentSchedule) return "missing";
+        // 강좌별 운영일(공학리더반 기준 캘린더에서 개별 휴강 제외)에 포함되면 operating
+        return getProgramOperatingDates(program).includes(ymd) ? "operating" : "closed";
+    }
+
+    function getTodayScheduleStatus(program) {
         if (!currentSchedule) return { type: "missing", label: "정보 없음" };
 
         const today = formatDateHyphen(new Date());
-        const exception = currentSchedule.exceptions?.[today];
-        const dateStatus = getScheduleStatusForDate(today);
-        if (dateStatus === "closed" && exception) {
-            return {
-                type: "exception",
-                label: "방과후 없음",
-                message: exception.message || `${exception.title} · 오늘은 방과후 수업이 없습니다.`
-            };
-        }
-
-        if (dateStatus === "operating") {
+        if (getScheduleStatusForDate(today, program) === "operating") {
             return { type: "operating", label: "방과후 있음" };
         }
-
         return { type: "closed", label: "운영일 아님" };
     }
 
@@ -222,7 +216,7 @@
         weekdayDates.forEach(({ label, ymd }) => {
             const chip = document.createElement("span");
             const isReferenceDate = ymd === referenceYmd;
-            const active = selected && getScheduleStatusForDate(ymd) === "operating";
+            const active = selected && getScheduleStatusForDate(ymd, program) === "operating";
             chip.className = [
                 "after-school-day-chip",
                 active ? "active" : "",
@@ -239,7 +233,7 @@
     function createSelectedProgramRow(program) {
         const row = document.createElement("div");
         row.className = "timetable-row after-school-row";
-        const todayStatus = getTodayScheduleStatus();
+        const todayStatus = getTodayScheduleStatus(program);
 
         const name = document.createElement("span");
         name.className = "subject";
@@ -275,9 +269,8 @@
     }
 
     function getNoticeText() {
-        const todayStatus = getTodayScheduleStatus();
+        const todayStatus = getTodayScheduleStatus(getSelectedProgram());
         if (todayStatus.type === "missing") return "오늘 방과후가 없거나 혹은 데이터가 없을 것 같습니다.";
-        if (todayStatus.type === "exception") return todayStatus.message;
         if (todayStatus.type === "closed") return "오늘은 방과후 운영일이 아닙니다.";
         if (currentSchedule) return `${currentSchedule.title} · 수업 ${currentSchedule.classTime}`;
         return "오늘 방과후가 없거나 혹은 데이터가 없을 것 같습니다.";

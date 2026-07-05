@@ -251,17 +251,6 @@ function getAfterschoolDayInfo(targetDate) {
     const ymd = formatDateHyphen(targetDate);
 
     for (const schedule of AFTER_SCHOOL_SCHEDULES) {
-        const exception = schedule.exceptions?.[ymd];
-        if (exception) {
-            return {
-                type: 'exception',
-                schedule,
-                date: ymd,
-                title: exception.title,
-                message: exception.message
-            };
-        }
-
         if (Array.isArray(schedule.operatingDates) && schedule.operatingDates.includes(ymd)) {
             return {
                 type: 'operating',
@@ -1019,15 +1008,6 @@ function renderAfterschoolTodayCard(targetDate, mode) {
     }
 
     card.hidden = false;
-    if (dayInfo.type === 'exception') {
-        card.classList.add('is-exception');
-        card.innerHTML = `
-            <div class="meal-type">방과후 수업</div>
-            <div class="afterschool-today-message">${escapeHTML(dayInfo.message)}</div>
-        `;
-        return;
-    }
-
     const schedule = dayInfo.schedule;
     card.classList.remove('is-exception');
     card.innerHTML = `

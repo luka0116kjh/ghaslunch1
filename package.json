@@ -7,11 +7,14 @@
     "build:hosting": "node scripts/build-hosting.js",
     "deploy": "npx --yes firebase-tools@15.15.0 deploy",
     "deploy:hosting": "npx --yes firebase-tools@15.15.0 deploy --only hosting",
-    "deploy:functions": "npx --yes firebase-tools@15.15.0 deploy --only functions"
+    "deploy:functions": "npx --yes firebase-tools@15.15.0 deploy --only functions",
+    "fetch:timetable": "node scripts/fetch-afterschool-timetable.js"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "dependencies": {},
+  "dependencies": {
+    "dotenv": "^16.4.5"
+  },
   "devDependencies": {}
 }
