@@ -194,6 +194,23 @@ function isRegularExamScheduleTitle(title) {
     return /정기시험/.test(normalizeScheduleTitle(title));
 }
 
+function getSchoolBreakTitle(targetDate) {
+    const target = startOfDay(targetDate);
+    const events = Array.isArray(SCHEDULE_EVENTS) ? SCHEDULE_EVENTS : [];
+    const openingEvents = events.filter(event => /개학식/.test(getScheduleEventName(event)));
+
+    for (const breakEvent of events.filter(event => /방학식/.test(getScheduleEventName(event)))) {
+        const breakStart = startOfDay(breakEvent.startDate);
+        const openingEvent = openingEvents.find(event => startOfDay(event.startDate) >= breakStart);
+        if (!openingEvent) continue;
+
+        const openingEnd = startOfDay(openingEvent.endDate);
+        if (target >= breakStart && target <= openingEnd) return '방학';
+    }
+
+    return '';
+}
+
 function getScheduleEventName(event) {
     return normalizeScheduleTitle(event.title) || '행사 일정';
 }
@@ -2482,6 +2499,10 @@ function renderApprenticeshipTimetableEmpty(grade, classNum) {
 }
 
 function getFallbackTimetableRows(classTimetable2026, grade, classNum, targetDate) {
+    // 보정 시간표를 직접 사용하는 경로에서도 방학 기간에는 과목을 반환하지 않는다.
+    // 일정표에 방학식/개학식이 추가되면 getSchoolBreakTitle이 모든 구간을 자동으로 짝짓는다.
+    if (getSchoolBreakTitle(targetDate)) return [];
+
     const selectedClassKey = `${grade}-${classNum}`;
     const dayName = TIMETABLE_DAYS[targetDate.getDay()];
     const subjects = classTimetable2026?.[selectedClassKey]?.[dayName];
@@ -2517,6 +2538,9 @@ function mergeTimetableWithFallback(neisRows, fallbackRows) {
 }
 
 function getTimetableHolidayTitle(targetDate, neisRows) {
+    const schoolBreakTitle = getSchoolBreakTitle(targetDate);
+    if (schoolBreakTitle) return schoolBreakTitle;
+
     const apiHolidayRow = (Array.isArray(neisRows) ? neisRows : [])
         .find(row => isHolidayScheduleTitle(row?.subject || row?.originalSubject));
     if (apiHolidayRow) {
@@ -2640,6 +2664,16 @@ async function updateTimetable() {
     // "다음" 보기는 항상 수업일을 가리키므로 영향을 받지 않는다.
     if (!showNext && isWeekendDate(today)) {
         container.innerHTML = renderDayOffTimetable();
+        return;
+    }
+
+    const schoolBreakTitle = getSchoolBreakTitle(targetDate);
+    if (schoolBreakTitle) {
+        container.innerHTML = renderTimetableRows(
+            [{ subject: schoolBreakTitle, source: 'holiday' }],
+            targetDate,
+            titleText
+        );
         return;
     }
 
