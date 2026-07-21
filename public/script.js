@@ -151,6 +151,9 @@ function formatScheduleRange(event) {
 }
 
 function parseScheduleSource(source) {
+    let eventYear = SCHEDULE_YEAR;
+    let previousStartMonth = 0;
+
     return source
         .trim()
         .split('\n')
@@ -165,10 +168,16 @@ function parseScheduleSource(source) {
             }
 
             const [, startMonth, startDay, endMonth, endDay, title] = match;
+            const numericStartMonth = Number(startMonth);
+            const numericEndMonth = Number(endMonth);
+            if (previousStartMonth >= 10 && numericStartMonth <= 3) eventYear += 1;
+            previousStartMonth = numericStartMonth;
+
+            const endYear = numericEndMonth < numericStartMonth ? eventYear + 1 : eventYear;
             return {
-                id: `${SCHEDULE_YEAR}-${index}`,
-                startDate: createScheduleDate(startMonth, startDay),
-                endDate: createScheduleDate(endMonth, endDay),
+                id: `${eventYear}-${index}`,
+                startDate: new Date(eventYear, numericStartMonth - 1, Number(startDay)),
+                endDate: new Date(endYear, numericEndMonth - 1, Number(endDay)),
                 title: normalizeScheduleTitle(title)
             };
         })
@@ -187,7 +196,7 @@ function normalizeScheduleTitle(title) {
 }
 
 function isHolidayScheduleTitle(title) {
-    return /공휴일|대체공유일|노동절|현충일|추석|개천절|재량휴업일|지방선거|선거/.test(normalizeScheduleTitle(title));
+    return /공휴일|대체공유일|노동절|현충일|추석|설날|개천절|재량휴업일|지방선거|선거|종업식|졸업식/.test(normalizeScheduleTitle(title));
 }
 
 function isRegularExamScheduleTitle(title) {
@@ -197,7 +206,7 @@ function isRegularExamScheduleTitle(title) {
 function getSchoolBreakTitle(targetDate) {
     const target = startOfDay(targetDate);
     const events = Array.isArray(SCHEDULE_EVENTS) ? SCHEDULE_EVENTS : [];
-    const openingEvents = events.filter(event => /개학식/.test(getScheduleEventName(event)));
+    const openingEvents = events.filter(event => /개학식|종업식/.test(getScheduleEventName(event)));
 
     for (const breakEvent of events.filter(event => /방학식/.test(getScheduleEventName(event)))) {
         const breakStart = startOfDay(breakEvent.startDate);
@@ -389,6 +398,16 @@ function getRegularExamEventForDate(targetDate) {
         const start = startOfDay(event.startDate);
         const end = startOfDay(event.endDate);
         return day >= start && day <= end && isRegularExamScheduleTitle(event.title);
+    }) || null;
+}
+
+function getGraduationEventForDate(targetDate) {
+    const day = startOfDay(targetDate);
+
+    return SCHEDULE_EVENTS.find((event) => {
+        const start = startOfDay(event.startDate);
+        const end = startOfDay(event.endDate);
+        return day >= start && day <= end && /졸업식/.test(getScheduleEventName(event));
     }) || null;
 }
 
@@ -1310,6 +1329,14 @@ async function fetchMeals(targetDate) {
     setText('dinner-cal', '');
     setText('lunch-allergens', '');
     setText('dinner-allergens', '');
+
+    if (getGraduationEventForDate(targetDate)) {
+        setText('lunch-menu', '졸업식입니다.');
+        setText('dinner-menu', '졸업식입니다.');
+        setText('lunch-vote', '');
+        setText('dinner-vote', '');
+        return;
+    }
 
     try {
         const data = await fetchMealData({ from: ymd, to: ymd, pSize: 100 });
