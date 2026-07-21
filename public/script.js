@@ -1088,6 +1088,66 @@ function normalizeMenuText(rawMenu) {
     return clean.split(/\s+/).filter(Boolean).join('\n');
 }
 
+const ALLERGEN_NAMES = {
+    1: '난류', 2: '우유', 3: '메밀', 4: '땅콩', 5: '대두', 6: '밀',
+    7: '고등어', 8: '게', 9: '새우', 10: '돼지고기', 11: '복숭아',
+    12: '토마토', 13: '아황산류', 14: '호두', 15: '닭고기',
+    16: '쇠고기', 17: '오징어', 18: '조개류', 19: '잣'
+};
+
+function extractAllergenNumbers(rawMenu) {
+    const numbers = [];
+    String(rawMenu || '').replace(/\(([^)]*)\)/g, (_, contents) => {
+        (contents.match(/\d+/g) || []).forEach(number => {
+            const value = Number(number);
+            if (ALLERGEN_NAMES[value] && !numbers.includes(value)) numbers.push(value);
+        });
+        return '';
+    });
+    return numbers.sort((a, b) => a - b);
+}
+
+function renderMealMenuWithAllergens(rawMenu, calorieText = '') {
+    const items = String(rawMenu || '')
+        .replace(/<br\s*\/?>/gi, '\n')
+        .split(/\n+/)
+        .map(item => item.trim())
+        .filter(Boolean)
+        .map(item => {
+            const allergens = extractAllergenNumbers(item);
+            const name = item.replace(/\([^)]*\)/g, '').trim();
+            const badges = allergens.length
+                ? ` <span class="meal-allergen-numbers" aria-label="알레르기 번호 ${allergens.join(', ')}">${allergens.join('·')}</span>`
+                : '';
+            return `${escapeHTML(name)}${badges}`;
+        });
+
+    if (!items.length) return escapeHTML('정보가 없습니다.');
+
+    const lines = [];
+    for (let index = 0; index < items.length; index += 2) {
+        lines.push(items.slice(index, index + 2).join(' / '));
+    }
+    const calorie = String(calorieText || '').trim();
+    if (calorie) lines[lines.length - 1] += ` · ${escapeHTML(calorie)}`;
+    return lines.join('<br>');
+}
+
+function renderAllergenGuide(rawMenu) {
+    const allergens = extractAllergenNumbers(rawMenu);
+    if (!allergens.length) return '';
+    const chips = allergens
+        .map(number => `<span class="allergen-chip"><b>${number}</b> ${escapeHTML(ALLERGEN_NAMES[number])}</span>`)
+        .join('');
+    return `
+        <details class="allergen-guide">
+            <summary>알레르기 정보 보기 <span>${allergens.length}개</span></summary>
+            <div class="allergen-chip-list">${chips}</div>
+            <p>학교에서 제공한 원본 정보입니다. 실제 조리 내용은 학교에 확인해 주세요.</p>
+        </details>
+    `;
+}
+
 function renderMealMenuHtml(menuText, calorieText = '') {
     const items = String(menuText || '')
         .split('\n')
@@ -1231,6 +1291,8 @@ async function fetchMeals(targetDate) {
     setText('dinner-menu', '데이터를 불러오는 중...');
     setText('lunch-cal', '');
     setText('dinner-cal', '');
+    setText('lunch-allergens', '');
+    setText('dinner-allergens', '');
 
     try {
         const data = await fetchMealData({ from: ymd, to: ymd, pSize: 100 });
@@ -1244,11 +1306,15 @@ async function fetchMeals(targetDate) {
             const cleanMenu = normalizeMenuText(row.DDISH_NM);
             if (row.MMEAL_SC_CODE === '2') {
                 const lunchEl = document.getElementById('lunch-menu');
-                if (lunchEl) lunchEl.innerHTML = renderMealMenuHtml(cleanMenu, row.CAL_INFO);
+                if (lunchEl) lunchEl.innerHTML = renderMealMenuWithAllergens(row.DDISH_NM, row.CAL_INFO);
+                const lunchAllergens = document.getElementById('lunch-allergens');
+                if (lunchAllergens) lunchAllergens.innerHTML = renderAllergenGuide(row.DDISH_NM);
                 setText('lunch-cal', '');
             } else if (row.MMEAL_SC_CODE === '3') {
                 const dinnerEl = document.getElementById('dinner-menu');
-                if (dinnerEl) dinnerEl.innerHTML = renderMealMenuHtml(cleanMenu, row.CAL_INFO);
+                if (dinnerEl) dinnerEl.innerHTML = renderMealMenuWithAllergens(row.DDISH_NM, row.CAL_INFO);
+                const dinnerAllergens = document.getElementById('dinner-allergens');
+                if (dinnerAllergens) dinnerAllergens.innerHTML = renderAllergenGuide(row.DDISH_NM);
                 setText('dinner-cal', '');
             }
         });

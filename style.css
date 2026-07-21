@@ -430,6 +430,76 @@ body {
     opacity: 0.9;
 }
 
+.meal-allergen-numbers {
+    color: var(--primary-color);
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    vertical-align: super;
+    white-space: nowrap;
+}
+
+.allergen-guide {
+    margin-top: 14px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border-color);
+}
+
+.allergen-guide summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    color: var(--text-sub);
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    list-style: none;
+}
+
+.allergen-guide summary::-webkit-details-marker { display: none; }
+
+.allergen-guide summary::after {
+    content: '⌄';
+    margin-left: 6px;
+    color: var(--primary-color);
+    transition: transform 0.2s ease;
+}
+
+.allergen-guide[open] summary::after { transform: rotate(180deg); }
+
+.allergen-guide summary span {
+    margin-left: auto;
+    padding: 2px 7px;
+    border-radius: 999px;
+    background: var(--pill-inactive);
+    font-size: 11px;
+}
+
+.allergen-chip-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 7px;
+    margin-top: 12px;
+}
+
+.allergen-chip {
+    padding: 6px 9px;
+    border: 1px solid var(--border-color);
+    border-radius: 999px;
+    color: var(--text-sub);
+    background: var(--pill-inactive);
+    font-size: 12px;
+}
+
+.allergen-chip b { color: var(--primary-color); }
+
+.allergen-guide p {
+    margin: 10px 0 0;
+    color: var(--text-sub);
+    font-size: 11px;
+    line-height: 1.45;
+}
+
 /* 오늘의 급식 화면: 세로 여백만 살짝 컴팩트하게 (가로 패딩/폭/색상 유지) */
 #meal-toolbar-card {
     padding-top: 16px;
