@@ -204,6 +204,31 @@
         }, delay);
     }
 
+    async function hasTimetableForDate(targetDate) {
+        // 급식과 동일하게 "데이터 있을 때만" 알림 본문에 시간표 안내를 넣는다.
+        // 시간표 렌더링 로직(script.js의 buildTimetableForDate)을 그대로 재사용해
+        // NEIS + 보정 시간표 병합/휴일 처리 결과를 사용한다. 데이터가 없으면 false.
+        if (typeof buildTimetableForDate !== 'function' || typeof loadClassTimetable2026 !== 'function') {
+            return false;
+        }
+
+        const grade = localStorage.getItem('ghas-grade');
+        const classNum = localStorage.getItem('ghas-class');
+        if (!grade || !classNum) return false;
+
+        try {
+            const classTimetable2026 = await loadClassTimetable2026();
+            const { displayRows } = await buildTimetableForDate(grade, classNum, targetDate, classTimetable2026);
+
+            // 교시가 있는 실제 수업만 확인한다. 휴일/시험 안내(교시 없음)와 공강은 제외.
+            return (Array.isArray(displayRows) ? displayRows : [])
+                .some(r => r?.period && r?.subject && r.subject !== '공강');
+        } catch (e) {
+            console.warn('시간표 알림 정보 확인 실패:', e);
+            return false;
+        }
+    }
+
     async function showLocalNotification() {
         if (!('Notification' in window) || !('serviceWorker' in navigator)) return;
         if (Notification.permission !== 'granted') return;
@@ -215,14 +240,27 @@
             const data = await fetchMealData({ from: ymd, to: ymd, pSize: 100 });
             const rows = extractMealRows(data);
 
-            if (rows.length === 0) return;
-
-            let bodyText = '오늘의 맛있는 급식 정보를 확인해보세요! ';
+            // 급식 본문 (데이터 있을 때만)
+            let mealText = '';
             const lunch = rows.find(r => r.MMEAL_SC_CODE === '2');
             if (lunch) {
                 const menu = normalizeMenuText(lunch.DDISH_NM).replace(/\n/g, ', ');
-                bodyText = ` 오늘 중식: ${menu.slice(0, 60)}${menu.length > 60 ? '...' : ''}`;
+                mealText = `오늘 중식: ${menu.slice(0, 60)}${menu.length > 60 ? '...' : ''}`;
+            } else if (rows.length > 0) {
+                mealText = '오늘의 맛있는 급식 정보를 확인해보세요!';
             }
+
+            // 시간표 안내 (데이터 있을 때만, 교시별 과목은 나열하지 않음)
+            const timetableText = (await hasTimetableForDate(targetDate))
+                ? '오늘 시간표도 확인해보세요!'
+                : '';
+
+            // 급식·시간표 모두 데이터가 없으면 알림을 보내지 않는다.
+            if (!mealText && !timetableText) return;
+
+            const bodyText = [mealText, timetableText]
+                .filter(Boolean)
+                .join('\n');
 
             const registration = await navigator.serviceWorker.ready;
             registration.showNotification('GHAS알리미', {
