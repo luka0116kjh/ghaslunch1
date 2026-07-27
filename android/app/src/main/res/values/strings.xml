@@ -49,4 +49,12 @@
     <string name="widget_today_meal_empty">오늘 등록된 급식이 없어요</string>
     <string name="widget_today_meal_error">급식을 불러오지 못했어요</string>
     <string name="widget_today_meal_refresh">↻</string>
+    <string name="widget_today_timetable_title">오늘 시간표</string>
+    <string name="widget_today_timetable_description">오늘 시간표를 홈 화면에서 바로 확인합니다.</string>
+    <string name="widget_today_timetable_loading">시간표를 불러오는 중...</string>
+    <string name="widget_today_timetable_empty">오늘 등록된 시간표가 없어요</string>
+    <string name="widget_today_timetable_error">시간표를 불러오지 못했어요</string>
+    <string name="widget_today_timetable_not_configured">앱에서 학년과 반을 먼저 설정해 주세요</string>
+    <string name="widget_today_timetable_class_format">%1$s학년 %2$s반</string>
+    <string name="widget_today_timetable_period_format">%d교시</string>
 </resources>

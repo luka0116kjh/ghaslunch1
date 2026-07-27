@@ -1,6 +1,7 @@
 import SwiftUI
 import UIKit
 import WebKit
+import WidgetKit
 
 extension Notification.Name {
     static let nativeNotificationSettingsDidChange = Notification.Name("nativeNotificationSettingsDidChange")
@@ -255,6 +256,12 @@ struct GHASLunchWebView: UIViewRepresentable {
                 },
                 disableBarcodeScanMode: function() {
                     post('disableBarcodeScanMode', null);
+                },
+                setStudentClass: function(grade, classNum) {
+                    post('setStudentClass', { grade: grade || '', classNum: classNum || '' });
+                },
+                cacheTodayTimetable: function(json) {
+                    post('cacheTodayTimetable', json);
                 }
             };
             if (savedTheme === 'dark' || savedTheme === 'light') {
@@ -307,6 +314,13 @@ struct GHASLunchWebView: UIViewRepresentable {
 
     final class Coordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WKScriptMessageHandler {
         static let messageHandlerName = "ghasNative"
+
+        // "오늘 시간표" 위젯과 공유하는 App Group 저장소. 위젯(GHASLunchWidget.swift)이 같은 값을 읽는다.
+        static let timetableAppGroupId = "group.kr.hs.ghas.lunch"
+        static let timetableKeyGrade = "widget_timetable_grade"
+        static let timetableKeyClass = "widget_timetable_class"
+        static let timetableKeyCacheJson = "widget_timetable_cache_json"
+        static let timetableWidgetKind = "GHASTimetableWidget"
 
         private let allowedHost: String
         private let themeKey: String
@@ -376,6 +390,10 @@ struct GHASLunchWebView: UIViewRepresentable {
                 enableBarcodeScanMode()
             case "disableBarcodeScanMode":
                 disableBarcodeScanMode()
+            case "setStudentClass":
+                saveStudentClass(body["value"] as? [String: Any])
+            case "cacheTodayTimetable":
+                cacheTodayTimetable(body["value"] as? String)
             default:
                 break
             }
@@ -431,6 +449,7 @@ struct GHASLunchWebView: UIViewRepresentable {
             applySavedTheme()
             applyPadLayoutIfNeeded()
             hideWebShareButton()
+            syncTimetableClassFromWeb()
             let enabled = NativeNotificationSettings.load().enabled
             UserDefaults.standard.set(enabled, forKey: notificationKey)
             updateWebNotificationState(enabled)
@@ -491,6 +510,59 @@ struct GHASLunchWebView: UIViewRepresentable {
                     updateWebNotificationState(false)
                 }
             }
+        }
+
+        // 배포 여부와 무관하게, 페이지 로드 후 WebView localStorage의 학년·반을 읽어
+        // App Group에 반영하고 위젯을 갱신한다(웹 브리지 push의 백업 경로).
+        private func syncTimetableClassFromWeb() {
+            let js = "(function(){try{return (localStorage.getItem('ghas-grade')||'')+'|'+(localStorage.getItem('ghas-class')||'');}catch(e){return '|';}})();"
+            webView?.evaluateJavaScript(js) { result, _ in
+                guard let raw = result as? String else { return }
+                let parts = raw.components(separatedBy: "|")
+                let grade = parts.first?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+                let classNum = (parts.count > 1 ? parts[1] : "")
+                    .trimmingCharacters(in: .whitespacesAndNewlines)
+                guard !grade.isEmpty, !classNum.isEmpty,
+                      let defaults = UserDefaults(suiteName: Self.timetableAppGroupId) else { return }
+                defaults.set(grade, forKey: Self.timetableKeyGrade)
+                defaults.set(classNum, forKey: Self.timetableKeyClass)
+                WidgetCenter.shared.reloadTimelines(ofKind: Self.timetableWidgetKind)
+            }
+        }
+
+        // 앱에서 설정한 학년·반을 App Group에 저장하고 위젯 타임라인을 갱신한다.
+        private func saveStudentClass(_ value: [String: Any]?) {
+            guard let defaults = UserDefaults(suiteName: Self.timetableAppGroupId) else { return }
+            let grade = (value?["grade"] as? String)?
+                .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            let classNum = (value?["classNum"] as? String)?
+                .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            defaults.set(grade, forKey: Self.timetableKeyGrade)
+            defaults.set(classNum, forKey: Self.timetableKeyClass)
+            WidgetCenter.shared.reloadTimelines(ofKind: Self.timetableWidgetKind)
+        }
+
+        // 웹이 계산한 오늘 시간표(JSON)를 그대로 App Group에 저장하고 위젯을 갱신한다.
+        private func cacheTodayTimetable(_ json: String?) {
+            guard
+                let json,
+                let defaults = UserDefaults(suiteName: Self.timetableAppGroupId),
+                let data = json.data(using: .utf8),
+                let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+            else {
+                return
+            }
+            let date = root["date"] as? String ?? ""
+            let state = root["state"] as? String ?? ""
+            guard !date.isEmpty, !state.isEmpty else { return }
+
+            defaults.set(json, forKey: Self.timetableKeyCacheJson)
+            if let grade = (root["grade"] as? String), let classNum = (root["classNum"] as? String),
+               !grade.isEmpty, !classNum.isEmpty {
+                defaults.set(grade, forKey: Self.timetableKeyGrade)
+                defaults.set(classNum, forKey: Self.timetableKeyClass)
+            }
+            WidgetCenter.shared.reloadTimelines(ofKind: Self.timetableWidgetKind)
         }
 
         @objc private func nativeNotificationSettingsDidChange(_ notification: Notification) {

@@ -2433,7 +2433,11 @@ function registerAppEventHandlers() {
 
     ['grade-select', 'class-select'].forEach((id) => {
         const element = document.getElementById(id);
-        if (element) element.addEventListener('change', updateTimetable);
+        if (element) {
+            element.addEventListener('change', updateTimetable);
+            // 학년·반 변경 시 네이티브 "오늘 시간표" 위젯도 새 반 기준으로 갱신한다.
+            element.addEventListener('change', () => { void syncNativeTimetableWidget(); });
+        }
     });
 
     const modal = document.getElementById('student-code-modal');
@@ -2742,6 +2746,88 @@ async function updateTimetable() {
 
     container.innerHTML = renderTimetableRows(displayRows, targetDate, titleText);
     return;
+}
+
+// 네이티브 "오늘 시간표" 위젯용 동기화.
+// 저장된 학년·반과 오늘 시간표를 계산해 네이티브 공유 저장소로 넘긴다. 위젯 계산 로직은
+// 새로 만들지 않고 기존 buildTimetableForDate(NEIS+보정 병합, 휴일/방학/시험 처리)를 재사용한다.
+// 웹 급식/시간표 화면 동작에는 영향이 없다(브리지가 없으면 조용히 무시).
+const TIMETABLE_WIDGET_MIN_PERIOD = 1;
+const TIMETABLE_WIDGET_MAX_PERIOD = 7;
+
+function getStudentClassSelection() {
+    const grade = (document.getElementById('grade-select')?.value)
+        || localStorage.getItem('ghas-grade')
+        || '';
+    const classNum = (document.getElementById('class-select')?.value)
+        || localStorage.getItem('ghas-class')
+        || '';
+    return { grade: String(grade).trim(), classNum: String(classNum).trim() };
+}
+
+async function computeTodayTimetableWidgetPayload() {
+    const { grade, classNum } = getStudentClassSelection();
+    const today = new Date();
+    const dateYmd = formatDate(today);
+
+    if (!grade || !classNum) {
+        return { date: dateYmd, grade: '', classNum: '', state: 'classNotConfigured', periods: [] };
+    }
+    if (isWeekendDate(today) || isApprenticeshipTimetableDay(grade, classNum, today)) {
+        return { date: dateYmd, grade, classNum, state: 'empty', periods: [] };
+    }
+
+    const classTimetable2026 = await loadClassTimetable2026();
+    const { displayRows } = await buildTimetableForDate(grade, classNum, today, classTimetable2026);
+    const rows = Array.isArray(displayRows) ? displayRows : [];
+
+    // 휴일/방학/시험 등 한 칸 라벨(교시 없음)은 위젯에서 "시간표 없음"으로 처리한다.
+    const hasSpecialLabel = rows.some(
+        (row) => row && (row.source === 'holiday' || row.source === 'regular-exam')
+    );
+    if (hasSpecialLabel) {
+        return { date: dateYmd, grade, classNum, state: 'empty', periods: [] };
+    }
+
+    const periods = rows
+        .filter((row) => row && row.period && isRealTimetableSubject(row.subject))
+        .map((row) => ({ period: Number(row.period), subject: String(row.subject) }))
+        .filter((row) => row.period >= TIMETABLE_WIDGET_MIN_PERIOD && row.period <= TIMETABLE_WIDGET_MAX_PERIOD)
+        .sort((a, b) => a.period - b.period);
+
+    return periods.length > 0
+        ? { date: dateYmd, grade, classNum, state: 'available', periods }
+        : { date: dateYmd, grade, classNum, state: 'empty', periods: [] };
+}
+
+async function syncNativeTimetableWidget() {
+    const bridge = window.GHASAndroidApp;
+    if (!bridge) return;
+
+    const { grade, classNum } = getStudentClassSelection();
+    try {
+        if (typeof bridge.setStudentClass === 'function') {
+            bridge.setStudentClass(grade, classNum);
+        }
+    } catch (error) {
+        console.warn('학년·반 공유 실패:', error);
+    }
+
+    let payload;
+    try {
+        payload = await computeTodayTimetableWidgetPayload();
+    } catch (error) {
+        console.warn('시간표 위젯 계산 실패:', error);
+        return; // 계산 실패 시 마지막 정상 캐시를 유지한다.
+    }
+
+    try {
+        if (typeof bridge.cacheTodayTimetable === 'function') {
+            bridge.cacheTodayTimetable(JSON.stringify(payload));
+        }
+    } catch (error) {
+        console.warn('시간표 위젯 갱신 실패:', error);
+    }
 }
 
 // "이번 주" = 오늘이 속한 ISO 주(월~일)의 월요일을 기준으로 월~금 날짜 배열을 만든다.
@@ -3353,3 +3439,5 @@ runStartupStep('Native app update', () => {
 });
 runStartupStep('Meals', () => showMeals('today'));
 runStartupStep('Test consent popup', initTestConsentPopup);
+// 앱을 시간표 탭에서 열지 않아도 저장된 학년·반 기준으로 위젯을 최초 동기화한다.
+runStartupStep('Timetable widget sync', () => { void syncNativeTimetableWidget(); });

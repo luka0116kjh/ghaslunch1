@@ -85,6 +85,18 @@ class NativeNotificationBridge(private val activity: MainActivity) {
         activity.cacheTodayTimetableNotificationContent(renderedTitle, body)
     }
 
+    /** 앱에서 설정한 학년·반을 위젯 공유 저장소에 반영한다. */
+    @JavascriptInterface
+    fun setStudentClass(grade: String?, classNum: String?) {
+        activity.saveStudentClass(grade, classNum)
+    }
+
+    /** 웹이 계산한 오늘 시간표(JSON)를 위젯 캐시에 저장하고 위젯을 갱신한다. */
+    @JavascriptInterface
+    fun cacheTodayTimetable(json: String?) {
+        activity.cacheTodayTimetableWidget(json)
+    }
+
     @JavascriptInterface
     fun enableBarcodeScanMode() {
         activity.runOnUiThread {

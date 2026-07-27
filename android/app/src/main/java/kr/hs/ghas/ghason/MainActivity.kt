@@ -71,6 +71,8 @@ class MainActivity : ComponentActivity() {
     private var fileChooserCallback: ValueCallback<Array<Uri>>? = null
     private var bridgeAttached = false
     private var barcodeScanModeEnabled = false
+    // 위젯 탭으로 앱이 열렸을 때, 페이지 로드 후 이동할 화면(예: 시간표 탭).
+    private var pendingWebNavTarget: String? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -123,8 +125,19 @@ class MainActivity : ComponentActivity() {
         }
         setContentView(contentRoot)
         registerBackHandler()
+        pendingWebNavTarget = intent?.getStringExtra(EXTRA_OPEN_TARGET)
         updateNativeBridge(APP_URL)
         webView.loadUrl(APP_URL)
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        pendingWebNavTarget = intent.getStringExtra(EXTRA_OPEN_TARGET)
+        // 이미 페이지가 로드돼 있으면(CLEAR_TOP 재진입) 즉시 이동을 시도한다.
+        if (::webView.isInitialized) {
+            applyPendingWebNavigation()
+        }
     }
 
     private fun applyWebCacheMigrationIfNeeded() {
@@ -236,6 +249,8 @@ class MainActivity : ComponentActivity() {
                 applySavedThemeToPage()
                 syncNativeThemeFromPage()
                 hideWebShareButton()
+                applyPendingWebNavigation()
+                syncTimetableClassFromWeb()
             }
 
             override fun onPageCommitVisible(view: WebView, url: String?) {
@@ -1076,6 +1091,56 @@ class MainActivity : ComponentActivity() {
         notificationScheduler.cacheTodayTimetableContent(renderedTitle, body)
     }
 
+    /** 웹 브리지: 앱에서 설정한 학년·반을 위젯 공유 저장소에 저장하고 위젯을 갱신한다. */
+    fun saveStudentClass(grade: String?, classNum: String?) {
+        TimetableWidgetStore.saveClass(applicationContext, grade, classNum)
+        TodayTimetableWidgetProvider.requestUpdate(applicationContext)
+    }
+
+    /** 웹 브리지: 웹이 계산한 오늘 시간표(JSON)를 위젯 캐시에 저장하고 위젯을 갱신한다. */
+    fun cacheTodayTimetableWidget(json: String?) {
+        TimetableWidgetStore.saveCache(applicationContext, json)
+        TodayTimetableWidgetProvider.requestUpdate(applicationContext)
+    }
+
+    /**
+     * 배포 여부와 무관하게, 페이지 로드 후 WebView localStorage의 학년·반을 읽어 위젯 공유
+     * 저장소에 반영한다(웹 브리지 push의 백업 경로). 값이 있어야만 저장한다.
+     */
+    private fun syncTimetableClassFromWeb() {
+        if (!bridgeAttached) return
+        webView.evaluateJavascript(
+            "(function(){try{return (localStorage.getItem('ghas-grade')||'')+'|'+" +
+                "(localStorage.getItem('ghas-class')||'');}catch(e){return '';}})();"
+        ) { value ->
+            val cleaned = value?.trim()?.trim('"') ?: return@evaluateJavascript
+            val parts = cleaned.split("|")
+            val grade = parts.getOrNull(0)?.trim().orEmpty()
+            val classNum = parts.getOrNull(1)?.trim().orEmpty()
+            if (grade.isNotEmpty() && classNum.isNotEmpty()) {
+                saveStudentClass(grade, classNum)
+            }
+        }
+    }
+
+    /**
+     * 위젯 탭으로 앱이 열렸을 때 지정 화면(현재는 시간표 탭)으로 이동한다. 외부 브라우저를 열지
+     * 않고 앱 내부 WebView에서 기존 탭 전환 로직을 그대로 사용한다.
+     */
+    private fun applyPendingWebNavigation() {
+        val target = pendingWebNavTarget ?: return
+        if (!bridgeAttached) return
+        pendingWebNavTarget = null
+        if (target != OPEN_TARGET_TIMETABLE) return
+        runOnUiThread {
+            webView.evaluateJavascript(
+                "(function(){var b=document.getElementById('btn-timetable');" +
+                    "if(b){b.click();}else if(typeof showTimetable==='function'){showTimetable();}})();",
+                null
+            )
+        }
+    }
+
     fun enableBarcodeScanMode() {
         if (barcodeScanModeEnabled) return
         barcodeScanModeEnabled = true
@@ -1267,6 +1332,9 @@ class MainActivity : ComponentActivity() {
 
     companion object {
         const val NOTIFICATION_TOPIC = "meal"
+        // 위젯 탭 시 열 화면을 지정하는 인텐트 엑스트라.
+        const val EXTRA_OPEN_TARGET = "ghas_open_target"
+        const val OPEN_TARGET_TIMETABLE = "timetable"
 
         private const val APP_URL = "https://ghaslunch1.web.app/"
         private const val PLAY_STORE_PACKAGE_ID = "kr.hs.ghas.ghason"

@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    "오늘 시간표" 위젯 정보. 4x6 고정 크기(중형 대응). resizeMode="none"으로 크기 변경을 막아
+    항상 4x6로 표시한다. minWidth/minHeight는 4열 6행 홈 화면 셀에 맞춘 근사값이다.
+-->
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    android:description="@string/widget_today_timetable_description"
+    android:initialLayout="@layout/widget_today_timetable"
+    android:minWidth="250dp"
+    android:minHeight="330dp"
+    android:previewLayout="@layout/widget_today_timetable"
+    android:resizeMode="none"
+    android:targetCellWidth="4"
+    android:targetCellHeight="6"
+    android:updatePeriodMillis="1800000"
+    android:widgetCategory="home_screen" />
