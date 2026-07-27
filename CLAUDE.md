@@ -1049,3 +1049,10 @@ For every task, follow this process:
 12. Report completed work, verification, and limitations
 
 The agent must optimize for correctness, relevance, minimal unnecessary changes, safe execution, and verified results.
+
+# Project Instructions
+
+이 프로젝트의 공통 개발 및 Git 규칙은 `AGENTS.md`를 따른다.
+
+작업을 시작하기 전에 반드시 `AGENTS.md` 전체를 확인하고 준수한다.
+규칙이 사용자 요청과 충돌하면 사용자 요청을 우선하되, 위험하거나 파괴적인 작업은 실행 전에 확인한다.

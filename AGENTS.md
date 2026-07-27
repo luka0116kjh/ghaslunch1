@@ -1049,3 +1049,57 @@ For every task, follow this process:
 12. Report completed work, verification, and limitations
 
 The agent must optimize for correctness, relevance, minimal unnecessary changes, safe execution, and verified results.
+
+
+# Git Workflow Rules
+
+이 프로젝트는 다음 Git Flow 규칙을 사용한다.
+
+## 브랜치 역할
+
+- `main`: 실제 운영·배포용 브랜치
+- `develop`: 개발 결과 통합 및 테스트용 브랜치
+- `design/*`: UI, UX, 스타일, 디자인 수정
+- `feature/*`: 신규 기능 개발
+- `fix/*`: 일반 버그 수정
+- `hotfix/*`: 현재 배포 버전의 긴급 오류 수정
+
+## 작업 흐름
+
+1. 일반 작업은 `develop`에서 작업 브랜치를 생성한다.
+2. 작업 종류에 맞는 브랜치 접두사를 사용한다.
+3. `design/*`, `feature/*`, `fix/*`는 `develop`으로 병합한다.
+4. 통합 테스트가 완료된 `develop`만 `main`으로 병합한다.
+5. `hotfix/*`는 `main`에서 생성한다.
+6. hotfix 완료 후 `main`과 `develop` 양쪽에 반영한다.
+
+## 필수 규칙
+
+- `main`과 `develop`에는 직접 커밋하지 않는다.
+- AI는 코드 수정 전에 현재 브랜치와 작업 트리 상태를 확인한다.
+- 사용자의 기존 변경 사항을 임의로 삭제하거나 덮어쓰지 않는다.
+- 하나의 브랜치에는 하나의 작업 목적만 포함한다.
+- 브랜치 생성 전 최신 기준 브랜치를 확인한다.
+- 커밋과 push는 사용자가 명시적으로 요청한 경우에만 수행한다.
+- `main` 병합이나 배포는 사용자 승인 없이 수행하지 않는다.
+- 작업 완료 후 수정 파일, 테스트 결과, 남은 문제를 보고한다.
+
+## 브랜치 이름 예시
+
+- `design/ranking-screen`
+- `feature/challenge-profile`
+- `fix/ranking-api`
+- `hotfix/login-crash`
+
+## AI 작업 절차
+
+AI는 작업을 시작할 때 다음 순서로 진행한다.
+
+1. 현재 브랜치 확인
+2. `git status`로 기존 변경 확인
+3. 작업 유형 분류
+4. 적절한 기준 브랜치와 작업 브랜치 제안
+5. 코드 수정
+6. 테스트 및 검증
+7. 변경 파일과 결과 보고
+8. 요청받은 경우에만 커밋, push 또는 PR 진행
