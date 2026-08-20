@@ -1147,23 +1147,37 @@ function renderMealMenuWithAllergens(rawMenu, calorieText = '') {
     const items = String(rawMenu || '')
         .replace(/<br\s*\/?>/gi, '\n')
         .split(/\n+/)
+        .flatMap(line => line.split('/'))
         .map(item => item.trim())
         .filter(Boolean)
         .map(item => {
             const allergens = extractAllergenNumbers(item);
             const name = item.replace(/\([^)]*\)/g, '').trim();
             const badges = allergens.length
-                ? ` <span class="meal-allergen-numbers" aria-label="알레르기 번호 ${allergens.join(', ')}">${allergens.join('·')}</span>`
+                ? `<span class="meal-allergen-numbers" aria-label="알레르기 번호 ${allergens.join(', ')}">${allergens.join('·')}</span>`
                 : '';
-            return `${escapeHTML(name)}${badges}`;
+            return { name: escapeHTML(name), badges };
         });
 
     if (!items.length) return escapeHTML('정보가 없습니다.');
 
     const lines = [];
     for (let index = 0; index < items.length; index += 2) {
-        lines.push(items.slice(index, index + 2).join(' / '));
+        const leftItem = items[index];
+        const rightItem = items[index + 1];
+        const leftLine = leftItem.badges
+            ? `${leftItem.name} ${leftItem.badges}`
+            : leftItem.name;
+        const rightLine = rightItem
+            ? (rightItem.badges
+                ? `${rightItem.name} ${rightItem.badges}`
+                : rightItem.name)
+            : '';
+
+        lines.push(leftLine);
+        if (rightLine) lines.push(rightLine);
     }
+
     const calorie = String(calorieText || '').trim();
     if (calorie) lines[lines.length - 1] += ` · ${escapeHTML(calorie)}`;
     return lines.join('<br>');
