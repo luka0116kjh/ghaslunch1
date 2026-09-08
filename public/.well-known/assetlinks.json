@@ -1,0 +1,8 @@
+[{
+      "relation": ["delegate_permission/common.handle_all_urls"],
+      "target": {
+        "namespace": "android_app",
+        "package_name": "app.web.ghaslunch1.twa",
+        "sha256_cert_fingerprints": ["81:D7:DE:55:BD:D2:80:CC:AE:42:09:C8:51:22:ED:6C:A3:F3:B2:D6:F0:05:BC:E5:A7:82:1F:78:A2:94:8C:AA"]
+      }
+    }]

@@ -1,11 +1,46 @@
 # API keys/secrets
 .env
+.env.*
+.secret.local
 config.js
 iosver/GHASLunchConfig.swift
+*service-account*.json
+*firebase-admin*.json
+*credentials*.json
+*secret*.json
 
 # Firebase
 .firebase/
 firebase-debug.log*
+**/google-services.json
+**/GoogleService-Info.plist
+
+# Android local build/signing secrets
+android/.gradle/
+.kotlin/
+android/.kotlin/
+.gradle/
+android/.idea/
+android/build/
+android/app/build/
+android/local.properties
+android/**/google-services.json
+android/**/*.keystore
+android/**/*.jks
+*.jks
+*.keystore
+*.p12
+*.p8
+*.pem
+*.key
+upload-key.zip
+android/**/*keystore*.properties
+android/**/*signing*.properties
+*password*
+*private*
+*secret*
+*.apk
+*.aab
 
 # OS files
 .DS_Store

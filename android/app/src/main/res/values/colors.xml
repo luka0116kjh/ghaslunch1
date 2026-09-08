@@ -1,3 +1,8 @@
 <resources>
-    <color name="notification_color">#F7B731</color>
+    <color name="icon_background">#000000</color>
+    <color name="notification_color">#2F8CFF</color>
+    <!-- Neutral branded splash background. Brand blue is intentionally NOT the light
+         (#F6F6F6) or dark (#121212) app background, so the pre-onCreate splash never
+         looks like a wrong app theme regardless of saved theme or system appearance. -->
+    <color name="splash_background">#000000</color>
 </resources>

@@ -20,26 +20,44 @@
     }
   ],
   "hosting": {
-    "public": ".",
+    "public": "public",
+    "predeploy": [
+      "npm run build"
+    ],
     "ignore": [
       "firebase.json",
       "database.rules.json",
       ".firebaserc",
+      ".DS_Store",
+      "**/.DS_Store",
       ".firebase/**",
       ".git/**",
       ".idea/**",
+      ".vs/**",
+      "__pycache__/**",
+      "**/__pycache__/**",
+      "**/*.pyc",
       "**/.*",
       "!**/.well-known",
       "!**/.well-known/**",
       "**/node_modules/**",
+      "node_modules/**",
       "config.js",
       "iosver/**",
+      "ios/**",
       "android/**",
+      "ghaslunch/**",
       "cloudflare-worker/**",
       "dataconnect/**",
       "functions/**",
+      "**/*.keystore",
+      "**/*.jks",
+      "**/*keystore*.properties",
+      "**/*signing*.properties",
+      "**/local.properties",
       "firebase-debug.log",
       "package.json",
+      "package-lock.json",
       "*.md"
     ],
     "rewrites": [
@@ -84,6 +102,15 @@
         ]
       },
       {
+        "source": "/",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "no-cache, no-store, must-revalidate"
+          }
+        ]
+      },
+      {
         "source": "/script.js",
         "headers": [
           {
@@ -94,6 +121,24 @@
       },
       {
         "source": "/schedule.js",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "no-cache, no-store, must-revalidate"
+          }
+        ]
+      },
+      {
+        "source": "/afterschoolScheduleData.js",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "no-cache, no-store, must-revalidate"
+          }
+        ]
+      },
+      {
+        "source": "/src/data/classTimetable2026.js",
         "headers": [
           {
             "key": "Cache-Control",
@@ -139,6 +184,24 @@
       },
       {
         "source": "/manifest.json",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "no-cache, no-store, must-revalidate"
+          }
+        ]
+      },
+      {
+        "source": "/app-update-android.json",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "no-cache, no-store, must-revalidate"
+          }
+        ]
+      },
+      {
+        "source": "/app-update-ios.json",
         "headers": [
           {
             "key": "Cache-Control",

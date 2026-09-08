@@ -6,7 +6,7 @@
     "stats": {
       "visitCount": {
         ".read": true,
-        ".write": "newData.isNumber() && newData.val() >= 0 && ((!data.exists() && newData.val() === 1) || (data.exists() && data.isNumber() && newData.val() === data.val() + 1))"
+        ".write": "data.exists() && data.isNumber() && newData.isNumber() && newData.val() === data.val() + 1"
       },
       "$other": {
         ".read": false,

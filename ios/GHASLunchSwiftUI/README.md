@@ -1,13 +1,12 @@
 # GHAS Lunch iOS WebView
 
-이 폴더는 GHAS 오늘의 급식 웹 배포본을 iOS `WKWebView`로 표시하는 소스입니다.
+이 폴더는 GHAS알리미 웹 배포본을 iOS `WKWebView`로 표시하는 소스입니다.
 
 ## 포함된 내용
 
 - `ContentView.swift`: `https://ghaslunch1.web.app/`를 로드하는 `WKWebView` 화면
 - Android 웹뷰와 같은 이름의 JS 브리지:
   - `window.GHASAndroidApp`
-  - `window.GHASAndroidNotifications`
 - 네이티브 처리:
   - 알림 권한 요청
   - 알림 해제 시 iOS 알림 요청/표시 정리

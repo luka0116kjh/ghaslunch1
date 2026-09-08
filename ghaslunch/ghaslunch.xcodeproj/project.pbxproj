@@ -6,7 +6,21 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		FBAA00000000000000000010 /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = FBAA00000000000000000011 /* GoogleService-Info.plist */; };
+		FBAA00000000000000000012 /* AppIcon Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = FBAA00000000000000000013 /* AppIcon Assets.xcassets */; };
+		FBBB00000000000000000A01 /* GHASLunchWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = FBBB00000000000000000A02 /* GHASLunchWidget.swift */; };
+		FBBB00000000000000000B01 /* GHASLunchWidget.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = FBBB00000000000000000A04 /* GHASLunchWidget.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
+		FBBB00000000000000000B03 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = A16CB9D12FB61C8100CA31F5 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = FBBB00000000000000000A06;
+			remoteInfo = GHASLunchWidget;
+		};
 		A16CB9E72FB61C8300CA31F5 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = A16CB9D12FB61C8100CA31F5 /* Project object */;
@@ -23,20 +37,35 @@
 		};
 /* End PBXContainerItemProxy section */
 
+/* Begin PBXCopyFilesBuildPhase section */
+		FBBB00000000000000000B00 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				FBBB00000000000000000B01 /* GHASLunchWidget.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
 /* Begin PBXFileReference section */
 		A16CB9D92FB61C8100CA31F5 /* ghaslunch.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ghaslunch.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		A16CB9E62FB61C8300CA31F5 /* ghaslunchTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ghaslunchTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		A16CB9F02FB61C8300CA31F5 /* ghaslunchUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ghaslunchUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		FBAA00000000000000000011 /* GoogleService-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; name = "GoogleService-Info.plist"; path = "../ios/GoogleService-Info.plist"; sourceTree = "<group>"; };
+		FBAA00000000000000000013 /* AppIcon Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = "AppIcon Assets.xcassets"; path = ghaslunch/Assets.xcassets; sourceTree = "<group>"; };
+		FBBB00000000000000000A02 /* GHASLunchWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = GHASLunchWidget.swift; path = ../ios/GHASLunchWidget/GHASLunchWidget.swift; sourceTree = "<group>"; };
+		FBBB00000000000000000A03 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; name = Info.plist; path = ../ios/GHASLunchWidget/Info.plist; sourceTree = "<group>"; };
+		FBBB00000000000000000A04 /* GHASLunchWidget.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = GHASLunchWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
-/* Begin PBXBuildFile section */
-		FBAA00000000000000000001 /* FirebaseCore in Frameworks */ = {isa = PBXBuildFile; productRef = FBAA00000000000000000004 /* FirebaseCore */; };
-/* End PBXBuildFile section */
-
 /* Begin PBXFileSystemSynchronizedRootGroup section */
-		A16CB9DB2FB61C8100CA31F5 /* ghaslunch */ = {
+		A16CB9DB2FB61C8100CA31F5 /* ../ios/GHASLunchSwiftUI */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			path = ghaslunch;
+			path = ../ios/GHASLunchSwiftUI;
 			sourceTree = "<group>";
 		};
 		A16CB9E92FB61C8300CA31F5 /* ghaslunchTests */ = {
@@ -56,7 +85,6 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				FBAA00000000000000000001 /* FirebaseCore in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -74,13 +102,23 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		FBBB00000000000000000A08 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
 		A16CB9D02FB61C8100CA31F5 = {
 			isa = PBXGroup;
 			children = (
-				A16CB9DB2FB61C8100CA31F5 /* ghaslunch */,
+				A16CB9DB2FB61C8100CA31F5 /* ../ios/GHASLunchSwiftUI */,
+				FBBB00000000000000000A05 /* GHASLunchWidget */,
+				FBAA00000000000000000011 /* GoogleService-Info.plist */,
+				FBAA00000000000000000013 /* AppIcon Assets.xcassets */,
 				A16CB9E92FB61C8300CA31F5 /* ghaslunchTests */,
 				A16CB9F32FB61C8300CA31F5 /* ghaslunchUITests */,
 				A16CB9DA2FB61C8100CA31F5 /* Products */,
@@ -93,8 +131,18 @@
 				A16CB9D92FB61C8100CA31F5 /* ghaslunch.app */,
 				A16CB9E62FB61C8300CA31F5 /* ghaslunchTests.xctest */,
 				A16CB9F02FB61C8300CA31F5 /* ghaslunchUITests.xctest */,
+				FBBB00000000000000000A04 /* GHASLunchWidget.appex */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		FBBB00000000000000000A05 /* GHASLunchWidget */ = {
+			isa = PBXGroup;
+			children = (
+				FBBB00000000000000000A02 /* GHASLunchWidget.swift */,
+				FBBB00000000000000000A03 /* Info.plist */,
+			);
+			name = GHASLunchWidget;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -107,17 +155,18 @@
 				A16CB9D52FB61C8100CA31F5 /* Sources */,
 				A16CB9D62FB61C8100CA31F5 /* Frameworks */,
 				A16CB9D72FB61C8100CA31F5 /* Resources */,
+				FBBB00000000000000000B00 /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				FBBB00000000000000000B02 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
-				A16CB9DB2FB61C8100CA31F5 /* ghaslunch */,
+				A16CB9DB2FB61C8100CA31F5 /* ../ios/GHASLunchSwiftUI */,
 			);
 			name = ghaslunch;
 			packageProductDependencies = (
-				FBAA00000000000000000004 /* FirebaseCore */,
 			);
 			productName = ghaslunch;
 			productReference = A16CB9D92FB61C8100CA31F5 /* ghaslunch.app */;
@@ -169,6 +218,25 @@
 			productReference = A16CB9F02FB61C8300CA31F5 /* ghaslunchUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
 		};
+		FBBB00000000000000000A06 /* GHASLunchWidget */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = FBBB00000000000000000B06 /* Build configuration list for PBXNativeTarget "GHASLunchWidget" */;
+			buildPhases = (
+				FBBB00000000000000000A07 /* Sources */,
+				FBBB00000000000000000A08 /* Frameworks */,
+				FBBB00000000000000000A09 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = GHASLunchWidget;
+			packageProductDependencies = (
+			);
+			productName = GHASLunchWidget;
+			productReference = FBBB00000000000000000A04 /* GHASLunchWidget.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -190,6 +258,9 @@
 						CreatedOnToolsVersion = 26.5;
 						TestTargetID = A16CB9D82FB61C8100CA31F5;
 					};
+					FBBB00000000000000000A06 = {
+						CreatedOnToolsVersion = 26.5;
+					};
 				};
 			};
 			buildConfigurationList = A16CB9D42FB61C8100CA31F5 /* Build configuration list for PBXProject "ghaslunch" */;
@@ -202,7 +273,6 @@
 			mainGroup = A16CB9D02FB61C8100CA31F5;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
-				FBAA00000000000000000003 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = A16CB9DA2FB61C8100CA31F5 /* Products */;
@@ -210,6 +280,7 @@
 			projectRoot = "";
 			targets = (
 				A16CB9D82FB61C8100CA31F5 /* ghaslunch */,
+				FBBB00000000000000000A06 /* GHASLunchWidget */,
 				A16CB9E52FB61C8300CA31F5 /* ghaslunchTests */,
 				A16CB9EF2FB61C8300CA31F5 /* ghaslunchUITests */,
 			);
@@ -221,6 +292,8 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				FBAA00000000000000000010 /* GoogleService-Info.plist in Resources */,
+				FBAA00000000000000000012 /* AppIcon Assets.xcassets in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -232,6 +305,13 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		A16CB9EE2FB61C8300CA31F5 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		FBBB00000000000000000A09 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -262,9 +342,22 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		FBBB00000000000000000A07 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				FBBB00000000000000000A01 /* GHASLunchWidget.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
+		FBBB00000000000000000B02 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = FBBB00000000000000000A06 /* GHASLunchWidget */;
+			targetProxy = FBBB00000000000000000B03 /* PBXContainerItemProxy */;
+		};
 		A16CB9E82FB61C8300CA31F5 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = A16CB9D82FB61C8100CA31F5 /* ghaslunch */;
@@ -276,25 +369,6 @@
 			targetProxy = A16CB9F12FB61C8300CA31F5 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
-
-/* Begin XCSwiftPackageProductDependency section */
-		FBAA00000000000000000004 /* FirebaseCore */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = FBAA00000000000000000003 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
-			productName = FirebaseCore;
-		};
-/* End XCSwiftPackageProductDependency section */
-
-/* Begin XCRemoteSwiftPackageReference section */
-		FBAA00000000000000000003 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/firebase/firebase-ios-sdk.git";
-			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 12.13.0;
-			};
-		};
-/* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCBuildConfiguration section */
 		A16CB9F82FB61C8300CA31F5 /* Debug */ = {
@@ -349,7 +423,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 26.5;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
@@ -406,7 +480,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 26.5;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
@@ -421,25 +495,34 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = NO;
+				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 16;
+				DEVELOPMENT_TEAM = F6L3MH7RA3;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_NSCameraUsageDescription = "학생 고유코드 QR/바코드 사진을 촬영해 바코드를 만들기 위해 카메라 접근이 필요합니다.";
-				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "학생 고유코드 QR/바코드 사진을 선택해 바코드를 만들기 위해 사진 보관함 접근이 필요합니다.";
+				INFOPLIST_KEY_CFBundleDisplayName = "GHAS알리미";
+				INFOPLIST_KEY_NSCameraUsageDescription = "학생 고유코드 QR/바코드 사진을 촬영하기 위해 카메라 접근이 필요합니다.";
+				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "학생 고유코드 QR/바코드 사진을 선택하기 위해 사진 보관함 접근이 필요합니다.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
-				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UILaunchStoryboardName = LaunchScreen;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 1.3;
 				PRODUCT_BUNDLE_IDENTIFIER = kr.hs.ghas.lunch;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -454,25 +537,34 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = NO;
+				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 16;
+				DEVELOPMENT_TEAM = F6L3MH7RA3;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_NSCameraUsageDescription = "학생 고유코드 QR/바코드 사진을 촬영해 바코드를 만들기 위해 카메라 접근이 필요합니다.";
-				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "학생 고유코드 QR/바코드 사진을 선택해 바코드를 만들기 위해 사진 보관함 접근이 필요합니다.";
+				INFOPLIST_KEY_CFBundleDisplayName = "GHAS알리미";
+				INFOPLIST_KEY_NSCameraUsageDescription = "학생 고유코드 QR/바코드 사진을 촬영하기 위해 카메라 접근이 필요합니다.";
+				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "학생 고유코드 QR/바코드 사진을 선택하기 위해 사진 보관함 접근이 필요합니다.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
-				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UILaunchStoryboardName = LaunchScreen;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 1.3;
 				PRODUCT_BUNDLE_IDENTIFIER = kr.hs.ghas.lunch;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -489,7 +581,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				GENERATE_INFOPLIST_FILE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 26.5;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.luka.ghaslunchTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -510,7 +602,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				GENERATE_INFOPLIST_FILE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 26.5;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.luka.ghaslunchTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -562,6 +654,72 @@
 			};
 			name = Release;
 		};
+		FBBB00000000000000000B04 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 16;
+				DEVELOPMENT_TEAM = F6L3MH7RA3;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "../ios/GHASLunchWidget/Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = "오늘 급식";
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.3;
+				PRODUCT_BUNDLE_IDENTIFIER = kr.hs.ghas.lunch.widget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		FBBB00000000000000000B05 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 16;
+				DEVELOPMENT_TEAM = F6L3MH7RA3;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "../ios/GHASLunchWidget/Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = "오늘 급식";
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.3;
+				PRODUCT_BUNDLE_IDENTIFIER = kr.hs.ghas.lunch.widget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -597,6 +755,15 @@
 			buildConfigurations = (
 				A16CBA012FB61C8300CA31F5 /* Debug */,
 				A16CBA022FB61C8300CA31F5 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		FBBB00000000000000000B06 /* Build configuration list for PBXNativeTarget "GHASLunchWidget" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				FBBB00000000000000000B04 /* Debug */,
+				FBBB00000000000000000B05 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

@@ -1,32 +1,98 @@
 plugins {
     id "com.android.application"
+    id "org.jetbrains.kotlin.android"
+    id "com.google.gms.google-services"
 }
 
-if (file("google-services.json").exists()) {
-    apply plugin: "com.google.gms.google-services"
+def localProperties = new Properties()
+def localPropertiesFile = rootProject.file("local.properties")
+if (localPropertiesFile.exists()) {
+    localPropertiesFile.withInputStream { localProperties.load(it) }
+}
+
+def signingProperty = { name ->
+    if (project.hasProperty(name)) {
+        return project.property(name)
+    }
+    def localValue = localProperties.getProperty(name)
+    if (localValue) {
+        return localValue
+    }
+    return System.getenv(name)
+}
+
+def releaseStoreFile = signingProperty("GHAS_RELEASE_STORE_FILE")
+def releaseStorePassword = signingProperty("GHAS_RELEASE_STORE_PASSWORD")
+def releaseKeyAlias = signingProperty("GHAS_RELEASE_KEY_ALIAS")
+def releaseKeyPassword = signingProperty("GHAS_RELEASE_KEY_PASSWORD")
+
+def requireReleaseSigning = {
+    if (!releaseStoreFile || !releaseStorePassword || !releaseKeyAlias || !releaseKeyPassword) {
+        throw new GradleException("Release signing is not configured. Set GHAS_RELEASE_STORE_FILE, GHAS_RELEASE_STORE_PASSWORD, GHAS_RELEASE_KEY_ALIAS, and GHAS_RELEASE_KEY_PASSWORD in android/local.properties, Gradle properties, or environment variables.")
+    }
+
+    def resolvedStoreFile = rootProject.file(releaseStoreFile)
+    if (!resolvedStoreFile.isFile()) {
+        throw new GradleException("Release signing store file does not exist: ${resolvedStoreFile}")
+    }
 }
 
 android {
-    namespace "com.ghas.lunch"
+    namespace "kr.hs.ghas.ghason"
     compileSdk 36
 
+    buildFeatures {
+        buildConfig true
+    }
+
     defaultConfig {
-        applicationId "com.ghas.lunch"
+        applicationId "kr.hs.ghas.ghason"
         minSdk 23
         targetSdk 36
-        versionCode 1
-        versionName "1.0.0"
+        versionCode 23
+        versionName "3.5.5"
+    }
+
+    signingConfigs {
+        release {
+            if (releaseStoreFile && releaseStorePassword && releaseKeyAlias && releaseKeyPassword) {
+                storeFile rootProject.file(releaseStoreFile)
+                storePassword releaseStorePassword
+                keyAlias releaseKeyAlias
+                keyPassword releaseKeyPassword
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            signingConfig signingConfigs.release
+        }
     }
 
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_17
         targetCompatibility JavaVersion.VERSION_17
     }
+
+    kotlinOptions {
+        jvmTarget = "17"
+    }
 }
 
 dependencies {
+    implementation "androidx.activity:activity:1.12.1"
+    constraints {
+        implementation("androidx.fragment:fragment:1.8.9") {
+            because "Avoid outdated transitive Fragment 1.1.0 from Google Play services dependencies."
+        }
+    }
     implementation platform("com.google.firebase:firebase-bom:34.7.0")
     implementation "com.google.firebase:firebase-messaging"
-    implementation "androidx.appcompat:appcompat:1.7.1"
-    implementation "androidx.activity:activity:1.12.1"
+}
+
+tasks.matching { it.name in ["preReleaseBuild", "assembleRelease", "bundleRelease", "packageReleaseBundle", "validateSigningRelease"] }.configureEach {
+    doFirst {
+        requireReleaseSigning()
+    }
 }

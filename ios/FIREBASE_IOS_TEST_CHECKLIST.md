@@ -1,16 +1,18 @@
-# Firebase iOS Push Checklist
+# Firebase iOS Notification Checklist
 
 ## Current Status
 
-- iOS push notifications are temporarily disabled.
-- The app must not request iOS notification permission in the current build.
+- iOS remote push notifications remain disabled.
+- The native notification settings sheet may request permission for on-device repeating local notifications.
 - The app must not write FCM/APNs token identifiers to Realtime Database.
 - Realtime Database `tokens` and `notificationTokens` writes are blocked by rules.
-- Push delivery will be revisited later through a native FCM/APNs implementation.
+- Remote push delivery will be revisited later through a native FCM/APNs implementation.
 
 ## Current Verification
 
-- Launch the iOS app and confirm no notification permission prompt appears.
+- Launch the iOS app and confirm permission is requested only after enabling notifications in the native settings sheet.
+- Confirm meal, timetable, and school notice local notification schedules can be enabled, disabled, and rescheduled.
+- Confirm disabling all notifications removes pending local notification requests.
 - Confirm the web notification button is hidden on the hosted WebView page.
 - Confirm visitor count still reads and increments at `stats/visitCount`.
 - Confirm meal, timetable, QR, theme, and privacy screens still work.

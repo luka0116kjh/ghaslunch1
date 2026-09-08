@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>GHAS Lunch Widget Preview</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      min-height: 100vh;
+      margin: 0;
+      display: grid;
+      place-items: center;
+      background:
+        linear-gradient(135deg, rgba(47, 140, 255, 0.16), transparent 32%),
+        linear-gradient(215deg, rgba(255, 195, 83, 0.24), transparent 38%),
+        #eef1f5;
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+      color: #1c1c1e;
+    }
+
+    .phone {
+      width: 390px;
+      height: 844px;
+      padding: 82px 24px 24px;
+      border-radius: 48px;
+      background:
+        linear-gradient(180deg, rgba(255,255,255,0.42), rgba(255,255,255,0.12)),
+        #dfe6ee;
+      box-shadow: 0 24px 80px rgba(31, 38, 51, 0.28);
+      position: relative;
+    }
+
+    .status {
+      position: absolute;
+      top: 22px;
+      left: 34px;
+      right: 34px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 15px;
+      font-weight: 700;
+      color: rgba(18, 18, 18, 0.78);
+    }
+
+    .home-grid {
+      display: grid;
+      gap: 18px;
+    }
+
+    .widget {
+      width: 342px;
+      min-height: 170px;
+      padding: 16px 16px 14px 18px;
+      border: 1px solid #e5e7eb;
+      border-radius: 22px;
+      background: rgba(249, 250, 251, 0.94);
+      box-shadow: 0 16px 36px rgba(28, 35, 45, 0.13);
+      backdrop-filter: blur(18px);
+      display: flex;
+      flex-direction: column;
+    }
+
+    .top {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .title {
+      flex: 1;
+      font-size: 15px;
+      line-height: 1;
+      font-weight: 800;
+      letter-spacing: 0;
+    }
+
+    .refresh {
+      width: 32px;
+      height: 32px;
+      border-radius: 16px;
+      display: grid;
+      place-items: center;
+      background: #eaf3ff;
+      color: #2f8cff;
+      font-size: 17px;
+      font-weight: 800;
+    }
+
+    .menu {
+      margin: 12px 0 0;
+      font-size: 20px;
+      line-height: 1.52;
+      font-weight: 800;
+      letter-spacing: 0;
+      white-space: pre-line;
+      color: #262626;
+    }
+
+    .date {
+      margin-top: auto;
+      padding-top: 10px;
+      font-size: 11px;
+      line-height: 1;
+      font-weight: 600;
+      color: #747a82;
+    }
+
+    .icons {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 18px 20px;
+      padding: 4px 8px;
+    }
+
+    .icon {
+      aspect-ratio: 1;
+      border-radius: 18px;
+      background: rgba(255,255,255,0.7);
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,0.8);
+    }
+  </style>
+</head>
+<body>
+  <main class="phone" aria-label="위젯 미리보기">
+    <div class="status">
+      <span>9:41</span>
+      <span>5G  100%</span>
+    </div>
+
+    <section class="home-grid">
+      <article class="widget">
+        <div class="top">
+          <div class="title">오늘 급식</div>
+          <div class="refresh">↻</div>
+        </div>
+        <p class="menu">쌀밥 · 미역국 ·
+제육볶음 · 배추김치 ·
+요구르트</p>
+        <div class="date">6월 18일 목요일</div>
+      </article>
+
+      <div class="icons" aria-hidden="true">
+        <div class="icon"></div>
+        <div class="icon"></div>
+        <div class="icon"></div>
+        <div class="icon"></div>
+        <div class="icon"></div>
+        <div class="icon"></div>
+        <div class="icon"></div>
+        <div class="icon"></div>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

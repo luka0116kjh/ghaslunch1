@@ -1,0 +1,7 @@
+.env
+.env.*
+.secret.local
+*service-account*.json
+*firebase-admin*.json
+*credentials*.json
+*secret*.json
