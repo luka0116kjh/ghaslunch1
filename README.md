@@ -1,6 +1,6 @@
 # GHAS알리미
 
-경기자동차과학고등학교 급식 및 시간표 확인 앱입니다. 웹/PWA를 기본으로 운영하고, Android와 iOS 앱은 같은 운영 URL을 WebView/WKWebView로 표시합니다.
+경기자동차과학고등학교 급식 및 시간표 확인 앱입니다. 웹을 기본으로 운영하고, Android와 iOS 앱은 같은 운영 URL을 WebView/WKWebView로 표시합니다.
 
 > 이 프로젝트는 학교 또는 교육청의 공식 앱이 아닌 비공식 정보 제공 앱입니다.
 
@@ -53,7 +53,9 @@
 └── docs/                         # 아키텍처 및 배포 문서
 ```
 
-## Web / PWA
+## Web
+
+웹에서는 PWA 설치용 manifest 연결과 자동 설치 안내를 사용하지 않습니다. 설치는 Android/iOS 앱을 이용합니다. 브라우저 자체의 홈 화면 추가 메뉴는 사이트에서 제거할 수 없습니다. 기존 설치 사용자와 웹 캐시를 위해 서비스 워커와 manifest 파일은 보존합니다.
 
 웹 앱은 별도 번들러 없이 정적 파일로 구성됩니다. `scripts/build-hosting.js`가 루트의 웹 파일과 `src/data/`, `.well-known/assetlinks.json`을 `public/`으로 복사합니다.
 

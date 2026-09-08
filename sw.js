@@ -3,7 +3,7 @@
 // Keep this service worker focused on app shell caching only.
 
 const CACHE_PREFIX = 'ghas-lunch-';
-const CACHE_NAME = 'ghas-lunch-v45';
+const CACHE_NAME = 'ghas-lunch-v46';
 const ASSETS = [
     './',
     './index.html',

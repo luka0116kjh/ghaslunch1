@@ -15,7 +15,6 @@
     <meta name="twitter:description" content="경기자동차과학고등학교 급식 및 시간표 확인 앱!">
     <meta name="apple-mobile-web-app-title" content="GHAS알리미">
     <meta name="application-name" content="GHAS알리미">
-    <link rel="manifest" href="manifest.json?v=9">
     <link rel="icon" type="image/png" sizes="32x32" href="favicon.png">
     <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
     <meta name="theme-color" content="#F6F6F6" media="(prefers-color-scheme: light)">
@@ -107,9 +106,6 @@
             <button id="btn-week" type="button">이번 주</button>
             <button id="btn-timetable" type="button">시간표</button>
             <button id="btn-schedule" type="button">일정표</button>
-            <!-- WebView 알림은 Android WebView 제한으로 임시 비활성화했습니다.
-                 추후 FirebaseMessagingService 기반 Android 네이티브 FCM으로 전환 예정입니다. -->
-            <button id="btn-noti" type="button" aria-label="알림 임시 비활성화" title="알림 임시 비활성화" hidden disabled>🔔</button>
             <button id="btn-theme" type="button">🌓</button>
         </nav>
 
@@ -293,7 +289,7 @@
 
     <script src="schedule.js?v=4"></script>
     <script src="afterschoolScheduleData.js?v=20260705-master10"></script>
-    <script src="script.js?v=78"></script>
+    <script src="script.js?v=79"></script>
     <script src="afterschool.js?v=20260705-cleanup"></script>
     <!-- notification.js is intentionally unused while Web FCM/Web Push is disabled.
          Keep the file for future Android native FCM migration reference. -->

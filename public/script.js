@@ -1,3 +1,9 @@
+// Native Android/iOS apps are the supported installation path.
+// Suppress automatic PWA prompts, including browsers with cached manifest metadata.
+window.addEventListener('beforeinstallprompt', (event) => {
+    event.preventDefault();
+});
+
 function formatDate(date) {
     const y = date.getFullYear();
     const m = String(date.getMonth() + 1).padStart(2, '0');
