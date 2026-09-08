@@ -1121,13 +1121,12 @@ function escapeHTML(str) {
 }
 
 function normalizeMenuText(rawMenu) {
-    // 1. 브라켓() 내용 제거 및 <br> 태그를 공백으로 치환
-    let clean = (rawMenu || '')
+    // 음식 이름 안의 공백은 보존하고 원본 줄바꿈으로 메뉴를 구분합니다.
+    const clean = (rawMenu || '')
         .replace(/\([^)]*\)/g, '')
-        .replace(/<br\s*\/?>/gi, ' ');
+        .replace(/<br\s*\/?>/gi, '\n');
 
-    // 2. 모든 종류의 공백(스페이스, 엔터, 탭 등)을 기준으로 나누고, 빈칸을 제거한 뒤 딱 한 번의 줄바꿈(\n)으로 연결
-    return clean.split(/\s+/).filter(Boolean).join('\n');
+    return clean.split(/\r?\n/).map(item => item.trim()).filter(Boolean).join('\n');
 }
 
 const ALLERGEN_NAMES = {
@@ -1166,10 +1165,7 @@ function renderMealMenuWithAllergens(rawMenu, calorieText = '') {
 
     if (!items.length) return escapeHTML('정보가 없습니다.');
 
-    const lines = [];
-    for (let index = 0; index < items.length; index += 2) {
-        lines.push(items.slice(index, index + 2).join(' / '));
-    }
+    const lines = [...items];
     const calorie = String(calorieText || '').trim();
     if (calorie) lines[lines.length - 1] += ` · ${escapeHTML(calorie)}`;
     return lines.join('<br>');
@@ -1200,10 +1196,7 @@ function renderMealMenuHtml(menuText, calorieText = '') {
         return escapeHTML('정보가 없습니다.');
     }
 
-    const lines = [];
-    for (let index = 0; index < items.length; index += 2) {
-        lines.push(items.slice(index, index + 2).map(escapeHTML).join(' / '));
-    }
+    const lines = items.map(escapeHTML);
 
     const calorie = String(calorieText || '').trim();
     if (calorie) {

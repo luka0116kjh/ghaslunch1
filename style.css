@@ -577,6 +577,12 @@ body {
     background-color: var(--primary-color);
 }
 
+.meal-vote-button[data-vote="dislike"].active {
+    border-color: #e00000;
+    color: #ffffff;
+    background-color: #e00000;
+}
+
 .calorie {
     margin-top: 20px;
     font-size: 13px;
